@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
-from .solver_cpsat import solve_cp_sat
+from solver_cpsat import solve_cp_sat
 
 
 class Teacher(BaseModel):
