@@ -1,0 +1,9 @@
+/* Project base styles (kept intentionally minimal).
+   Tailwind is loaded via CDN in index.html for utilities. */
+
+html, body, #root {
+  height: 100%;
+}
+
+/* Print helpers can live here later if needed. */
+

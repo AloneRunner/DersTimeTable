@@ -1,0 +1,26 @@
+{
+  "name": "copy-of-program-8",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cp-solver:install": "python -m pip install -r server/requirements.txt",
+    "cp-solver:start": "python -m uvicorn server.main:app --host 0.0.0.0 --port 8000",
+    "cp-solver:start:py": "py -m uvicorn server.main:app --host 0.0.0.0 --port 8000"
+  },
+  "dependencies": {
+    "qr-scanner": "^1.4.2",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

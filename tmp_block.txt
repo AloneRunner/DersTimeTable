@@ -1,0 +1,14 @@
+              if (this.options.strategy === 'tabu') {
+                this.tabuOptimize();
+                this.compactSchedule();
+                this.stats.notes.push('Tabu Search: relocate+swap ile boşluk/ardışık iyileştirildi.');
+              } else {
+                this.stats.notes.push('Strateji: Min-Conflicts (repair) + yerel onarım.');
+              }
+
+              // Optional LNS hops while time remains
+              if (!this.options.disableLNS) {
+                if (!this.isTimedOut()) this.ruinAndRecreate(20);
+                if (!this.isTimedOut()) this.ruinAndRecreate(25);
+              }
+
