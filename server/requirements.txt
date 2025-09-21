@@ -1,0 +1,14 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.0
+# Use a published OR-Tools build compatible with recent Python (3.10–3.12)
+ortools==9.14.6206
+pydantic==2.8.2
+python-multipart==0.0.9
+typing-extensions>=4.9.0
+
+# Database and Auth
+sqlalchemy==2.0.31
+asyncpg==0.29.0
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+alembic==1.13.2
