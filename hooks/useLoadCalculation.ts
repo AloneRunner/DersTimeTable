@@ -58,24 +58,34 @@ export const useLoadCalculation = (data: TimetableData, schoolHours: SchoolHours
       });
     });
 
-    // Handle single subjects
+    // Handle subjects
     data.subjects.forEach(subject => {
-      // If the subject lists explicit teacherIds, prefer distributing load among them
-      const explicit = Array.isArray((subject as any).teacherIds) && (subject as any).teacherIds.length ? (subject as any).teacherIds.slice() : null;
-      const eligibleTeachers = explicit || subjectNameToTeachers.get(subject.name) || [];
-      if (eligibleTeachers.length > 0) {
-        // Total hours this subject requires from teachers
-        const totalDemand = subject.weeklyHours * subject.assignedClassIds.length;
-        // Distribute this load among eligible teachers
-        const perTeacherShare = totalDemand / eligibleTeachers.length;
+      subject.assignedClassIds.forEach(classroomId => {
+        const pinnedTeachersForClass = subject.pinnedTeacherByClassroom?.[classroomId];
+        let teachersForLoadCalculation: string[] = [];
 
-        eligibleTeachers.forEach(teacherId => {
-          const load = teacherLoads.get(teacherId);
-          if(load) {
-             load.demand += perTeacherShare;
-          }
-        });
-      }
+        if (pinnedTeachersForClass && pinnedTeachersForClass.length > 0) {
+          // If teachers are pinned for this specific class, use them
+          teachersForLoadCalculation = pinnedTeachersForClass;
+        } else {
+          // Otherwise, use branch-based eligible teachers
+          teachersForLoadCalculation = subjectNameToTeachers.get(subject.name) || [];
+        }
+
+        if (teachersForLoadCalculation.length > 0) {
+          // The demand for this subject for this specific class
+          const demandPerClass = subject.weeklyHours;
+          // Distribute this load among the determined teachers
+          const perTeacherShare = demandPerClass / teachersForLoadCalculation.length;
+
+          teachersForLoadCalculation.forEach(teacherId => {
+            const load = teacherLoads.get(teacherId);
+            if (load) {
+              load.demand += perTeacherShare;
+            }
+          });
+        }
+      });
     });
 
     // Handle group lessons
