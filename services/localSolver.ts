@@ -256,7 +256,7 @@ function makeWorkerScript() {
         getTeacherCandidates(subject: Subject, classroomId: string){
           const list = [];
           const pinned = subject?.pinnedTeacherByClassroom?.[classroomId];
-          if (pinned && this.teacherById.has(pinned)) list.push(pinned);
+          if (pinned && Array.isArray(pinned)) { list.push(...pinned.filter(p => this.teacherById.has(p))); }
 
           if (Array.isArray((subject as any)?.teacherIds))
             for (const id of (subject as any).teacherIds) if (this.teacherById.has(id)) list.push(id);
@@ -1367,7 +1367,7 @@ function makeWorkerScript() {
           // Prefer pinned teacher for this class/subject when available
           const subj = this.subjectById.get(lesson.subjectId || lesson.groupSubjectId);
           const pinnedId = subj?.pinnedTeacherByClassroom?.[lesson.classroomId];
-          if (pinnedId && pinnedId === teacher.id) score += 15;
+          if (pinnedIds && Array.isArray(pinnedIds) && pinnedIds.includes(teacher.id)) score += 15;
           return score;
         }
 
