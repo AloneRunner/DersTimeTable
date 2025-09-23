@@ -191,19 +191,6 @@ export const SubjectForm: React.FC<{
           />
           <p className="text-xs text-slate-500 mt-1">Atölye dersleri için 2 veya daha fazla olabilir.</p>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700">Gerekli Öğretmen Sayısı</label>
-          <input
-            type="number"
-            name="requiredTeacherCount"
-            value={(subject as any).requiredTeacherCount || 1}
-            onChange={handleChange}
-            min={1}
-            max={5}
-            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
-          />
-          <p className="text-xs text-slate-500 mt-1">Atölye dersleri için 2 veya daha fazla olabilir.</p>
-        </div>
       </div>
 
       <div>
