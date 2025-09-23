@@ -95,6 +95,21 @@ export const useTimetableData = () => {
       throw new Error("GeÃ§ersiz dosya formatÄ±. LÃ¼tfen uygulamadan dÄ±ÅŸa aktarÄ±lan bir JSON dosyasÄ± kullanÄ±n.");
     }
 
+    // --- MIGRATION LOGIC for multi-teacher pinning ---
+    if (imported.data.subjects) {
+      imported.data.subjects.forEach((s: Subject) => {
+        if (s.pinnedTeacherByClassroom) {
+          for (const classId in s.pinnedTeacherByClassroom) {
+            const val = (s.pinnedTeacherByClassroom as any)[classId];
+            if (val && !Array.isArray(val)) {
+              (s.pinnedTeacherByClassroom as any)[classId] = [val];
+            }
+          }
+        }
+      });
+    }
+    // --- END MIGRATION LOGIC ---
+
     // FIX: Add explicit generic types to `dedupeById` calls to ensure correct type inference.
     // The `imported` object from `JSON.parse` is of type `any`, so TypeScript infers the most
     // generic type `({id: string})` for the arrays, causing assignment errors.
