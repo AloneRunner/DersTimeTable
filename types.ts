@@ -1,4 +1,3 @@
-
 export enum SchoolLevel {
   Middle = "Ortaokul",
   High = "Lise",
@@ -42,6 +41,7 @@ export interface Subject {
   tripleBlockHours?: number; // How many of the weekly hours should be in 3-hour blocks. Must be a multiple of 3.
   maxConsec?: number; // Ders bazında ardışık saat limiti
   locationId?: string; // e.g., Lab, Gym
+  requiredTeacherCount?: number; // e.g., 2 for a workshop lesson with two teachers
   weeklyHours: number;
   assignedClassIds: string[];
   pinnedTeacherByClassroom?: { // Pin a specific teacher for this subject in a specific classroom
@@ -86,7 +86,7 @@ export interface TimetableData {
 
 export interface Assignment {
   subjectId: string;
-  teacherId: string;
+  teacherIds: string[]; // Changed from teacherId: string to support multiple teachers
   locationId?: string;
   classroomId: string;
 }
@@ -164,3 +164,8 @@ export type SolveResult = {
   schedule: Schedule | null; 
   stats: SolverStats;
 };
+
+export interface TeacherLoad {
+  demand: number;
+  capacity: number;
+}

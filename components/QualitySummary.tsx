@@ -36,8 +36,11 @@ export const QualitySummary: React.FC<Props> = ({ data, schedule, schoolHours, g
         const arr = per[d] || [];
         for (let h = 0; h < arr.length; h++) {
           const a = arr[h] as any;
-          const tid = a?.teacherId as string | undefined;
-          if (tid && occ[tid]) occ[tid][d][h] = true;
+          if (a?.teacherIds && Array.isArray(a.teacherIds)) {
+            for (const tid of a.teacherIds) {
+              if (occ[tid]) occ[tid][d][h] = true;
+            }
+          }
         }
       }
     }
@@ -122,4 +125,3 @@ export const QualitySummary: React.FC<Props> = ({ data, schedule, schoolHours, g
     </div>
   );
 };
-

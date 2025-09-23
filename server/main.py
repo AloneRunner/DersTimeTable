@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 from solver_cpsat import solve_cp_sat
+from .schools import router as schools_router
+from .subscriptions import router as subs_router
 
 
 class Teacher(BaseModel):
@@ -97,6 +99,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount schools/api router (tenant helpers)
+app.include_router(schools_router)
+app.include_router(subs_router)
 
 
 @app.get("/health")

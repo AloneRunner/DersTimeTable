@@ -1,6 +1,7 @@
 import type { TimetableData, SchoolHours, SolveResult } from '../types';
 
-const BASE_URL = import.meta.env.VITE_CP_SOLVER_URL ?? import.meta.env.VITE_CP_SAT_BASE_URL ?? 'http://localhost:8000';
+const META: any = import.meta as any;
+const BASE_URL = META.env?.VITE_CP_SOLVER_URL ?? META.env?.VITE_CP_SAT_BASE_URL ?? 'http://localhost:8000';
 
 export async function solveTimetableCP(
   data: TimetableData,

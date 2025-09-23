@@ -60,7 +60,9 @@ export const useLoadCalculation = (data: TimetableData, schoolHours: SchoolHours
 
     // Handle single subjects
     data.subjects.forEach(subject => {
-      const eligibleTeachers = subjectNameToTeachers.get(subject.name) || [];
+      // If the subject lists explicit teacherIds, prefer distributing load among them
+      const explicit = Array.isArray((subject as any).teacherIds) && (subject as any).teacherIds.length ? (subject as any).teacherIds.slice() : null;
+      const eligibleTeachers = explicit || subjectNameToTeachers.get(subject.name) || [];
       if (eligibleTeachers.length > 0) {
         // Total hours this subject requires from teachers
         const totalDemand = subject.weeklyHours * subject.assignedClassIds.length;

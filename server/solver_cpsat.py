@@ -1,5 +1,6 @@
 from ortools.sat.python import cp_model
 from typing import Dict, List, Tuple, Any, Optional
+from itertools import combinations
 import time
 
 
@@ -85,6 +86,7 @@ def solve_cp_sat(
     for s in subjects:
         sid = s['id']
         wh = int(s.get('weeklyHours', 0))
+        req_teachers = max(1, int(s.get('requiredTeacherCount', 1)))
         block2 = int(max(0, int(s.get('blockHours', 0)))) // 2
         block3 = int(max(0, int(s.get('tripleBlockHours', 0) or 0))) // 3
         # effective maxConsec: subject override or global default, then clamp to weeklyHours
@@ -104,29 +106,42 @@ def solve_cp_sat(
             if not t_ids:
                 notes.append(f"Atlandı: {s['name']} / {cid} (uygun öğretmen yok)")
                 continue
-            for tid in t_ids:
-                teacher = teacher_by_id[tid]
+            
+            # --- MODIFIED FOR MULTI-TEACHER ---
+            # Generate combinations of teachers if more than one is required
+            teacher_combos = []
+            if req_teachers > 1:
+                if len(t_ids) >= req_teachers:
+                    teacher_combos.extend(list(combinations(t_ids, req_teachers)))
+                else:
+                    notes.append(f"Atlandı: {s['name']} / {cid} (gerekli {req_teachers} öğretmen bulunamadı, sadece {len(t_ids)} uygun)")
+            else: # Single teacher case
+                teacher_combos.extend([(tid,) for tid in t_ids])
+
+            for teacher_tuple in teacher_combos:
+                # For multi-teacher, use a composite ID. For single, it's just the teacher's ID.
+                composite_tid = "-".join(sorted(teacher_tuple))
+
                 for d in range(5):
                     allowed_len = school_hours['Ortaokul'][d] if c['level'] == 'Ortaokul' else school_hours['Lise'][d]
                     for h in range(allowed_len):
                         if not class_day_ok(c, d, h):
                             continue
-                        # single start
-                        if teacher['availability'][d][h]:
-                            y1[(cid, sid, tid, d, h)] = model.NewBoolVar(f"y1_{cid}_{sid}_{tid}_{d}_{h}")
-                        # 2-block start
-                        if h + 1 < allowed_len and teacher['availability'][d][h] and teacher['availability'][d][h+1]:
-                            y2[(cid, sid, tid, d, h)] = model.NewBoolVar(f"y2_{cid}_{sid}_{tid}_{d}_{h}")
-                        # 3-block start
-                        if h + 2 < allowed_len and teacher['availability'][d][h] and teacher['availability'][d][h+1] and teacher['availability'][d][h+2]:
-                            y3[(cid, sid, tid, d, h)] = model.NewBoolVar(f"y3_{cid}_{sid}_{tid}_{d}_{h}")
+                        
+                        # Check joint availability for the entire block for all teachers in the combo
+                        can_place_1 = all(teacher_by_id[t_id]['availability'][d][h] for t_id in teacher_tuple)
+                        can_place_2 = h + 1 < allowed_len and all(teacher_by_id[t_id]['availability'][d][h] and teacher_by_id[t_id]['availability'][d][h+1] for t_id in teacher_tuple)
+                        can_place_3 = h + 2 < allowed_len and all(teacher_by_id[t_id]['availability'][d][h] and teacher_by_id[t_id]['availability'][d][h+1] and teacher_by_id[t_id]['availability'][d][h+2] for t_id in teacher_tuple)
+
+                        if can_place_1: y1[(cid, sid, composite_tid, d, h)] = model.NewBoolVar(f"y1_{cid}_{sid}_{composite_tid}_{d}_{h}")
+                        if can_place_2: y2[(cid, sid, composite_tid, d, h)] = model.NewBoolVar(f"y2_{cid}_{sid}_{composite_tid}_{d}_{h}")
+                        if can_place_3: y3[(cid, sid, composite_tid, d, h)] = model.NewBoolVar(f"y3_{cid}_{sid}_{composite_tid}_{d}_{h}")
 
                 # Create occupancy vars x for all feasible slots and link to y’s later
-                for tid in t_ids:
-                    for d in range(5):
-                        allowed_len = school_hours['Ortaokul'][d] if c['level'] == 'Ortaokul' else school_hours['Lise'][d]
-                        for h in range(allowed_len):
-                            x[(cid, sid, tid, d, h)] = model.NewBoolVar(f"x_{cid}_{sid}_{tid}_{d}_{h}")
+                for d in range(5):
+                    allowed_len = school_hours['Ortaokul'][d] if c['level'] == 'Ortaokul' else school_hours['Lise'][d]
+                    for h in range(allowed_len):
+                        x[(cid, sid, composite_tid, d, h)] = model.NewBoolVar(f"x_{cid}_{sid}_{composite_tid}_{d}_{h}")
 
             # Required count constraints per (class,subject) regardless of teacher
             # Sum over teachers
@@ -182,19 +197,19 @@ def solve_cp_sat(
                             model.Add(s_occ[h-1] + s_occ[h+1] - s_occ[h] <= 1)
 
     # Link occupancy x to block starts y (coverage). For each slot, x == sum of covering starts.
-    for (cid, sid, tid, d, h), var in x.items():
+    for (cid, sid, composite_tid, d, h), var in x.items():
         cover_terms = []
-        v1 = y1.get((cid, sid, tid, d, h))
+        v1 = y1.get((cid, sid, composite_tid, d, h))
         if v1 is not None:
             cover_terms.append(v1)
         v2s = []
-        v2s.append(y2.get((cid, sid, tid, d, h)))      # block starts at h covers h,h+1
-        v2s.append(y2.get((cid, sid, tid, d, h-1)))    # block starts at h-1 covers h-1,h
+        v2s.append(y2.get((cid, sid, composite_tid, d, h)))      # block starts at h covers h,h+1
+        v2s.append(y2.get((cid, sid, composite_tid, d, h-1)))    # block starts at h-1 covers h-1,h
         cover_terms.extend([v for v in v2s if v is not None])
         v3s = []
-        v3s.append(y3.get((cid, sid, tid, d, h)))      # start at h covers h,h+1,h+2
-        v3s.append(y3.get((cid, sid, tid, d, h-1)))    # start at h-1 covers h-1,h,h+1
-        v3s.append(y3.get((cid, sid, tid, d, h-2)))    # start at h-2 covers h-2,h-1,h
+        v3s.append(y3.get((cid, sid, composite_tid, d, h)))      # start at h covers h,h+1,h+2
+        v3s.append(y3.get((cid, sid, composite_tid, d, h-1)))    # start at h-1 covers h-1,h,h+1
+        v3s.append(y3.get((cid, sid, composite_tid, d, h-2)))    # start at h-2 covers h-2,h-1,h
         cover_terms.extend([v for v in v3s if v is not None])
         if cover_terms:
             model.Add(var == sum(cover_terms))
@@ -218,7 +233,13 @@ def solve_cp_sat(
             # use max allowed among levels for iteration; x outside allowed becomes 0 via linking
             allowed_len = max(school_hours['Ortaokul'][d], school_hours['Lise'][d])
             for h in range(allowed_len):
-                vars_t = [v for (cc, ss, tt, dd, hh), v in x.items() if tt == tid and dd == d and hh == h]
+                # A teacher is busy if they are part of any active assignment (single or composite)
+                vars_t = []
+                for (cc, ss, composite_tid, dd, hh), v in x.items():
+                    if dd == d and hh == h:
+                        # Check if the teacher's ID is in the composite ID string
+                        if tid in composite_tid.split('-'):
+                            vars_t.append(v)
                 if len(vars_t) > 1:
                     model.Add(sum(vars_t) <= 1)
 
@@ -235,7 +256,12 @@ def solve_cp_sat(
         for t in teachers:
             tid = t['id']
             for d in range(5):
-                vars_day = [v for (cc, ss, tt, dd, hh), v in x.items() if tt == tid and dd == d]
+                vars_day = []
+                for (cc, ss, composite_tid, dd, hh), v in x.items():
+                    if dd == d:
+                        if tid in composite_tid.split('-'):
+                            vars_day.append(v)
+
                 if vars_day:
                     model.Add(sum(vars_day) <= teacher_daily_max)
 
@@ -269,7 +295,12 @@ def solve_cp_sat(
         for d in range(5):
             allowed_len = max(school_hours['Ortaokul'][d], school_hours['Lise'][d])
             for h in range(allowed_len):
-                vars_t = [v for (cc, ss, tt, dd, hh), v in x.items() if tt == tid and dd == d and hh == h]
+                vars_t = []
+                for (cc, ss, composite_tid, dd, hh), v in x.items():
+                    if dd == d and hh == h:
+                        if tid in composite_tid.split('-'):
+                            vars_t.append(v)
+
                 if vars_t:
                     b = model.NewBoolVar(f"occ_{tid}_{d}_{h}")
                     # OR-linking
@@ -347,12 +378,13 @@ def solve_cp_sat(
 
     placements = 0
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        for (cid, sid, tid, d, h), var in x.items():
+        for (cid, sid, composite_tid, d, h), var in x.items():
             if solver.BooleanValue(var):
                 s = subject_by_id[sid]
+                teacher_ids = composite_tid.split('-')
                 assign = {
                     'subjectId': sid,
-                    'teacherId': tid,
+                    'teacherIds': teacher_ids,
                     'locationId': s.get('locationId'),
                     'classroomId': cid,
                 }

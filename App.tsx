@@ -1,7 +1,6 @@
-
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTimetableData } from './hooks/useTimetableData';
-import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats } from './types';
+import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats, Assignment } from './types';
 import { SchoolLevel, ClassGroup, ViewType } from './types';
 import { solveTimetableLocally } from './services/localSolver';
 import { TimetableView } from './components/TimetableView';
@@ -23,6 +22,12 @@ import { FixedAssignmentForm } from './components/forms/FixedAssignmentForm';
 import { LessonGroupForm } from './components/forms/LessonGroupForm';
 import { DutyForm } from './components/forms/DutyForm';
 import { QualitySummary } from './components/QualitySummary';
+import TeacherLoadAnalysis from './components/TeacherLoadAnalysis';
+import { assignRandomRestDays } from './utils/assignRandomRestDays';
+import TeacherActualLoadPanel from './components/TeacherActualLoadPanel';
+import TeacherAvailabilityHeatmap from './components/analysis/TeacherAvailabilityHeatmap';
+import MobileDataEntry from './components/mobile/MobileDataEntry';
+import TeacherMobileView from './components/mobile/TeacherMobileView';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
@@ -42,304 +47,13 @@ const DAYS = ["Pazartesi", "Sal\u0131", "\u00C7ar\u015Famba", "Per\u015Fembe", "
  
  // --- Modal Component --- (moved to components/Modal)
 
-// --- Teacher Load Analysis Component ---
-const TeacherLoadAnalysis: React.FC<{ teachers: Teacher[], teacherLoads: Map<string, TeacherLoad> }> = ({ teachers, teacherLoads }) => {
-    const sortedTeachers = useMemo(() => {
-        if (!teachers || !teacherLoads) return [];
-        return [...teachers].map(t => {
-            const load = teacherLoads.get(t.id) || { demand: 0, capacity: 0 };
-            const utilization = load.capacity > 0 ? (load.demand / load.capacity) * 100 : 0;
-            return { ...t, load, utilization };
-        }).sort((a, b) => b.utilization - a.utilization);
-    }, [teachers, teacherLoads]);
-
-    if(sortedTeachers.length === 0) return null;
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-lg no-print">
-            <h2 className="text-xl font-bold mb-4">Öğretmen Yük Analizi</h2>
-            <p className="text-sm text-slate-500 mb-4">
-                Bu bölüm, öğretmenlerin atanmış ders yüklerinin müsaitliklerine oranını gösterir. %100'ü aşan bir kullanım, programın çözülmesini engelleyebilir.
-            </p>
-            <div className="space-y-4 max-h-72 overflow-y-auto pr-2">
-                {sortedTeachers.map(teacher => {
-                    const util = teacher.utilization;
-                    let bgColor = 'bg-sky-500';
-                    if (util > 100) bgColor = 'bg-red-500';
-                    else if (util > 90) bgColor = 'bg-yellow-500';
-
-                    let textColor = 'text-slate-800';
-                    if (util > 100) textColor = 'text-red-600';
-                    else if (util > 90) textColor = 'text-yellow-600';
-
-                    return (
-                        <div key={teacher.id}>
-                            <div className="flex justify-between items-center mb-1 text-sm">
-                                <span className="font-medium">{teacher.name}</span>
-                                <span className={`font-semibold ${textColor}`}>
-                                    {Math.round(teacher.load.demand)} / {teacher.load.capacity} saat ({Math.round(util)}%)
-                                </span>
-                            </div>
-                            <div className="w-full bg-slate-200 rounded-full h-2.5">
-                                <div 
-                                    className={`${bgColor} h-2.5 rounded-full transition-all duration-500`} 
-                                    style={{ width: `${Math.min(util, 100)}%` }}
-                                ></div>
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
-        </div>
-    );
-};
-
-
-
-
-const TeacherActualLoadPanel: React.FC<{ teachers: Teacher[]; teacherLoads: Map<string, TeacherLoad>; actualLoads: Map<string, number> | null; }> = ({ teachers, teacherLoads, actualLoads }) => {
-    const rows = useMemo(() => {
-        if (!actualLoads) return null;
-        return teachers.map(t => {
-            const expected = teacherLoads.get(t.id);
-            const actual = actualLoads.get(t.id) || 0;
-            const target = expected?.demand ?? 0;
-            const delta = actual - target;
-            return {
-                id: t.id,
-                name: t.name,
-                actual,
-                target,
-                delta,
-            };
-        }).sort((a, b) => b.actual - a.actual);
-    }, [teachers, teacherLoads, actualLoads]);
-
-    if (!actualLoads) {
-        return (
-            <div className="bg-white p-6 rounded-lg shadow-lg no-print">
-                <h2 className="text-xl font-bold mb-4">Gerçekleşen Ders Yükleri</h2>
-                <p className="text-sm text-slate-500">Henüz program oluşturulmadı.</p>
-            </div>
-        );
-    }
-
-    if (!rows || rows.length === 0) return null;
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-lg no-print">
-            <h2 className="text-xl font-bold mb-4">Gerçekleşen Ders Yükleri</h2>
-            <p className="text-sm text-slate-500 mb-4">Aşağıdaki tablo çözülen programdaki ders saatlerini gösterir. “Hedef” sütunu veri girişinden geliyor.</p>
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
-                {rows.map(row => {
-                    const deltaClass = row.delta === 0 ? 'text-slate-600' : row.delta > 0 ? 'text-red-600' : 'text-emerald-600';
-                    return (
-                        <div key={row.id} className="text-sm">
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="font-medium text-slate-700">{row.name}</span>
-                                <span className="text-slate-500">{row.actual} saat</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span>Hedef: {row.target}</span>
-                                <span className={deltaClass}>Δ {row.delta > 0 ? `+${row.delta}` : row.delta}</span>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
-
-const MultiTeacherWarnings: React.FC<{ data: TimetableData; schedule: Schedule | null; }> = ({ data, schedule }) => {
-    const issues = useMemo(() => {
-        if (!schedule) return [];
-        const subjectById = new Map(data.subjects.map(s => [s.id, s.name]));
-        const classById = new Map(data.classrooms.map(c => [c.id, c.name]));
-        const teacherById = new Map(data.teachers.map(t => [t.id, t.name]));
-        const map = new Map<string, Set<string>>();
-
-        Object.entries(schedule).forEach(([classroomId, days]) => {
-            days.forEach(day => {
-                day.forEach(slot => {
-                    if (!slot) return;
-                    const key = `${classroomId}::${slot.subjectId}`;
-                    if (!map.has(key)) map.set(key, new Set());
-                    map.get(key)!.add(slot.teacherId);
-                });
-            });
-        });
-
-        const result: Array<{ classroom: string; subject: string; teachers: string[] }> = [];
-
-        map.forEach((teachers, key) => {
-            if (teachers.size <= 1) return;
-            const [classroomId, subjectId] = key.split('::');
-            result.push({
-                classroom: classById.get(classroomId) || classroomId,
-                subject: subjectById.get(subjectId) || subjectId,
-                teachers: Array.from(teachers).map(tid => teacherById.get(tid) || tid),
-            });
-        });
-
-        return result.sort((a, b) => a.classroom.localeCompare(b.classroom, 'tr'));
-    }, [schedule, data]);
-
-    if (!schedule || issues.length === 0) return null;
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-lg no-print">
-            <h2 className="text-xl font-bold mb-4">Paylaşılan Ders Uyarıları</h2>
-            <p className="text-sm text-slate-500 mb-3">Aynı sınıf ve ders için birden fazla öğretmen görevlendirilmiş. İsterseniz sabit atamalarla düzenleyebilirsiniz.</p>
-            <ul className="space-y-2 text-sm text-slate-700">
-                {issues.map((issue, idx) => (
-                    <li key={idx} className="border border-amber-200 bg-amber-50 rounded-md px-3 py-2">
-                        <div className="font-semibold text-amber-800">{issue.classroom} · {issue.subject}</div>
-                        <div className="text-amber-700 text-xs">{issue.teachers.join(', ')}</div>
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
-};
+// Teacher load analysis UI is provided by the extracted `TeacherLoadAnalysis` component in components/TeacherLoadAnalysis.tsx
 
 const colorForPercent = (percent: number) => {
     const clamped = Math.max(0, Math.min(100, percent));
     const hue = (clamped / 100) * 120;
     const lightness = Math.max(25, 65 - clamped * 0.25);
     return `hsl(${Math.round(hue)}, 70%, ${Math.round(lightness)}%)`;
-};
-
-const TeacherAvailabilityHeatmap: React.FC<{ teachers: Teacher[]; dayNames: string[]; maxDailyHours: number; }> = ({ teachers, dayNames, maxDailyHours }) => {
-    const stats = useMemo(() => {
-        const totalTeachers = teachers.length;
-        const days = 5;
-        const hours = Math.max(1, maxDailyHours || 0);
-        if (totalTeachers === 0 || hours === 0) {
-            return null;
-        }
-
-        const perHourCounts: number[][] = Array.from({ length: days }, () => Array(hours).fill(0));
-        const perDayTotals: number[] = Array(days).fill(0);
-        const dayOffCounts: number[] = Array(days).fill(0);
-
-        teachers.forEach(teacher => {
-            for (let d = 0; d < days; d++) {
-                const availabilityRow = teacher.availability?.[d] || [];
-                let dayAvailable = 0;
-                for (let h = 0; h < hours; h++) {
-                    if (availabilityRow[h]) {
-                        perHourCounts[d][h] += 1;
-                        dayAvailable += 1;
-                    }
-                }
-                perDayTotals[d] += dayAvailable;
-                if (dayAvailable === 0) {
-                    dayOffCounts[d] += 1;
-                }
-            }
-        });
-
-        const perHourPercent = perHourCounts.map(row => row.map(val => (val / totalTeachers) * 100));
-        const perDayPercent = perDayTotals.map(total => total > 0 ? (total / (totalTeachers * hours)) * 100 : 0);
-
-        let criticalSlot: { dayIndex: number; hourIndex: number; percent: number } | null = null;
-        perHourPercent.forEach((row, dayIndex) => {
-            row.forEach((percent, hourIndex) => {
-                if (criticalSlot === null || percent < criticalSlot.percent) {
-                    criticalSlot = { dayIndex, hourIndex, percent };
-                }
-            });
-        });
-
-        return {
-            totalTeachers,
-            perHourCounts,
-            perHourPercent,
-            perDayPercent,
-            dayOffCounts,
-            hours,
-            criticalSlot,
-        } as const;
-    }, [teachers, maxDailyHours]);
-
-    if (!stats) {
-        return null;
-    }
-
-    const { totalTeachers, perHourCounts, perHourPercent, perDayPercent, dayOffCounts, hours, criticalSlot } = stats;
-
-    const renderPercentCell = (dayIndex: number, hourIndex: number) => {
-        const percent = perHourPercent[dayIndex]?.[hourIndex] ?? 0;
-        const count = perHourCounts[dayIndex]?.[hourIndex] ?? 0;
-        const backgroundColor = colorForPercent(percent);
-        const textColorClass = percent <= 35 ? 'text-white' : 'text-slate-800';
-        return (
-            <td key={dayIndex} className="p-2 border" style={{ backgroundColor }}>
-                <div className="flex flex-col items-center gap-0.5 leading-tight">
-                    <span className={`font-semibold text-xs ${textColorClass}`}>{Math.round(percent)}%</span>
-                    <span className={`text-[10px] ${textColorClass} opacity-80`}>{count}/{totalTeachers}</span>
-                </div>
-            </td>
-        );
-    };
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-lg no-print">
-            <h2 className="text-xl font-bold mb-4">Gün / Saat Yük Analizi</h2>
-            <p className="text-sm text-slate-500 mb-4">
-                Hangi gün ve saatlerde aktif öğretmen sayısının düştüğünü gösterir. Yüzdeler mevcut öğretmenlerin o slotta uygun olma oranıdır.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 text-sm mb-4">
-                {dayNames.map((day, index) => {
-                    const percent = perDayPercent[index] ?? 0;
-                    const dayColor = colorForPercent(percent);
-                    return (
-                        <div key={day} className="space-y-1">
-                            <div className="flex items-center justify-between text-xs text-slate-500">
-                                <span className="font-medium text-slate-700">{day}</span>
-                                <span className="font-semibold text-slate-600">%{Math.round(percent)}</span>
-                            </div>
-                            <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${Math.min(percent, 100)}%`, backgroundColor: dayColor }}></div>
-                            </div>
-                            <div className="text-[11px] text-slate-500">
-                                {dayOffCounts[index]} öğretmen tam gün izinli
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-            {criticalSlot && criticalSlot.percent < 80 && (
-                <div className="text-xs text-amber-600 mb-3">
-                    Kritik slot: {dayNames[criticalSlot.dayIndex]} {criticalSlot.hourIndex + 1}. ders için uygunluk %{Math.round(criticalSlot.percent)}.
-                </div>
-            )}
-            <div className="overflow-x-auto">
-                <table className="min-w-full border text-center text-xs">
-                    <thead>
-                        <tr>
-                            <th className="p-2 border bg-slate-100 text-slate-600">Saat</th>
-                            {dayNames.map(day => (
-                                <th key={day} className="p-2 border bg-slate-100 text-slate-600">{day}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {Array.from({ length: hours }).map((_, hourIndex) => (
-                            <tr key={hourIndex}>
-                                <td className="p-2 border font-medium bg-slate-50 text-slate-600">{hourIndex + 1}. Ders</td>
-                                {dayNames.map((_, dayIndex) => renderPercentCell(dayIndex, hourIndex))}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-2">
-                Hücrelerdeki değerler uygun öğretmen / toplam öğretmen sayısını ve yüzde karşılığını gösterir.
-            </p>
-        </div>
-    );
 };
 
 const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | null; dayNames: string[]; }> = ({ data, schedule, dayNames }) => {
@@ -381,7 +95,7 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
         const isTeacherBusy = (teacherId: string, hourIndex: number) => {
             for (const classroomId of Object.keys(schedule)) {
                 const slot = schedule[classroomId]?.[dayIndex]?.[hourIndex];
-                if (slot && slot.teacherId === teacherId) {
+                if (slot && slot.teacherIds.includes(teacherId)) {
                     return true;
                 }
             }
@@ -391,8 +105,8 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
         data.classrooms.forEach(classroom => {
             const lessonsForDay = schedule[classroom.id]?.[dayIndex] || [];
             lessonsForDay.forEach((assignment, hourIndex) => {
-                if (!assignment || assignment.teacherId !== absentTeacherId) return;
-                const subjectName = subjectById.get(assignment.subjectId)?.name || 'Ders';
+                if (!assignment || !assignment.teacherIds.includes(absentTeacherId)) return;
+                const subjectName = (subjectById.get(assignment.subjectId) as { name: string })?.name || 'Ders';
 
                 const dutyCandidates = data.duties.filter(duty => {
                     if (duty.dayIndex !== dayIndex) return false;
@@ -406,7 +120,7 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
                 dutyCandidates.forEach(duty => {
                     const dutyTeacher = teacherById.get(duty.teacherId);
                     if (!dutyTeacher || duty.teacherId === absentTeacherId) return;
-                    const availabilityRow = dutyTeacher.availability?.[dayIndex] || [];
+                    const availabilityRow = (dutyTeacher as { availability: boolean[][] }).availability?.[dayIndex] || [];
                     const isAvailable = availabilityRow[hourIndex] === true;
                     const busy = isTeacherBusy(duty.teacherId, hourIndex);
                     const status: 'available' | 'unavailable' = (isAvailable && !busy) ? 'available' : 'unavailable';
@@ -416,7 +130,7 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
                     if (!uniqueOptions.has(duty.teacherId)) {
                         uniqueOptions.set(duty.teacherId, {
                             id: duty.teacherId,
-                            name: dutyTeacher.name,
+                            name: (dutyTeacher as { name: string }).name,
                             note,
                             status,
                             dutyName: duty.name,
@@ -452,7 +166,7 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
         Object.keys(schedule).forEach(classroomId => {
             const lessons = schedule[classroomId]?.[dayIndex] || [];
             lessons.forEach(assignment => {
-                if (assignment?.teacherId === absentTeacherId) count += 1;
+                if (assignment?.teacherIds.includes(absentTeacherId)) count += 1;
             });
         });
         return count;
@@ -576,16 +290,51 @@ const App: React.FC = () => {
         if (!schedule) return null;
         const counts = new Map<string, number>();
         Object.values(schedule).forEach(days => {
-            days.forEach(day => {
+            const dayArray = days as (Assignment | null)[][];
+            dayArray.forEach(day => {
                 day.forEach(slot => {
                     if (!slot) return;
-                    const current = counts.get(slot.teacherId) || 0;
-                    counts.set(slot.teacherId, current + 1);
+                    slot.teacherIds.forEach(teacherId => {
+                      const current = counts.get(teacherId) || 0;
+                      counts.set(teacherId, current + 1);
+                    });
                 });
             });
         });
         return counts;
     }, [schedule]);
+
+    // Per-teacher per-day counts and busiest day
+    const teacherDailyCounts = useMemo(() => {
+        if (!schedule) return null;
+        const map = new Map<string, { countsPerDay: number[]; busiestDay: { dayIndex: number; count: number } | null }>();
+        const daysByClass = Object.values(schedule) as (Assignment | null)[][][];
+        const DAYS = daysByClass[0]?.length || 5;
+        for (const teacher of data.teachers) map.set(teacher.id, { countsPerDay: Array(DAYS).fill(0), busiestDay: null });
+
+        Object.values(schedule).forEach(days => {
+            const dayArray = days as (Assignment | null)[][];
+            dayArray.forEach((day, dIdx) => {
+                day.forEach(slot => {
+                    if (!slot) return;
+                    slot.teacherIds.forEach(tid => {
+                        const entry = map.get(tid);
+                        if (entry) entry.countsPerDay[dIdx] = (entry.countsPerDay[dIdx] || 0) + 1;
+                    });
+                });
+            });
+        });
+
+        for (const [tid, entry] of map.entries()) {
+            let best = -1, idx = -1;
+            for (let i = 0; i < entry.countsPerDay.length; i++) {
+                if (entry.countsPerDay[i] > best) { best = entry.countsPerDay[i]; idx = i; }
+            }
+            entry.busiestDay = idx >= 0 ? { dayIndex: idx, count: best } : null;
+        }
+
+        return map;
+    }, [schedule, data.teachers]);
 
 
     useEffect(() => {
@@ -601,67 +350,21 @@ const App: React.FC = () => {
         const teacher = data.teachers.find(t => t.id === teacherId);
         if (!teacher) return;
 
-        const availability = teacher.availability.map(day => [...day]);
-        const dayInfos: Array<{ dayIndex: number; available: number }> = [];
+        const success = assignRandomRestDays(teacher, restCount, maxDailyHours);
 
-        for (let d = 0; d < Math.min(5, availability.length); d++) {
-            const row = availability[d] || [];
-            const limit = maxDailyHours > 0 ? Math.min(maxDailyHours, row.length) : row.length;
-            let available = 0;
-            for (let h = 0; h < limit; h++) {
-                if (row[h]) {
-                    available += 1;
-                }
-            }
-            if (available > 0) {
-                dayInfos.push({ dayIndex: d, available });
-            }
-        }
-
-        if (dayInfos.length === 0) {
-            window.alert('Bu öğretmenin zaten tüm günleri izinli görünüyor.');
+        if (!success) {
+            window.alert('İzin günü ayarlanamadı. Uygun gün bulunamadı veya izin günleri sınırı aşıldı.');
             return;
         }
 
-        if (dayInfos.length <= restCount) {
-            window.alert('Bu öğretmenin en az bir günü açık kalmalı. Daha az izin günü seçin veya önce müsaitliği genişletin.');
-            return;
-        }
+        updateTeacher(teacher);
 
-        const pool = [...dayInfos];
-        const chosen: number[] = [];
-        const target = Math.min(restCount, pool.length - 1);
-        while (chosen.length < target && pool.length > 0) {
-            const totalWeight = pool.reduce((sum, info) => sum + info.available, 0);
-            let r = Math.random() * totalWeight;
-            let idx = 0;
-            for (let i = 0; i < pool.length; i++) {
-                r -= pool[i].available;
-                if (r <= 0) {
-                    idx = i;
-                    break;
-                }
-            }
-            const [selected] = pool.splice(idx, 1);
-            chosen.push(selected.dayIndex);
-        }
+        const chosenNames = teacher.availability
+            .map((day, idx) => day.every(slot => !slot) ? DAYS[idx] : null)
+            .filter(Boolean)
+            .join(', ');
 
-        if (chosen.length === 0) {
-            window.alert('?zin g?n? ayarlanamad?. Uygun g?n bulunamad?.');
-            return;
-        }
-
-        chosen.forEach(dayIndex => {
-            const row = availability[dayIndex] || [];
-            for (let h = 0; h < row.length; h++) {
-                row[h] = false;
-            }
-        });
-
-        updateTeacher({ ...teacher, availability });
-
-        const chosenNames = chosen.map(idx => DAYS[idx] || `${idx + 1}. gün`).join(', ');
-        window.alert(`${teacher.name} için ${chosen.length} izin günü ayarlandı: ${chosenNames}.`);
+        window.alert(`${teacher.name} için ${restCount} izin günü ayarlandı: ${chosenNames}.`);
     }, [data.teachers, updateTeacher, maxDailyHours]);
 
     const handleSchoolHoursChange = (level: SchoolLevel, dayIndex: number, value: string) => {
@@ -824,6 +527,8 @@ const App: React.FC = () => {
     const [showHeatmapPanel, setShowHeatmapPanel] = useState<boolean>(true);
     const [showDutyWarnings, setShowDutyWarnings] = useState<boolean>(true);
     const [showDutyCoverage, setShowDutyCoverage] = useState<boolean>(true);
+    const [isMobileEntryOpen, setIsMobileEntryOpen] = useState<boolean>(false);
+    const [isTeacherMobileOpen, setIsTeacherMobileOpen] = useState<boolean>(false);
 
 
     // Load saved settings
@@ -1031,20 +736,36 @@ const App: React.FC = () => {
         if (!schedule) return false;
         
         const { blockSpan = 1 } = sourceInfo;
+        const sourceAssignmentRef = schedule[sourceInfo.classroomId]?.[sourceInfo.dayIndex]?.[sourceInfo.hourIndex];
 
-        const sourceAssignment = schedule[sourceInfo.classroomId]?.[sourceInfo.dayIndex]?.[sourceInfo.hourIndex];
-        const teacher = data.teachers.find(t => t.id === sourceAssignment?.teacherId);
+        if (!sourceAssignmentRef) return false;
+
+        const teachers = (sourceAssignmentRef.teacherIds || []).map(tid => data.teachers.find(t => t.id === tid)).filter(Boolean) as Teacher[];
         const targetClassroom = data.classrooms.find(c => c.id === targetInfo.classroomId);
 
-        if (!sourceAssignment || !teacher || !targetClassroom) return false;
+        if (teachers.length === 0 || !targetClassroom) return false;
 
         const targetDayHours = schoolHours[targetClassroom.level][targetInfo.dayIndex];
         if (targetInfo.hourIndex + (blockSpan - 1) >= targetDayHours) return false;
 
         for (let k = 0; k < blockSpan; k++){
             const h = targetInfo.hourIndex + k;
-            if (!teacher.availability[targetInfo.dayIndex][h]) return false;
-            if (schedule[targetInfo.classroomId]?.[targetInfo.dayIndex]?.[h]) return false;
+
+            const assignmentAtTarget = schedule[targetInfo.classroomId]?.[targetInfo.dayIndex]?.[h];
+            if (assignmentAtTarget && assignmentAtTarget !== sourceAssignmentRef) {
+                return false;
+            }
+
+            for (const teacher of teachers) {
+                if (!teacher.availability[targetInfo.dayIndex][h]) return false;
+
+                for (const classId in schedule) {
+                    const assignmentInOtherClass = schedule[classId]?.[targetInfo.dayIndex]?.[h];
+                    if (assignmentInOtherClass && assignmentInOtherClass !== sourceAssignmentRef && assignmentInOtherClass.teacherIds.includes(teacher.id)) {
+                        return false;
+                    }
+                }
+            }
         }
 
         return true;
@@ -1415,8 +1136,8 @@ const App: React.FC = () => {
                     <div className="text-sm text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-md p-4">Henüz kayıtlı program yok.</div>
                 )}
             </div>
-        );
-    }
+        )
+      };
     
     const renderModalContent = () => {
         if (!modalState.type) return null;
@@ -1747,7 +1468,7 @@ const App: React.FC = () => {
                         <TeacherLoadAnalysis teachers={data.teachers} teacherLoads={teacherLoads} />
                     )}
                     {showTeacherActualLoad && (
-                        <TeacherActualLoadPanel teachers={data.teachers} teacherLoads={teacherLoads} actualLoads={actualTeacherLoads} />
+                        <TeacherActualLoadPanel teachers={data.teachers} teacherLoads={teacherLoads} actualLoads={actualTeacherLoads} teacherDailyCounts={teacherDailyCounts} />
                     )}
                     {showHeatmapPanel && (
                         <TeacherAvailabilityHeatmap teachers={data.teachers} dayNames={DAYS} maxDailyHours={maxDailyHours} />
@@ -1760,9 +1481,6 @@ const App: React.FC = () => {
                     )}
                 </div>
 
-                {showDutyWarnings && (
-                    <MultiTeacherWarnings data={data} schedule={schedule} />
-                )}
                 {showDutyCoverage && (
                     <DutyCoveragePanel data={data} schedule={schedule} dayNames={DAYS} />
                 )}
@@ -1911,6 +1629,44 @@ const App: React.FC = () => {
                 </svg>
             </button>
 
+                {/* Mobile data entry floating button (visible on small screens) */}
+                <button
+                    onClick={() => setIsMobileEntryOpen(true)}
+                    className="md:hidden fixed bottom-20 right-4 p-3 rounded-full shadow-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                    title="Mobil Veri Girişi"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                      <path d="M12 2a2 2 0 00-2 2v16a2 2 0 004 0V4a2 2 0 00-2-2z" />
+                    </svg>
+                </button>
+
+                                {/* Teacher list modal launcher for mobile */}
+                                <button
+                                        onClick={() => setIsTeacherMobileOpen(true)}
+                                        className="md:hidden fixed bottom-32 right-4 p-3 rounded-full shadow-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                                        title="Öğretmenler (Mobil)"
+                                >
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                                            <path d="M12 12a5 5 0 100-10 5 5 0 000 10zM2 20a10 10 0 0120 0H2z" />
+                                        </svg>
+                                </button>
+
+                <MobileDataEntry
+                    isOpen={isMobileEntryOpen}
+                    onClose={() => setIsMobileEntryOpen(false)}
+                    addTeacher={addTeacher}
+                    addClassroom={addClassroom}
+                    data={data}
+                    maxDailyHours={maxDailyHours}
+                />
+
+                <TeacherMobileView
+                    isOpen={isTeacherMobileOpen}
+                    onClose={() => setIsTeacherMobileOpen(false)}
+                    data={data}
+                    updateTeacher={updateTeacher}
+                />
+
             {/* QR Tools Modal */}
             <Modal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} title="QR Araçları">
                 <QrTools data={data} schedule={schedule} onImportText={handleQrImportText} />
@@ -1920,14 +1676,3 @@ const App: React.FC = () => {
     );
 };
 export default App;
-
-
-
-
-
-
-
-
-
-
-

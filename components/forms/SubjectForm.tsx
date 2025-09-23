@@ -22,6 +22,7 @@ export const SubjectForm: React.FC<{
       assignedClassIds: [],
       locationId: undefined,
       pinnedTeacherByClassroom: {},
+      requiredTeacherCount: 1,
     }
   );
 
@@ -41,7 +42,7 @@ export const SubjectForm: React.FC<{
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target as HTMLInputElement;
     setSubject((prev: any) => {
-      const numeric = ['weeklyHours', 'blockHours', 'tripleBlockHours', 'maxConsec'];
+      const numeric = ['weeklyHours', 'blockHours', 'tripleBlockHours', 'maxConsec', 'requiredTeacherCount'];
       const s: any = { ...prev, [name]: numeric.includes(name) ? (value === '' ? undefined : (parseInt(value) || 0)) : value };
       s.blockHours = Math.min(s.blockHours, s.weeklyHours);
       if (s.blockHours % 2 !== 0) s.blockHours = prev.blockHours;
@@ -176,6 +177,19 @@ export const SubjectForm: React.FC<{
             placeholder="Boş bırakabilirsiniz"
           />
           <p className="text-xs text-slate-500 mt-1">Bir günde bu dersten art arda en fazla saat.</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700">Gerekli Öğretmen Sayısı</label>
+          <input
+            type="number"
+            name="requiredTeacherCount"
+            value={(subject as any).requiredTeacherCount || 1}
+            onChange={handleChange}
+            min={1}
+            max={5}
+            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+          />
+          <p className="text-xs text-slate-500 mt-1">Atölye dersleri için 2 veya daha fazla olabilir.</p>
         </div>
       </div>
 

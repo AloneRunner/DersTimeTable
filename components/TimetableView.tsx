@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 // FIX: Corrected typo from TimetabeData to TimetableData
-import type { Schedule, TimetableData, ViewType, Assignment, Duty, SchoolHours } from '../types';
+import type { Schedule, TimetableData, ViewType, Assignment, Duty, SchoolHours, Teacher } from '../types';
 import { ViewType as ViewTypeEnum, SchoolLevel } from '../types';
 
 interface TimetableViewProps {
@@ -62,11 +62,11 @@ const ScheduleCell: React.FC<{
   }
   
   const subject = data.subjects.find(s => s.id === assignment!.subjectId);
-  const teacher = data.teachers.find(t => t.id === assignment!.teacherId);
+  const teachers = (assignment!.teacherIds || []).map(tid => data.teachers.find(t => t.id === tid)).filter(Boolean) as Teacher[];
   const classroom = data.classrooms.find(c => c.id === assignment!.classroomId);
   const location = data.locations.find(l => l.id === assignment!.locationId);
 
-  if (!subject || !teacher || !classroom) {
+  if (!subject || teachers.length === 0 || !classroom) {
     return <div className="h-24 border-slate-200 border bg-red-100 p-1 text-xs">Hatalı Atama</div>;
   }
   
@@ -80,7 +80,7 @@ const ScheduleCell: React.FC<{
       className={`h-24 border p-1.5 text-xs flex flex-col justify-between ${color} ${isDraggable ? 'cursor-move' : ''}`}>
       <div>
         <p className="font-bold text-slate-800">{subject.name}</p>
-        <p className="text-slate-600">{viewType === ViewTypeEnum.Class ? teacher.name : classroom.name}</p>
+        <p className="text-slate-600">{viewType === ViewTypeEnum.Class ? teachers.map(t => t.name).join(', ') : classroom.name}</p>
       </div>
       {location && <p className="text-slate-500 text-[10px] self-end">{location.name}</p>}
     </div>
@@ -129,8 +129,8 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
         if(!teacherId) return null;
         
         for (const classId in schedule) {
-            const assignment = schedule[classId]?.[dayIndex]?.[hourIndex];
-            if(assignment && assignment.teacherId === teacherId) {
+            const assignment = schedule[classId]?.[dayIndex]?.[hourIndex] as Assignment | null;
+            if(assignment && assignment.teacherIds.includes(teacherId)) {
                 return assignment;
             }
         }

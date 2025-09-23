@@ -235,6 +235,23 @@ function makeWorkerScript() {
           });
         }
 
+        // ---- Multi-teacher helpers ----
+        // Return the primary teacher id for an assignment (first entry of teacherIds or legacy teacherId)
+        primaryTeacherId(assignment: any): string | null {
+          if (!assignment) return null;
+          if (Array.isArray((assignment as any).teacherIds) && (assignment as any).teacherIds.length) return (assignment as any).teacherIds[0];
+          if ((assignment as any).teacherId) return (assignment as any).teacherId;
+          return null;
+        }
+
+        // Return all teacher ids for an assignment (array or legacy single id)
+        teacherIdsOf(assignment: any): string[] {
+          if (!assignment) return [];
+          if (Array.isArray((assignment as any).teacherIds)) return (assignment as any).teacherIds.slice();
+          if ((assignment as any).teacherId) return [(assignment as any).teacherId];
+          return [];
+        }
+
         // ---- Öğretmen adayları ----
         getTeacherCandidates(subject: Subject, classroomId: string){
           const list = [];
@@ -773,7 +790,10 @@ function makeWorkerScript() {
         findAssignmentByTeacherAt(teacherId: string, day: number, hour: number) {
           for (const classId of Object.keys(this.schedule)) {
             const a = this.schedule[classId][day][hour];
-            if (a && a.teacherId === teacherId) return { classroomId: classId, day, hour };
+            if (!a) continue;
+            // Support assignments with teacherIds array or legacy teacherId field.
+            if (Array.isArray((a as any).teacherIds) && (a as any).teacherIds.includes(teacherId)) return { classroomId: classId, day, hour };
+            if ((a as any).teacherId === teacherId) return { classroomId: classId, day, hour };
           }
           return null;
         }
@@ -873,10 +893,16 @@ function makeWorkerScript() {
 
         // ---- Place/Remove ----
         placeLesson(classroomId: string, subject: Subject, teacher: Teacher, day: number, hour: number, span: number) {
-          const a = { subjectId: subject.id, teacherId: teacher.id, classroomId, locationId: subject.locationId };
+          // Create assignment using teacherIds array to support multi-teacher assignments
+          const a = { subjectId: subject.id, teacherIds: [teacher.id], classroomId, locationId: subject.locationId } as any;
           for (let k=0;k<span;k++) {
-            this.schedule[classroomId][day][hour+k] = a as any;
-            this.teacherOccupied[teacher.id][day][hour+k] = true;
+            this.schedule[classroomId][day][hour+k] = a;
+            // mark occupied for each teacher in the assignment (currently only one)
+            if (a.teacherIds && Array.isArray(a.teacherIds)) {
+              for (const tid of a.teacherIds) {
+                this.teacherOccupied[tid][day][hour+k] = true;
+              }
+            }
             // Guard against undefined location maps when subject.locationId is not listed in data.locations
             if (subject.locationId && this.locationOccupied[subject.locationId]) {
               this.locationOccupied[subject.locationId][day][hour+k] = true;
@@ -893,7 +919,15 @@ function makeWorkerScript() {
             const idx = hour+k;
             if (this.schedule[classroomId][day][idx] === assignment) {
               this.schedule[classroomId][day][idx] = null;
-              if (this.teacherOccupied[assignment.teacherId]) this.teacherOccupied[assignment.teacherId][day][idx] = false;
+              // Clear teacherOccupied for all teachers listed on the assignment (support teacherIds array)
+              if (assignment?.teacherIds && Array.isArray(assignment.teacherIds)) {
+                for (const tid of assignment.teacherIds) {
+                  if (this.teacherOccupied[tid]) this.teacherOccupied[tid][day][idx] = false;
+                }
+              } else if ((assignment as any).teacherId) {
+                const tid = (assignment as any).teacherId;
+                if (this.teacherOccupied[tid]) this.teacherOccupied[tid][day][idx] = false;
+              }
               if (subject?.locationId && this.locationOccupied[subject.locationId]) this.locationOccupied[subject.locationId][day][idx] = false;
               this.dailyLessonCounts[classroomId][day]--;
             }
@@ -930,7 +964,8 @@ function makeWorkerScript() {
                   if (k>=end) break;
                   const assn = this.schedule[classId][d][k]; if (!assn) { h=k+1; continue; }
                   const subject = this.subjectById.get(assn.subjectId);
-                  const teacher = this.teacherById.get(assn.teacherId);
+                  const primaryTid = this.primaryTeacherId(assn as any);
+                  const teacher = primaryTid ? this.teacherById.get(primaryTid) : undefined;
                   if (!subject || !teacher) { h++; continue; }
                   const span = this.getSpanAt(classId, d, k);
                   if (this.isValid(classId, subject, teacher, d, h, span)) {
@@ -1031,7 +1066,8 @@ function makeWorkerScript() {
                 if (!a) continue;
                 if (h>start && this.schedule[classId][d][h-1]===a) continue;
                 const span = this.getSpanAt(classId, d, h);
-                const cost = this.localBlockCost(classId, d, h, span, a.teacherId);
+                const primaryTidA = this.primaryTeacherId(a as any);
+                const cost = this.localBlockCost(classId, d, h, span, primaryTidA || '');
                 starts.push({ classId, day:d, hour:h, span, subjectId:a.subjectId, cost });
               }
             }
@@ -1103,7 +1139,7 @@ function makeWorkerScript() {
                 if (h>start && this.schedule[classId][d][h-1]===a) continue; // blok başı değil
                 const span = this.getSpanAt(classId, d, h);
                 const subject = this.subjectById.get(a.subjectId)!;
-                const teacher = this.teacherById.get(a.teacherId)!;
+                const teacher = this.teacherById.get(this.primaryTeacherId(a as any) || '')!;
                 for (let nh=start; nh<=end-span; nh++) {
                   if (nh===h) continue;
                   if (this.isValid(classId, subject, teacher, d, nh, span))
@@ -1126,14 +1162,14 @@ function makeWorkerScript() {
                 if (h>start && this.schedule[classId][d][h-1]===A) continue;
                 const spanA = this.getSpanAt(classId, d, h);
                 const subjA = this.subjectById.get(A.subjectId)!;
-                const teachA= this.teacherById.get(A.teacherId)!;
+                const teachA= this.teacherById.get(this.primaryTeacherId(A as any) || '')!;
                 for (let k=h+spanA; k<end; k++) {
                   const B = this.schedule[classId][d][k];
                   if (!B) continue;
                   if (k>h+spanA && this.schedule[classId][d][k-1]===B) continue;
                   const spanB = this.getSpanAt(classId, d, k);
                   const subjB = this.subjectById.get(B.subjectId)!;
-                  const teachB= this.teacherById.get(B.teacherId)!;
+                  const teachB= this.teacherById.get(this.primaryTeacherId(B as any) || '')!;
                   if (this.isValid(classId, subjA, teachA, d, k, spanA) && this.isValid(classId, subjB, teachB, d, h, spanB))
                     moves.push({ type:'swap', classId, day:d, aStart:h, aSpan:spanA, bStart:k, bSpan:spanB });
                 }
@@ -1147,15 +1183,15 @@ function makeWorkerScript() {
             const a = this.schedule[m.classId][m.day][m.from];
             if (!a) return;
             const subj = this.subjectById.get(a.subjectId)!;
-            const teach= this.teacherById.get(a.teacherId)!;
+            const teach= this.teacherById.get(this.primaryTeacherId(a as any) || '')!;
             this.removeLesson(m.classId, a, m.day, m.from, m.span);
             this.placeLesson(m.classId, subj, teach, m.day, m.to, m.span);
           } else {
             const A = this.schedule[m.classId][m.day][m.aStart];
             const B = this.schedule[m.classId][m.day][m.bStart];
             if (!A || !B) return;
-            const subjA = this.subjectById.get(A.subjectId)!; const teachA = this.teacherById.get(A.teacherId)!;
-            const subjB = this.subjectById.get(B.subjectId)!; const teachB = this.teacherById.get(B.teacherId)!;
+            const subjA = this.subjectById.get(A.subjectId)!; const teachA = this.teacherById.get(this.primaryTeacherId(A as any) || '')!;
+            const subjB = this.subjectById.get(B.subjectId)!; const teachB = this.teacherById.get(this.primaryTeacherId(B as any) || '')!;
             this.removeLesson(m.classId, A, m.day, m.aStart, m.aSpan);
             this.removeLesson(m.classId, B, m.day, m.bStart, m.bSpan);
             this.placeLesson(m.classId, subjA, teachA, m.day, m.bStart, m.aSpan);
