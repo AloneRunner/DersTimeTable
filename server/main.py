@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 from solver_cpsat import solve_cp_sat
-from .schools import router as schools_router
-from .subscriptions import router as subs_router
+from schools import router as schools_router
+from subscriptions import router as subs_router
 
 
 class Teacher(BaseModel):

@@ -1,0 +1,21 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Pin Node for consistent builds. Netlify respects .nvmrc too, but setting here is explicit.
+  NODE_VERSION = "18"
+
+[dev]
+  framework = "vite"
+  # When running Netlify CLI preview, use the vite dev server and bind to 0.0.0.0 so it's reachable.
+  command = "npm run dev -- --host 0.0.0.0 --port 8888"
+  port = 8888
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
