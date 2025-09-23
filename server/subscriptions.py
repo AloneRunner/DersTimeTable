@@ -12,7 +12,7 @@ class CreateTrial(BaseModel):
     user_id: str
 
 if not USE_DB:
-    from storage import db
+    import storage as db
 
 
 @router.post('/subscriptions/trial')
