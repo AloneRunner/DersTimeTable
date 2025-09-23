@@ -1,4 +1,4 @@
-﻿// services/localSolver.ts
+// services/localSolver.ts
 // Tek dosyalık yerel çözücü: Min-Conflicts (repair) + opsiyonel Tabu cilası
 // Kullanım:
 //   solveTimetableLocally(data, {
@@ -254,9 +254,11 @@ function makeWorkerScript() {
 
         // ---- Öğretmen adayları ----
         getTeacherCandidates(subject: Subject, classroomId: string){
-          const list = [];
+          const list: string[] = [];
           const pinned = subject?.pinnedTeacherByClassroom?.[classroomId];
-          if (pinned && this.teacherById.has(pinned)) list.push(pinned);
+          if (pinned && Array.isArray(pinned)) {
+            list.push(...pinned.filter(p => this.teacherById.has(p)));
+          }
 
           if (Array.isArray((subject as any)?.teacherIds))
             for (const id of (subject as any).teacherIds) if (this.teacherById.has(id)) list.push(id);
@@ -500,7 +502,7 @@ function makeWorkerScript() {
               const tlist = this.getTeacherCandidates(s, u.classroomId).map(id=>this.teacherById.get(id)).filter(Boolean);
               const cands = this.enumerateValidSlotsForSingle(u, s, c, tlist);
               if (cands.length) {
-                cands.sort((a,b)=> this.scorePlacement(u,a.d,a.h,a.teacher) - this.scorePlacement(u,b.d,b.h,b.teacher)).reverse();
+                cands.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teacher) - this.scorePlacement(b.unit,b.d,b.h,b.teacher)).reverse();
                 const top = cands[0];
                 this.placeLesson(u.classroomId, s, top.teacher, top.d, top.h, u.span);
                 placed.add(scored[k].i);
@@ -593,7 +595,7 @@ function makeWorkerScript() {
 
           const cands = this.enumerateValidSlotsForSingle(u, sub, cls, teachers);
           if (cands.length) {
-            cands.sort((a,b)=> this.scorePlacement(u,a.d,a.h,a.teacher) - this.scorePlacement(u,b.d,b.h,b.teacher)).reverse();
+            cands.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teacher) - this.scorePlacement(b.unit,b.d,b.h,b.teacher)).reverse();
             const top = cands[0];
             this.placeLesson(u.classroomId, sub, top.teacher, top.d, top.h, u.span);
             return true;
@@ -616,7 +618,7 @@ function makeWorkerScript() {
 
           const c2 = this.enumerateValidSlotsForSingle(u, sub, cls, teachers);
           if (c2.length) {
-            c2.sort((a,b)=> this.scorePlacement(u,a.d,a.h,a.teacher) - this.scorePlacement(u,b.d,b.h,b.teacher)).reverse();
+            c2.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teacher) - this.scorePlacement(b.unit,b.d,b.h,b.teacher)).reverse();
             const top = c2[0];
             this.placeLesson(u.classroomId, sub, top.teacher, top.d, top.h, u.span);
             this.stats.backtracks += removed.length;
@@ -725,7 +727,7 @@ function makeWorkerScript() {
             for (let d=0; d<DAYS; d++) {
               const win = this.getAllowedWindow(classroom, d);
               const maxH = win.end - (span-1);
-              for (let h=win.start; h<maxH; h++) if (this.isValid(unit.classroomId, subject, t, d, h, span)) out.push({d, h, teacher:t});
+              for (let h=win.start; h<maxH; h++) if (this.isValid(unit.classroomId, subject, t, d, h, span)) out.push({d, h, teacher:t, unit: unit});
             }
           }
           return out;
@@ -1366,8 +1368,8 @@ function makeWorkerScript() {
           if (span===3) score += 3; else if (span===2) score += 1;
           // Prefer pinned teacher for this class/subject when available
           const subj = this.subjectById.get(lesson.subjectId || lesson.groupSubjectId);
-          const pinnedId = subj?.pinnedTeacherByClassroom?.[lesson.classroomId];
-          if (pinnedId && pinnedId === teacher.id) score += 15;
+          const pinnedIds = subj?.pinnedTeacherByClassroom?.[lesson.classroomId];
+          if (pinnedIds && Array.isArray(pinnedIds) && pinnedIds.includes(teacher.id)) score += 15;
           return score;
         }
 
@@ -1391,7 +1393,7 @@ function makeWorkerScript() {
           }
           if (!best) return [];
           const seen = new Set(); const uniq: any[] =[];
-          for (const it of best.blockers) { const k=it.classroomId+'|'+it.day+'|'+it.hour; if (!seen.has(k)) { seen.add(k); uniq.push(it); } }
+          for (const it of best.blockers) { const k = it.classroomId+'|'+it.day+'|'+it.hour; if (!seen.has(k)) { seen.add(k); uniq.push(it); } }
           return uniq.filter(x=>!this.fixedMask[x.classroomId]?.[x.day]?.[x.hour]).slice(0, K||8);
         }
 
@@ -1496,5 +1498,3 @@ export const solveTimetableLocally = (
     worker.postMessage({ data, options });
   });
 };
-
-
