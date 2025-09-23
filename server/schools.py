@@ -17,7 +17,7 @@ class InviteRequest(BaseModel):
 
 if not USE_DB:
     # JSON fallback storage
-    from . import storage as db
+    from storage import db
 
 
 @router.get('/schools')
