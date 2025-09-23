@@ -36,10 +36,10 @@ export const ConflictAnalyzer: React.FC<ConflictAnalyzerProps> = ({ data, school
     });
 
     // Check for pinned teacher first
-    const pinnedTeacherId = subject.pinnedTeacherByClassroom?.[classroom.id];
+    const pinnedTeacherIds = subject.pinnedTeacherByClassroom?.[classroom.id];
     let eligibleTeacherIds: string[] = [];
-    if (pinnedTeacherId) {
-        eligibleTeacherIds = [pinnedTeacherId];
+    if (pinnedTeacherIds && pinnedTeacherIds.length > 0) {
+        eligibleTeacherIds = pinnedTeacherIds;
     } else {
         eligibleTeacherIds = teacherSubjectMap.get(subject.name) || [];
     }
