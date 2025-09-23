@@ -1,20 +1,7 @@
 import type { TimetableData, SchoolHours, SolveResult } from '../types';
 
-const META: any = import.meta as any;
-
-// --- New debug code ---
-console.log("Vite Mode:", META.env?.MODE);
-console.log("Vite PROD:", META.env?.PROD);
-
-let baseUrl = META.env?.VITE_CP_SOLVER_URL ?? META.env?.VITE_CP_SAT_BASE_URL ?? 'http://localhost:8000';
-
-// If in production, override with the production URL
-if (META.env?.MODE === 'production') {
-  baseUrl = 'https://derstimetable-production.up.railway.app';
-}
-
-const BASE_URL = baseUrl;
-console.log("Using base URL:", BASE_URL); // Final check
+// LAST RESORT: Hardcode the production URL directly.
+const BASE_URL = 'https://derstimetable-production.up.railway.app';
 
 export async function solveTimetableCP(
   data: TimetableData,
