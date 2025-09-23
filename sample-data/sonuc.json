@@ -745,27 +745,9 @@
             true,
             true,
             true,
-            false,
-            false,
-            false,
             true,
             true,
             true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
             true,
             true,
             true,
@@ -781,9 +763,9 @@
             true,
             true,
             true,
-            false,
-            false,
-            false,
+            true,
+            true,
+            true,
             true,
             true,
             true,
@@ -799,9 +781,27 @@
             true,
             true,
             true,
-            false,
-            false,
-            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
             true,
             true,
             true,
@@ -882,14 +882,14 @@
             true
           ],
           [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
             false,
             false,
             false,
@@ -900,14 +900,14 @@
             false
           ],
           [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
             false,
             false,
             false,
@@ -918,7 +918,7 @@
             false
           ]
         ],
-        "canTeachMiddleSchool": true,
+        "canTeachMiddleSchool": false,
         "canTeachHighSchool": true
       },
       {
@@ -2453,6 +2453,107 @@
         ],
         "canTeachMiddleSchool": false,
         "canTeachHighSchool": true
+      },
+      {
+        "name": "joker",
+        "branches": [
+          "Fen Bilimleri"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": true,
+        "id": "t1758655432594"
       }
     ],
     "classrooms": [
@@ -2532,7 +2633,11 @@
           "c1757445666030"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445666030": [
+            "t1757446911209"
+          ]
+        }
       },
       {
         "id": "s1757446327728",
@@ -2545,7 +2650,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446486202"
+          "c1757445666030": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -2559,8 +2666,12 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446569851"
-        }
+          "c1757445666030": [
+            "t1757446569851",
+            "t1758655432594"
+          ]
+        },
+        "requiredTeacherCount": 2
       },
       {
         "id": "s1757447079308",
@@ -2572,7 +2683,11 @@
           "c1757445666030"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {},
+        "pinnedTeacherByClassroom": {
+          "c1757445666030": [
+            "t1757447111553"
+          ]
+        },
         "maxConsec": 3
       },
       {
@@ -2586,7 +2701,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446486202"
+          "c1757445666030": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -2600,7 +2717,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446641605"
+          "c1757445666030": [
+            "t1757446641605"
+          ]
         }
       },
       {
@@ -2614,7 +2733,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446805714"
+          "c1757445666030": [
+            "t1757446805714"
+          ]
         }
       },
       {
@@ -2628,7 +2749,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446486202"
+          "c1757445666030": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -2642,7 +2765,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446767137"
+          "c1757445666030": [
+            "t1757446767137"
+          ]
         }
       },
       {
@@ -2656,7 +2781,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446767137"
+          "c1757445666030": [
+            "t1757446767137"
+          ]
         }
       },
       {
@@ -2670,7 +2797,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446663823"
+          "c1757445666030": [
+            "t1757446663823"
+          ]
         },
         "maxConsec": 3
       },
@@ -2684,7 +2813,11 @@
           "c1757445672627"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445672627": [
+            "t1757446911209"
+          ]
+        }
       },
       {
         "id": "s1757447355601",
@@ -2697,7 +2830,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446507987"
+          "c1757445672627": [
+            "t1757446507987"
+          ]
         }
       },
       {
@@ -2711,7 +2846,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446569851"
+          "c1757445672627": [
+            "t1757446569851"
+          ]
         }
       },
       {
@@ -2725,7 +2862,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757447404095"
+          "c1757445672627": [
+            "t1757447404095"
+          ]
         }
       },
       {
@@ -2739,7 +2878,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446486202"
+          "c1757445672627": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -2753,7 +2894,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446569851"
+          "c1757445672627": [
+            "t1757446569851"
+          ]
         },
         "maxConsec": 2
       },
@@ -2770,16 +2913,36 @@
         "pinnedTeacherByClassroom": {}
       },
       {
-        "id": "s1757447497009",
+        "id": "s1757447481495",
         "name": "İngilizce",
-        "weeklyHours": 7,
-        "blockHours": 6,
+        "weeklyHours": 3,
+        "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
           "c1757445672627"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {},
+        "pinnedTeacherByClassroom": {
+          "c1757445672627": [
+            "t1757446852178"
+          ]
+        }
+      },
+      {
+        "id": "s1757447497009",
+        "name": "İngilizce",
+        "weeklyHours": 4,
+        "blockHours": 4,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1757445672627"
+        ],
+        "locationId": null,
+        "pinnedTeacherByClassroom": {
+          "c1757445672627": [
+            "t1757447111553"
+          ]
+        },
         "maxConsec": 2
       },
       {
@@ -2793,7 +2956,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446486202"
+          "c1757445672627": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -2807,7 +2972,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446641605"
+          "c1757445672627": [
+            "t1757446641605"
+          ]
         },
         "maxConsec": 3
       },
@@ -2822,7 +2989,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446805714"
+          "c1757445672627": [
+            "t1757446805714"
+          ]
         }
       },
       {
@@ -2836,7 +3005,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446569851"
+          "c1757445672627": [
+            "t1757446569851"
+          ]
         }
       },
       {
@@ -2862,7 +3033,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446486202"
+          "c1757445672627": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -2876,7 +3049,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446663823"
+          "c1757445672627": [
+            "t1757446663823"
+          ]
         },
         "maxConsec": 3
       },
@@ -2891,7 +3066,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446486202"
+          "c1757445672627": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -2905,7 +3082,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446911209"
+          "c1757445679141": [
+            "t1757446911209"
+          ]
         }
       },
       {
@@ -2931,7 +3110,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446569851"
+          "c1757445679141": [
+            "t1757446569851"
+          ]
         }
       },
       {
@@ -2945,7 +3126,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446396130"
+          "c1757445679141": [
+            "t1757446396130"
+          ]
         }
       },
       {
@@ -2958,7 +3141,11 @@
           "c1757445679141"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {},
+        "pinnedTeacherByClassroom": {
+          "c1757445679141": [
+            "t1757446531773"
+          ]
+        },
         "maxConsec": 3
       },
       {
@@ -2972,7 +3159,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446486202"
+          "c1757445679141": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -2986,7 +3175,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446641605"
+          "c1757445679141": [
+            "t1757446641605"
+          ]
         }
       },
       {
@@ -3000,7 +3191,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446805714"
+          "c1757445679141": [
+            "t1757446805714"
+          ]
         }
       },
       {
@@ -3014,7 +3207,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446486202"
+          "c1757445679141": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -3028,7 +3223,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446663823"
+          "c1757445679141": [
+            "t1757446663823"
+          ]
         }
       },
       {
@@ -3054,7 +3251,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446486202"
+          "c1757445679141": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -3068,7 +3267,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446663823"
+          "c1757445679141": [
+            "t1757446663823"
+          ]
         },
         "maxConsec": 3
       },
@@ -3083,7 +3284,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446460886"
+          "c1757445679141": [
+            "t1757446460886"
+          ]
         }
       },
       {
@@ -3096,7 +3299,13 @@
           "c1757445679141"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445679141": [
+            "t1757446569851",
+            "t1758655432594"
+          ]
+        },
+        "requiredTeacherCount": 2
       },
       {
         "id": "s1757448047766",
@@ -3109,7 +3318,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446486202"
+          "c1757445679141": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -3122,7 +3333,11 @@
           "c1757445686951"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445686951": [
+            "t1757446911209"
+          ]
+        }
       },
       {
         "id": "s1757448130320",
@@ -3135,7 +3350,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446507987"
+          "c1757445686951": [
+            "t1757446507987"
+          ]
         }
       },
       {
@@ -3149,7 +3366,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446486202"
+          "c1757445686951": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -3163,7 +3382,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446569851"
+          "c1757445686951": [
+            "t1757446569851"
+          ]
         }
       },
       {
@@ -3179,16 +3400,36 @@
         "pinnedTeacherByClassroom": {}
       },
       {
-        "id": "s1757448216519",
+        "id": "s1757448185306",
         "name": "İngilizce",
-        "weeklyHours": 8,
-        "blockHours": 8,
+        "weeklyHours": 1,
+        "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
           "c1757445686951"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445686951": [
+            "t1757446531773"
+          ]
+        }
+      },
+      {
+        "id": "s1757448216519",
+        "name": "İngilizce",
+        "weeklyHours": 7,
+        "blockHours": 6,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1757445686951"
+        ],
+        "locationId": null,
+        "pinnedTeacherByClassroom": {
+          "c1757445686951": [
+            "t1757446852178"
+          ]
+        }
       },
       {
         "id": "s1757448244129",
@@ -3201,7 +3442,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446767137"
+          "c1757445686951": [
+            "t1757446767137"
+          ]
         }
       },
       {
@@ -3215,7 +3458,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446486202"
+          "c1757445686951": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -3229,7 +3474,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446641605"
+          "c1757445686951": [
+            "t1757446641605"
+          ]
         },
         "maxConsec": 3
       },
@@ -3244,7 +3491,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446805714"
+          "c1757445686951": [
+            "t1757446805714"
+          ]
         }
       },
       {
@@ -3258,7 +3507,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446767137"
+          "c1757445686951": [
+            "t1757446767137"
+          ]
         }
       },
       {
@@ -3272,7 +3523,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446486202"
+          "c1757445686951": [
+            "t1757446486202"
+          ]
         }
       },
       {
@@ -3286,7 +3539,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446641605"
+          "c1757445686951": [
+            "t1757446641605"
+          ]
         }
       },
       {
@@ -3323,7 +3578,11 @@
           "c1757445693699"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445693699": [
+            "t1757446911209"
+          ]
+        }
       },
       {
         "id": "s1757450704818",
@@ -3336,7 +3595,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446507987"
+          "c1757445693699": [
+            "t1757446507987"
+          ]
         }
       },
       {
@@ -3350,7 +3611,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446608229"
+          "c1757445693699": [
+            "t1757446608229"
+          ]
         }
       },
       {
@@ -3388,7 +3651,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446852178"
+          "c1757445693699": [
+            "t1757446852178"
+          ]
         }
       },
       {
@@ -3414,7 +3679,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446911209"
+          "c1757445693699": [
+            "t1757446911209"
+          ]
         },
         "maxConsec": 3
       },
@@ -3429,7 +3696,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446620347"
+          "c1757445693699": [
+            "t1757446620347"
+          ]
         },
         "maxConsec": 3
       },
@@ -3444,7 +3713,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446852178"
+          "c1757445693699": [
+            "t1757446852178"
+          ]
         }
       },
       {
@@ -3458,7 +3729,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446608229"
+          "c1757445693699": [
+            "t1757446608229"
+          ]
         }
       },
       {
@@ -3472,7 +3745,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446911209"
+          "c1757445693699": [
+            "t1757446911209"
+          ]
         }
       },
       {
@@ -3486,7 +3761,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446783238"
+          "c1757445693699": [
+            "t1757446783238"
+          ]
         },
         "maxConsec": 3
       },
@@ -3512,7 +3789,11 @@
           "c1757450647858"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757450647858": [
+            "t1757446911209"
+          ]
+        }
       },
       {
         "id": "s1757451033434",
@@ -3525,7 +3806,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446507987"
+          "c1757450647858": [
+            "t1757446507987"
+          ]
         }
       },
       {
@@ -3539,7 +3822,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446608229"
+          "c1757450647858": [
+            "t1757446608229"
+          ]
         }
       },
       {
@@ -3553,7 +3838,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446372826"
+          "c1757450647858": [
+            "t1757446372826"
+          ]
         }
       },
       {
@@ -3567,7 +3854,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446911209"
+          "c1757450647858": [
+            "t1757446911209"
+          ]
         }
       },
       {
@@ -3581,7 +3870,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446437294"
+          "c1757450647858": [
+            "t1757446437294"
+          ]
         }
       },
       {
@@ -3595,7 +3886,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446926345"
+          "c1757450647858": [
+            "t1757446926345"
+          ]
         }
       },
       {
@@ -3609,7 +3902,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446911209"
+          "c1757450647858": [
+            "t1757446911209"
+          ]
         }
       },
       {
@@ -3622,7 +3917,11 @@
           "c1757450647858"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757450647858": [
+            "t1757446531773"
+          ]
+        }
       },
       {
         "id": "s1757451179880",
@@ -3635,7 +3934,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446416280"
+          "c1757450647858": [
+            "t1757446416280"
+          ]
         }
       },
       {
@@ -3649,7 +3950,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446557699"
+          "c1757450647858": [
+            "t1757446557699"
+          ]
         },
         "maxConsec": 2
       },
@@ -3664,7 +3967,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446620347"
+          "c1757450647858": [
+            "t1757446620347"
+          ]
         },
         "maxConsec": 3
       },
@@ -3679,7 +3984,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446557699"
+          "c1757450647858": [
+            "t1757446557699"
+          ]
         }
       },
       {
@@ -3693,7 +4000,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446557699"
+          "c1757450647858": [
+            "t1757446557699"
+          ]
         }
       },
       {
@@ -3707,7 +4016,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446783238"
+          "c1757450647858": [
+            "t1757446783238"
+          ]
         },
         "maxConsec": 3
       },
@@ -3722,7 +4033,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757450975575"
+          "c1757450647858": [
+            "t1757450975575"
+          ]
         }
       },
       {
@@ -3736,7 +4049,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446911209"
+          "c1757445696969": [
+            "t1757446911209"
+          ]
         }
       },
       {
@@ -3749,7 +4064,11 @@
           "c1757445696969"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445696969": [
+            "t1757446911209"
+          ]
+        }
       },
       {
         "id": "s1757451445630",
@@ -3762,7 +4081,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446372826"
+          "c1757445696969": [
+            "t1757446372826"
+          ]
         }
       },
       {
@@ -3776,7 +4097,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446437294"
+          "c1757445696969": [
+            "t1757446437294"
+          ]
         }
       },
       {
@@ -3801,7 +4124,11 @@
           "c1757445696969"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445696969": [
+            "t1757446531773"
+          ]
+        }
       },
       {
         "id": "s1757451512610",
@@ -3814,7 +4141,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446557699"
+          "c1757445696969": [
+            "t1757446557699"
+          ]
         },
         "maxConsec": 2
       },
@@ -3829,7 +4158,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446620347"
+          "c1757445696969": [
+            "t1757446620347"
+          ]
         },
         "maxConsec": 3
       },
@@ -3856,7 +4187,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446783238"
+          "c1757445696969": [
+            "t1757446783238"
+          ]
         }
       },
       {
@@ -3870,7 +4203,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757450975575"
+          "c1757445696969": [
+            "t1757450975575"
+          ]
         }
       },
       {
@@ -3908,7 +4243,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446620347"
+          "c1757445696969": [
+            "t1757446620347"
+          ]
         }
       },
       {
@@ -3922,7 +4259,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757450975575"
+          "c1757445696969": [
+            "t1757450975575"
+          ]
         }
       },
       {
@@ -3935,7 +4274,11 @@
           "c1757445700219"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445700219": [
+            "t1757446557699"
+          ]
+        }
       },
       {
         "id": "s1757451732555",
@@ -3948,7 +4291,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446372826"
+          "c1757445700219": [
+            "t1757446372826"
+          ]
         },
         "maxConsec": 2
       },
@@ -3974,7 +4319,11 @@
           "c1757445700219"
         ],
         "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1757445700219": [
+            "t1757446531773"
+          ]
+        }
       },
       {
         "id": "s1757451782139",
@@ -3987,7 +4336,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757450975575"
+          "c1757445700219": [
+            "t1757450975575"
+          ]
         }
       },
       {
@@ -4001,7 +4352,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446557699"
+          "c1757445700219": [
+            "t1757446557699"
+          ]
         }
       },
       {
@@ -4015,7 +4368,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446823272"
+          "c1757445700219": [
+            "t1757446823272"
+          ]
         }
       },
       {
@@ -4029,7 +4384,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446557699"
+          "c1757445700219": [
+            "t1757446557699"
+          ]
         }
       },
       {
@@ -4043,7 +4400,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446620347"
+          "c1757445700219": [
+            "t1757446620347"
+          ]
         },
         "maxConsec": 3
       },
@@ -4070,7 +4429,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446783238"
+          "c1757445700219": [
+            "t1757446783238"
+          ]
         }
       },
       {
@@ -4084,7 +4445,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757450975575"
+          "c1757445700219": [
+            "t1757450975575"
+          ]
         }
       },
       {
@@ -4098,7 +4461,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446437294"
+          "c1757445700219": [
+            "t1757446437294"
+          ]
         }
       },
       {
@@ -4125,7 +4490,9 @@
         ],
         "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446620347"
+          "c1757445700219": [
+            "t1757446620347"
+          ]
         }
       }
     ],
@@ -4138,50 +4505,264 @@
     "c1757445666030": [
       [
         {
-          "subjectId": "s1757447294526",
-          "teacherId": "t1757446767137",
+          "subjectId": "s1757447150360",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
-          "subjectId": "s1757447294526",
-          "teacherId": "t1757446767137",
+          "subjectId": "s1757447313664",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757446852178",
+          "subjectId": "s1757447313664",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447219702",
-          "teacherId": "t1757446805714",
+          "teacherIds": [
+            "t1757446805714"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447150360",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447294526",
+          "teacherIds": [
+            "t1757446767137"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447294526",
+          "teacherIds": [
+            "t1757446767137"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447294526",
+          "teacherIds": [
+            "t1757446767137"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757446327728",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757446327728",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447249869",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447249869",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447180569",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447180569",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757446314868",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757446314868",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447031209",
-          "teacherId": "t1757446569851",
+          "teacherIds": [
+            "t1758655432594"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447031209",
-          "teacherId": "t1757446569851",
+          "teacherIds": [
+            "t1758655432594"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447180569",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447180569",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447180569",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447313664",
+          "teacherIds": [
+            "t1757446663823"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447313664",
+          "teacherIds": [
+            "t1757446663823"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445666030"
+        },
+        {
+          "subjectId": "s1757447079308",
+          "teacherIds": [
+            "t1757447111553"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         }
@@ -4189,199 +4770,65 @@
       [
         {
           "subjectId": "s1757447276284",
-          "teacherId": "t1757446767137",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757446531773",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757446531773",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757446531773",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757446314868",
-          "teacherId": "t1757446557699",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757446314868",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446767137"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447031209",
-          "teacherId": "t1757446569851",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447031209",
-          "teacherId": "t1757446569851",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757447180569",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447180569",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447150360",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447249869",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447249869",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447180569",
-          "teacherId": "t1757446641605",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447313664",
-          "teacherId": "t1757446663823",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447313664",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757447150360",
-          "teacherId": "t1757446486202",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447079308",
-          "teacherId": "t1757446531773",
+          "teacherIds": [
+            "t1757447111553"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447079308",
-          "teacherId": "t1757446531773",
+          "teacherIds": [
+            "t1757447111553"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         },
         {
           "subjectId": "s1757447079308",
-          "teacherId": "t1757446531773",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447180569",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447180569",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447313664",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447313664",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757447313664",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447313664",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447079308",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757447294526",
-          "teacherId": "t1757446767137",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757446327728",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445666030"
-        },
-        {
-          "subjectId": "s1757446327728",
-          "teacherId": "t1757446486202",
+          "teacherIds": [
+            "t1757447111553"
+          ],
           "locationId": null,
           "classroomId": "c1757445666030"
         }
@@ -4390,50 +4837,132 @@
     "c1757445672627": [
       [
         {
-          "subjectId": "s1757447497009",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447497009",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447523782",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447523782",
-          "teacherId": "t1757446486202",
+          "subjectId": "s1757447390305",
+          "teacherIds": [
+            "t1757447404095"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447559460",
-          "teacherId": "t1757446805714",
+          "teacherIds": [
+            "t1757446805714"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
-          "subjectId": "s1757447497009",
-          "teacherId": "t1757446852178",
+          "subjectId": "s1757447445609",
+          "teacherIds": [
+            "t1757446569851"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447445609",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447623514",
-          "teacherId": "t1757446663823",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447623514",
-          "teacherId": "t1757446663823",
+          "teacherIds": [
+            "t1757446663823"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447445609",
+          "teacherIds": [
+            "t1757446569851"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447445609",
+          "teacherIds": [
+            "t1757446569851"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757447593814",
+          "teacherIds": [
+            "t1757446767137"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447593814",
+          "teacherIds": [
+            "t1757446767137"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447544138",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447544138",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447593814",
+          "teacherIds": [
+            "t1757446767137"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447481495",
+          "teacherIds": [
+            "t1757446852178"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447481495",
+          "teacherIds": [
+            "t1757446852178"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447481495",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         }
@@ -4441,199 +4970,197 @@
       [
         {
           "subjectId": "s1757447544138",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447544138",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447608897",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447593814",
-          "teacherId": "t1757446767137",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447593814",
-          "teacherId": "t1757446767137",
+          "teacherIds": [
+            "t1757446641605"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447574328",
-          "teacherId": "t1757446569851",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447497009",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447497009",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757447678420",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447678420",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447355601",
-          "teacherId": "t1757446507987",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447454841",
-          "teacherId": "t1757446396130",
+          "teacherIds": [
+            "t1757446396130"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
-          "subjectId": "s1757447623514",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447623514",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447344399",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757447355601",
+          "teacherIds": [
+            "t1757446507987"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447344399",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447344399",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447497009",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447497009",
+          "teacherIds": [
+            "t1757447111553"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         }
       ],
       [
         {
-          "subjectId": "s1757447544138",
-          "teacherId": "t1757446641605",
+          "subjectId": "s1757447678420",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447678420",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447523782",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447523782",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447608897",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447623514",
-          "teacherId": "t1757446663823",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447623514",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447435683",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447435683",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447390305",
-          "teacherId": "t1757447404095",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447445609",
-          "teacherId": "t1757446569851",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447445609",
-          "teacherId": "t1757446569851",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757447497009",
-          "teacherId": "t1757446531773",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447497009",
-          "teacherId": "t1757446531773",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447593814",
-          "teacherId": "t1757446767137",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447544138",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445672627"
-        },
-        {
-          "subjectId": "s1757447544138",
-          "teacherId": "t1757446641605",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
           "subjectId": "s1757447369687",
-          "teacherId": "t1757446569851",
+          "teacherIds": [
+            "t1757446569851"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757447623514",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
-          "subjectId": "s1757447445609",
-          "teacherId": "t1757446569851",
+          "subjectId": "s1757447623514",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         },
         {
-          "subjectId": "s1757447445609",
-          "teacherId": "t1757446569851",
+          "subjectId": "s1757447497009",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447497009",
+          "teacherIds": [
+            "t1757447111553"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447544138",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447544138",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447435683",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445672627"
+        },
+        {
+          "subjectId": "s1757447435683",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445672627"
         }
@@ -4643,49 +5170,65 @@
       [
         {
           "subjectId": "s1757447957187",
-          "teacherId": "t1757446663823",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
-          "subjectId": "s1757447957187",
-          "teacherId": "t1757446663823",
+          "subjectId": "s1757447887129",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447887129",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447934185",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447917279",
+          "teacherIds": [
+            "t1757446767137"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447865509",
-          "teacherId": "t1757446805714",
+          "teacherIds": [
+            "t1757446805714"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
-          "subjectId": "s1757447812499",
-          "teacherId": "t1757447111553",
+          "subjectId": "s1757448008570",
+          "teacherIds": [
+            "t1758655432594"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
-          "subjectId": "s1757447812499",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447901419",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447917279",
-          "teacherId": "t1757446767137",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447917279",
-          "teacherId": "t1757446767137",
+          "subjectId": "s1757448008570",
+          "teacherIds": [
+            "t1758655432594"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         }
@@ -4693,49 +5236,65 @@
       [
         {
           "subjectId": "s1757447748857",
-          "teacherId": "t1757446507987",
+          "teacherIds": [
+            "t1757446507987"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447730428",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447730428",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447812499",
+          "teacherIds": [
+            "t1757446531773"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447812499",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757448008570",
-          "teacherId": "t1757446569851",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757448008570",
-          "teacherId": "t1757446569851",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
-          "subjectId": "s1757448047766",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757448047766",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447917279",
-          "teacherId": "t1757446767137",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447850255",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447850255",
-          "teacherId": "t1757446641605",
+          "subjectId": "s1757447764349",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         }
@@ -4743,99 +5302,65 @@
       [
         {
           "subjectId": "s1757447971563",
-          "teacherId": "t1757446460886",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447957187",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447812499",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447812499",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446460886"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447785651",
-          "teacherId": "t1757446396130",
+          "teacherIds": [
+            "t1757446396130"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
-          "subjectId": "s1757448008570",
-          "teacherId": "t1757446569851",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757448008570",
-          "teacherId": "t1757446569851",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447764349",
-          "teacherId": "t1757446569851",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757447957187",
-          "teacherId": "t1757446663823",
+          "subjectId": "s1757447901419",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447831049",
-          "teacherId": "t1757446486202",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447831049",
-          "teacherId": "t1757446486202",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447957187",
-          "teacherId": "t1757446663823",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
-          "subjectId": "s1757447730428",
-          "teacherId": "t1757446911209",
+          "subjectId": "s1757447957187",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
-          "subjectId": "s1757447730428",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447850255",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447850255",
-          "teacherId": "t1757446641605",
+          "subjectId": "s1757447957187",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         }
@@ -4843,49 +5368,131 @@
       [
         {
           "subjectId": "s1757447812499",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447812499",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
-          "subjectId": "s1757447934185",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447887129",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445679141"
-        },
-        {
-          "subjectId": "s1757447887129",
-          "teacherId": "t1757446486202",
+          "subjectId": "s1757447957187",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447850255",
-          "teacherId": "t1757446641605",
+          "teacherIds": [
+            "t1757446641605"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447812499",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         },
         {
           "subjectId": "s1757447812499",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446531773"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447850255",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447850255",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757447850255",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447850255",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757448047766",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757448047766",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447812499",
+          "teacherIds": [
+            "t1757446531773"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447812499",
+          "teacherIds": [
+            "t1757446531773"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447917279",
+          "teacherIds": [
+            "t1757446767137"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445679141"
+        },
+        {
+          "subjectId": "s1757447917279",
+          "teacherIds": [
+            "t1757446767137"
+          ],
           "locationId": null,
           "classroomId": "c1757445679141"
         }
@@ -4894,100 +5501,132 @@
     "c1757445686951": [
       [
         {
-          "subjectId": "s1757448266589",
-          "teacherId": "t1757446486202",
+          "subjectId": "s1757448120870",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448266589",
-          "teacherId": "t1757446486202",
+          "subjectId": "s1757448120870",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448154804",
-          "teacherId": "t1757446569851",
+          "subjectId": "s1757448244129",
+          "teacherIds": [
+            "t1757446767137"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448154804",
-          "teacherId": "t1757446569851",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448407490",
-          "teacherId": "t1757446663823",
+          "subjectId": "s1757448244129",
+          "teacherIds": [
+            "t1757446767137"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448216519",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448216519",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448307333",
-          "teacherId": "t1757446805714",
+          "teacherIds": [
+            "t1757446805714"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448407490",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         }
       ],
       [
         {
-          "subjectId": "s1757448365501",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448365501",
-          "teacherId": "t1757446486202",
+          "subjectId": "s1757448298891",
+          "teacherIds": [
+            "t1757446641605"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448298891",
-          "teacherId": "t1757446641605",
+          "teacherIds": [
+            "t1757446641605"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448298891",
-          "teacherId": "t1757446641605",
+          "subjectId": "s1757448216519",
+          "teacherIds": [
+            "t1757446852178"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448216519",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448130320",
-          "teacherId": "t1757446507987",
+          "teacherIds": [
+            "t1757446507987"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448380301",
-          "teacherId": "t1757446641605",
+          "subjectId": "s1757448343211",
+          "teacherIds": [
+            "t1757446767137"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448244129",
-          "teacherId": "t1757446767137",
+          "subjectId": "s1757448343211",
+          "teacherIds": [
+            "t1757446767137"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448244129",
-          "teacherId": "t1757446767137",
+          "subjectId": "s1757448298891",
+          "teacherIds": [
+            "t1757446641605"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         }
@@ -4995,99 +5634,131 @@
       [
         {
           "subjectId": "s1757448165390",
-          "teacherId": "t1757446396130",
+          "teacherIds": [
+            "t1757446396130"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448154804",
-          "teacherId": "t1757446569851",
+          "subjectId": "s1757448266589",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448154804",
-          "teacherId": "t1757446569851",
+          "subjectId": "s1757448266589",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448418498",
-          "teacherId": "t1757446460886",
+          "teacherIds": [
+            "t1757446460886"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448418498",
-          "teacherId": "t1757446460886",
+          "teacherIds": [
+            "t1757446460886"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448216519",
-          "teacherId": "t1757447111553",
+          "subjectId": "s1757448185306",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448216519",
-          "teacherId": "t1757447111553",
+          "subjectId": "s1757448154804",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448298891",
-          "teacherId": "t1757446641605",
+          "subjectId": "s1757448154804",
+          "teacherIds": [
+            "t1757446569851"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         }
       ],
       [
         {
-          "subjectId": "s1757448216519",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448216519",
-          "teacherId": "t1757447111553",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448120870",
-          "teacherId": "t1757446557699",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448120870",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757448407490",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448407490",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448407490",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448216519",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448216519",
-          "teacherId": "t1757447111553",
+          "teacherIds": [
+            "t1757446852178"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448216519",
+          "teacherIds": [
+            "t1757446852178"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448380301",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448154804",
+          "teacherIds": [
+            "t1757446569851"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448154804",
+          "teacherIds": [
+            "t1757446569851"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448216519",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         }
@@ -5095,49 +5766,65 @@
       [
         {
           "subjectId": "s1757448140932",
-          "teacherId": "t1757446486202",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448298891",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448298891",
-          "teacherId": "t1757446641605",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448407490",
-          "teacherId": "t1757446663823",
-          "locationId": null,
-          "classroomId": "c1757445686951"
-        },
-        {
-          "subjectId": "s1757448407490",
-          "teacherId": "t1757446663823",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
           "subjectId": "s1757448140932",
-          "teacherId": "t1757446486202",
+          "teacherIds": [
+            "t1757446486202"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448343211",
-          "teacherId": "t1757446767137",
+          "subjectId": "s1757448298891",
+          "teacherIds": [
+            "t1757446641605"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         },
         {
-          "subjectId": "s1757448343211",
-          "teacherId": "t1757446767137",
+          "subjectId": "s1757448298891",
+          "teacherIds": [
+            "t1757446641605"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448365501",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448365501",
+          "teacherIds": [
+            "t1757446486202"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448407490",
+          "teacherIds": [
+            "t1757446663823"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445686951"
+        },
+        {
+          "subjectId": "s1757448407490",
+          "teacherIds": [
+            "t1757446663823"
+          ],
           "locationId": null,
           "classroomId": "c1757445686951"
         }
@@ -5147,49 +5834,65 @@
       [
         {
           "subjectId": "s1757450739368",
-          "teacherId": "t1757446372826",
+          "teacherIds": [
+            "t1757446372826"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
           "subjectId": "s1757450739368",
-          "teacherId": "t1757446372826",
+          "teacherIds": [
+            "t1757446372826"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
-          "subjectId": "s1757450943827",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757450785201",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
-          "subjectId": "s1757450943827",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450961549",
-          "teacherId": "t1757450975575",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450961549",
-          "teacherId": "t1757450975575",
+          "subjectId": "s1757450785201",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
           "subjectId": "s1757450847777",
-          "teacherId": "t1757446911209",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
           "subjectId": "s1757450847777",
-          "teacherId": "t1757446911209",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450686354",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450686354",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         }
@@ -5197,199 +5900,263 @@
       [
         {
           "subjectId": "s1757450904873",
-          "teacherId": "t1757446608229",
+          "teacherIds": [
+            "t1757446608229"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
-          "subjectId": "s1757450704818",
-          "teacherId": "t1757446507987",
+          "subjectId": "s1757450943827",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
-          "subjectId": "s1757450704818",
-          "teacherId": "t1757446507987",
+          "subjectId": "s1757450720232",
+          "teacherIds": [
+            "t1757446608229"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450720232",
+          "teacherIds": [
+            "t1757446608229"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
           "subjectId": "s1757450893137",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450785201",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450785201",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450720232",
-          "teacherId": "t1757446608229",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450720232",
-          "teacherId": "t1757446608229",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757450847777",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450847777",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450872391",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450872391",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450943827",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450943827",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450872391",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450872391",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757450872391",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450872391",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450943827",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450825899",
-          "teacherId": "t1757446416280",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450825899",
-          "teacherId": "t1757446416280",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450785201",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450785201",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450785201",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757450686354",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757445693699"
-        },
-        {
-          "subjectId": "s1757450686354",
-          "teacherId": "t1757446911209",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
           "subjectId": "s1757450918565",
-          "teacherId": "t1757446911209",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
-          "subjectId": "s1757450751876",
-          "teacherId": "t1757446926345",
+          "subjectId": "s1757450872391",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
-          "subjectId": "s1757450751876",
-          "teacherId": "t1757446926345",
+          "subjectId": "s1757450872391",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757450704818",
+          "teacherIds": [
+            "t1757446507987"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450704818",
+          "teacherIds": [
+            "t1757446507987"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450943827",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450943827",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450872391",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450872391",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450686354",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450686354",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757450872391",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450872391",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450825899",
+          "teacherIds": [
+            "t1757446416280"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450825899",
+          "teacherIds": [
+            "t1757446416280"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450785201",
+          "teacherIds": [
+            "t1757446852178"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450785201",
+          "teacherIds": [
+            "t1757446852178"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450785201",
+          "teacherIds": [
+            "t1757446852178"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
           "subjectId": "s1757450847777",
-          "teacherId": "t1757446911209",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757450847777",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
-          "subjectId": "s1757450686354",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757450847777",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         },
         {
-          "subjectId": "s1757450686354",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757450751876",
+          "teacherIds": [
+            "t1757446926345"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450751876",
+          "teacherIds": [
+            "t1757446926345"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450961549",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450961549",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450943827",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445693699"
+        },
+        {
+          "subjectId": "s1757450943827",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445693699"
         }
@@ -5398,50 +6165,66 @@
     "c1757445696969": [
       [
         {
-          "subjectId": "s1757451674061",
-          "teacherId": "t1757450975575",
+          "subjectId": "s1757451624201",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451674061",
-          "teacherId": "t1757450975575",
+          "subjectId": "s1757451572380",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451431466",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757451572380",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451512610",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451512610",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451572380",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451572380",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451547864",
-          "teacherId": "t1757446805714",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451624201",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451624201",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451493686",
-          "teacherId": "t1757446852178",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451493686",
-          "teacherId": "t1757446852178",
+          "teacherIds": [
+            "t1757446805714"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         }
@@ -5449,99 +6232,131 @@
       [
         {
           "subjectId": "s1757451636954",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451636954",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451538542",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451538542",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451445630",
-          "teacherId": "t1757446372826",
+          "teacherIds": [
+            "t1757446372826"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451445630",
-          "teacherId": "t1757446372826",
+          "teacherIds": [
+            "t1757446372826"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451572380",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451493686",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451572380",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451493686",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         }
       ],
       [
         {
-          "subjectId": "s1757451512610",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757451662419",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451662419",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451431466",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451431466",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451512610",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451572380",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451512610",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451572380",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451624201",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451538542",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451538542",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451597974",
-          "teacherId": "t1757450975575",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451597974",
-          "teacherId": "t1757450975575",
+          "subjectId": "s1757451624201",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         }
@@ -5549,99 +6364,131 @@
       [
         {
           "subjectId": "s1757451476532",
-          "teacherId": "t1757446911209",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451476532",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451538542",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451538542",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451461734",
-          "teacherId": "t1757446437294",
+          "teacherIds": [
+            "t1757446437294"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451461734",
-          "teacherId": "t1757446437294",
+          "teacherIds": [
+            "t1757446437294"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451431466",
-          "teacherId": "t1757446911209",
+          "subjectId": "s1757451624201",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451431466",
-          "teacherId": "t1757446911209",
+          "subjectId": "s1757451624201",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451538542",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451538542",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         }
       ],
       [
         {
-          "subjectId": "s1757451512610",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757451538542",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451512610",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757451538542",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451624201",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451674061",
+          "teacherIds": [
+            "t1757450975575"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451662419",
-          "teacherId": "t1757446620347",
+          "subjectId": "s1757451674061",
+          "teacherIds": [
+            "t1757450975575"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
-          "subjectId": "s1757451662419",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451624201",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445696969"
-        },
-        {
-          "subjectId": "s1757451624201",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451431466",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         },
         {
           "subjectId": "s1757451416379",
-          "teacherId": "t1757446911209",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451597974",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445696969"
+        },
+        {
+          "subjectId": "s1757451597974",
+          "teacherIds": [
+            "t1757450975575"
+          ],
           "locationId": null,
           "classroomId": "c1757445696969"
         }
@@ -5651,99 +6498,65 @@
       [
         {
           "subjectId": "s1757451895318",
-          "teacherId": "t1757446805714",
+          "teacherIds": [
+            "t1757446805714"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451940328",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451940328",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451782139",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451782139",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451732555",
+          "teacherIds": [
+            "t1757446372826"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451732555",
+          "teacherIds": [
+            "t1757446372826"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451855872",
-          "teacherId": "t1757446557699",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451940328",
-          "teacherId": "t1757450975575",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451940328",
-          "teacherId": "t1757450975575",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451732555",
-          "teacherId": "t1757446372826",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451732555",
-          "teacherId": "t1757446372826",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451970416",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451970416",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757451879110",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451879110",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451732555",
-          "teacherId": "t1757446372826",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451732555",
-          "teacherId": "t1757446372826",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451879110",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451879110",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451717119",
-          "teacherId": "t1757446557699",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451717119",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         }
@@ -5751,149 +6564,263 @@
       [
         {
           "subjectId": "s1757451761131",
-          "teacherId": "t1757446531773",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451761131",
-          "teacherId": "t1757446531773",
+          "teacherIds": [
+            "t1757446531773"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451732555",
+          "teacherIds": [
+            "t1757446372826"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451732555",
+          "teacherIds": [
+            "t1757446372826"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451809739",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451809739",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
-          "subjectId": "s1757451855872",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757451970416",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
-          "subjectId": "s1757451855872",
-          "teacherId": "t1757446557699",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451917198",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451917198",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451970416",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         }
       ],
       [
         {
-          "subjectId": "s1757451917198",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451855872",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451855872",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451717119",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451717119",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451917198",
-          "teacherId": "t1757446783238",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
-          "subjectId": "s1757451954954",
-          "teacherId": "t1757446437294",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451954954",
-          "teacherId": "t1757446437294",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451970416",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757445700219"
-        },
-        {
-          "subjectId": "s1757451970416",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451917198",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451879110",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451879110",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         }
       ],
       [
         {
-          "subjectId": "s1757451989462",
-          "teacherId": "t1757446620347",
+          "subjectId": "s1757451837247",
+          "teacherIds": [
+            "t1757446823272"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
-          "subjectId": "s1757451989462",
-          "teacherId": "t1757446620347",
+          "subjectId": "s1757451837247",
+          "teacherIds": [
+            "t1757446823272"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
-          "subjectId": "s1757451782139",
-          "teacherId": "t1757450975575",
+          "subjectId": "s1757451879110",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
-          "subjectId": "s1757451782139",
-          "teacherId": "t1757450975575",
+          "subjectId": "s1757451879110",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451745833",
-          "teacherId": "t1757446911209",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
-          "subjectId": "s1757451837247",
-          "teacherId": "t1757446823272",
+          "subjectId": "s1757451989462",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
-          "subjectId": "s1757451837247",
-          "teacherId": "t1757446823272",
+          "subjectId": "s1757451954954",
+          "teacherIds": [
+            "t1757446437294"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451954954",
+          "teacherIds": [
+            "t1757446437294"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757451917198",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451917198",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451989462",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         },
         {
           "subjectId": "s1757451970416",
-          "teacherId": "t1757446783238",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451970416",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451970416",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451879110",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757445700219"
+        },
+        {
+          "subjectId": "s1757451879110",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757445700219"
         }
@@ -5902,200 +6829,264 @@
     "c1757450647858": [
       [
         {
-          "subjectId": "s1757451140840",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451140840",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451061844",
-          "teacherId": "t1757446372826",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451061844",
-          "teacherId": "t1757446372826",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451318867",
-          "teacherId": "t1757446557699",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451318867",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757451207671",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451207671",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451015564",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451342071",
+          "teacherIds": [
+            "t1757446783238"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451342071",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451207671",
-          "teacherId": "t1757446557699",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451207671",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451342071",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         }
       ],
       [
         {
-          "subjectId": "s1757451342071",
-          "teacherId": "t1757446783238",
+          "subjectId": "s1757451061844",
+          "teacherIds": [
+            "t1757446372826"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
-          "subjectId": "s1757451342071",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451015564",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451015564",
-          "teacherId": "t1757446911209",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451046506",
-          "teacherId": "t1757446608229",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451046506",
-          "teacherId": "t1757446608229",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451227529",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451227529",
-          "teacherId": "t1757446620347",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        }
-      ],
-      [
-        {
-          "subjectId": "s1757451342071",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451342071",
-          "teacherId": "t1757446783238",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451161414",
-          "teacherId": "t1757446531773",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451161414",
-          "teacherId": "t1757446531773",
+          "subjectId": "s1757451061844",
+          "teacherIds": [
+            "t1757446372826"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451033434",
-          "teacherId": "t1757446507987",
+          "teacherIds": [
+            "t1757446507987"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
-          "subjectId": "s1757451015564",
-          "teacherId": "t1757446911209",
+          "subjectId": "s1757451247913",
+          "teacherIds": [
+            "t1757446557699"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
-          "subjectId": "s1757451079054",
-          "teacherId": "t1757446911209",
+          "subjectId": "s1757451227529",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
-          "subjectId": "s1757451079054",
-          "teacherId": "t1757446911209",
+          "subjectId": "s1757451227529",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451046506",
+          "teacherIds": [
+            "t1757446608229"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451046506",
+          "teacherIds": [
+            "t1757446608229"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         }
       ],
       [
         {
-          "subjectId": "s1757451247913",
-          "teacherId": "t1757446557699",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451179880",
-          "teacherId": "t1757446416280",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451179880",
-          "teacherId": "t1757446416280",
+          "subjectId": "s1757451342071",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451342071",
-          "teacherId": "t1757446783238",
+          "teacherIds": [
+            "t1757446783238"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451227529",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451227529",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451351941",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451351941",
+          "teacherIds": [
+            "t1757450975575"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451318867",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451318867",
+          "teacherIds": [
+            "t1757446557699"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        }
+      ],
+      [
+        {
+          "subjectId": "s1757451179880",
+          "teacherIds": [
+            "t1757446416280"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451179880",
+          "teacherIds": [
+            "t1757446416280"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451079054",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451079054",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451093552",
-          "teacherId": "t1757446437294",
+          "teacherIds": [
+            "t1757446437294"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451093552",
-          "teacherId": "t1757446437294",
+          "teacherIds": [
+            "t1757446437294"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451161414",
+          "teacherIds": [
+            "t1757446531773"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451161414",
+          "teacherIds": [
+            "t1757446531773"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         }
@@ -6103,49 +7094,65 @@
       [
         {
           "subjectId": "s1757451121296",
-          "teacherId": "t1757446926345",
+          "teacherIds": [
+            "t1757446926345"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451121296",
-          "teacherId": "t1757446926345",
+          "teacherIds": [
+            "t1757446926345"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
-          "subjectId": "s1757451207671",
-          "teacherId": "t1757446557699",
+          "subjectId": "s1757451140840",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
-          "subjectId": "s1757451207671",
-          "teacherId": "t1757446557699",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451351941",
-          "teacherId": "t1757450975575",
-          "locationId": null,
-          "classroomId": "c1757450647858"
-        },
-        {
-          "subjectId": "s1757451351941",
-          "teacherId": "t1757450975575",
+          "subjectId": "s1757451140840",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451227529",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446620347"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         },
         {
           "subjectId": "s1757451227529",
-          "teacherId": "t1757446620347",
+          "teacherIds": [
+            "t1757446620347"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451015564",
+          "teacherIds": [
+            "t1757446911209"
+          ],
+          "locationId": null,
+          "classroomId": "c1757450647858"
+        },
+        {
+          "subjectId": "s1757451015564",
+          "teacherIds": [
+            "t1757446911209"
+          ],
           "locationId": null,
           "classroomId": "c1757450647858"
         }
