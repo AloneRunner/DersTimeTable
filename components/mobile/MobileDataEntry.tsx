@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../../components/Modal';
 import { TeacherForm } from '../forms/TeacherForm';
 import { ClassroomForm } from '../forms/ClassroomForm';
-import type { TimetableData, Teacher, Classroom } from '../../types';
+import type { TimetableData } from '../../types';
 
 interface MobileDataEntryProps {
   isOpen: boolean;
@@ -16,12 +16,12 @@ interface MobileDataEntryProps {
 const MobileDataEntry: React.FC<MobileDataEntryProps> = ({ isOpen, onClose, addTeacher, addClassroom, data, maxDailyHours }) => {
   const [tab, setTab] = useState<'teacher'|'classroom'>('teacher');
 
-  const handleSaveTeacher = (payload: Omit<Teacher, 'id'>) => {
+  const handleSaveTeacher = (payload: any) => {
     addTeacher(payload);
     onClose();
   };
 
-  const handleSaveClassroom = (payload: Omit<Classroom, 'id'>) => {
+  const handleSaveClassroom = (payload: any) => {
     addClassroom(payload);
     onClose();
   };
