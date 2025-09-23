@@ -253,35 +253,7 @@ function makeWorkerScript() {
         }
 
         // ---- Öğretmen adayları ----
-                getTeacherCandidates(subject: Subject, classroomId: string){
-          const list = [];
-          const pinned = subject?.pinnedTeacherByClassroom?.[classroomId];
-          if (pinned && Array.isArray(pinned)) {
-            for (const teacherId of pinned) {
-              if (teacherId && this.teacherById.has(teacherId)) {
-                list.push(teacherId);
-              }
-            }
-          }
-
-          if (Array.isArray((subject as any)?.teacherIds))
-            for (const id of (subject as any).teacherIds) if (this.teacherById.has(id)) list.push(id);
-
-          for (const id of (this.teacherSubjectMap.get(subject?.name)||[])) list.push(id);
-
-          const nb = normalizeName(subject?.name);
-          for (const id of (this.teacherSubjectMapNorm.get(nb)||[])) list.push(id);
-
-          const uniq = Array.from(new Set(list));
-          if (!classroomId) return uniq;
-
-          const cls = this.classroomById.get(classroomId);
-          const isHS = cls?.level === "Lise";
-          return uniq.filter(id => {
-            const t = this.teacherById.get(id);
-            return isHS ? !!t?.canTeachHighSchool : !!t?.canTeachMiddleSchool;
-          });
-        }
+        getTeacherCandidates(subject: Subject, classroomId: string){
           const list = [];
           const pinned = subject?.pinnedTeacherByClassroom?.[classroomId];
           if (pinned && this.teacherById.has(pinned)) list.push(pinned);
@@ -1394,8 +1366,8 @@ function makeWorkerScript() {
           if (span===3) score += 3; else if (span===2) score += 1;
           // Prefer pinned teacher for this class/subject when available
           const subj = this.subjectById.get(lesson.subjectId || lesson.groupSubjectId);
-          const pinnedIds = subj?.pinnedTeacherByClassroom?.[lesson.classroomId];
-          if (pinnedIds && Array.isArray(pinnedIds) && pinnedIds.includes(teacher.id)) score += 15;
+          const pinnedId = subj?.pinnedTeacherByClassroom?.[lesson.classroomId];
+          if (pinnedId && pinnedId === teacher.id) score += 15;
           return score;
         }
 

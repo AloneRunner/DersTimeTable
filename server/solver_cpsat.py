@@ -126,7 +126,7 @@ def solve_cp_sat(
 
             for teacher_tuple in teacher_combos:
                 # For multi-teacher, use a composite ID. For single, it's just the teacher's ID.
-                composite_tid = "||".join(sorted(teacher_tuple))
+                composite_tid = "-".join(sorted(teacher_tuple))
 
                 for d in range(5):
                     allowed_len = school_hours['Ortaokul'][d] if c['level'] == 'Ortaokul' else school_hours['Lise'][d]
@@ -244,7 +244,7 @@ def solve_cp_sat(
                 for (cc, ss, composite_tid, dd, hh), v in x.items():
                     if dd == d and hh == h:
                         # Check if the teacher's ID is in the composite ID string
-                        if tid in composite_tid.split('||'):
+                        if tid in composite_tid.split('-'):
                             vars_t.append(v)
                 if len(vars_t) > 1:
                     model.Add(sum(vars_t) <= 1)
@@ -265,7 +265,7 @@ def solve_cp_sat(
                 vars_day = []
                 for (cc, ss, composite_tid, dd, hh), v in x.items():
                     if dd == d:
-                        if tid in composite_tid.split('||'):
+                        if tid in composite_tid.split('-'):
                             vars_day.append(v)
 
                 if vars_day:
@@ -304,7 +304,7 @@ def solve_cp_sat(
                 vars_t = []
                 for (cc, ss, composite_tid, dd, hh), v in x.items():
                     if dd == d and hh == h:
-                        if tid in composite_tid.split('||'):
+                        if tid in composite_tid.split('-'):
                             vars_t.append(v)
 
                 if vars_t:

@@ -45,7 +45,7 @@ export interface Subject {
   weeklyHours: number;
   assignedClassIds: string[];
   pinnedTeacherByClassroom?: { // Pin a specific teacher for this subject in a specific classroom
-    [classroomId: string]: string[]; // teacherId[]
+    [classroomId: string]: string; // teacherId
   };
 }
 

@@ -80,7 +80,7 @@ const ScheduleCell: React.FC<{
       className={`h-24 border p-1.5 text-xs flex flex-col justify-between ${color} ${isDraggable ? 'cursor-move' : ''}`}>
       <div>
         <p className="font-bold text-slate-800">{subject.name}</p>
-        <p className="text-slate-600">{viewType === ViewTypeEnum.Class ? teachers.map(t => t.name).join(' + ') : classroom.name}</p>
+        <p className="text-slate-600">{viewType === ViewTypeEnum.Class ? teachers.map(t => t.name).join(', ') : classroom.name}</p>
       </div>
       {location && <p className="text-slate-500 text-[10px] self-end">{location.name}</p>}
     </div>
