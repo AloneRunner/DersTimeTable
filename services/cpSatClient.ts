@@ -1,6 +1,9 @@
 import type { TimetableData, SchoolHours, SolveResult } from '../types';
 
 const META: any = import.meta as any;
+
+console.log("VITE_CP_SAT_BASE_URL from env:", META.env?.VITE_CP_SAT_BASE_URL);
+console.log("VITE_CP_SOLVER_URL from env:", META.env?.VITE_CP_SOLVER_URL);
 const BASE_URL = META.env?.VITE_CP_SOLVER_URL ?? META.env?.VITE_CP_SAT_BASE_URL ?? 'http://localhost:8000';
 
 export async function solveTimetableCP(
