@@ -5,7 +5,7 @@ const META: any = import.meta as any;
 let baseUrl = META.env?.VITE_CP_SOLVER_URL ?? META.env?.VITE_CP_SAT_BASE_URL ?? 'http://localhost:8000';
 
 // If in production, override with the production URL
-if (META.env.PROD) {
+if (META.env?.PROD) {
   baseUrl = 'https://derstimetable-production.up.railway.app';
 }
 
