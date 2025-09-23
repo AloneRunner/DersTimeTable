@@ -34,7 +34,7 @@ class Subject(BaseModel):
     locationId: Optional[str] = None
     weeklyHours: int
     assignedClassIds: List[str]
-    pinnedTeacherByClassroom: Dict[str, str] = Field(default_factory=dict)
+    pinnedTeacherByClassroom: Dict[str, List[str]] = Field(default_factory=dict)
 
 
 class Location(BaseModel):

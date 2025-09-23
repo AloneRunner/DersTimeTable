@@ -35,9 +35,15 @@ def solve_cp_sat(
         need_middle = level == 'Ortaokul'
         need_high = level == 'Lise'
         pinned_map = s.get('pinnedTeacherByClassroom') or {}
-        pinned = pinned_map.get(c['id'])
-        if pinned and pinned in teacher_by_id:
-            return [pinned]
+        
+        # --- MODIFIED FOR MULTI-TEACHER PINNING ---
+        pinned_list = pinned_map.get(c['id'])
+        if pinned_list and isinstance(pinned_list, list) and len(pinned_list) > 0:
+            # Validate that all pinned teachers exist
+            valid_pinned = [tid for tid in pinned_list if tid in teacher_by_id]
+            if len(valid_pinned) == len(pinned_list):
+                return valid_pinned
+
         el = []
         for t in teachers:
             if need_middle and not t.get('canTeachMiddleSchool', False):

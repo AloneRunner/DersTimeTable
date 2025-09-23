@@ -3,8 +3,6 @@ import type { Subject, TimetableData, Teacher } from '../../types';
 import { AutocompleteInput } from '../../components/AutocompleteInput';
 import { subjectSuggestions } from '../../data/suggestions';
 
-const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"];
-
 export const SubjectForm: React.FC<{
   item: Subject | null;
   data: TimetableData;
@@ -12,8 +10,8 @@ export const SubjectForm: React.FC<{
   onCancel: () => void;
   updateTeacher: (teacher: Teacher) => void;
 }> = ({ item, data, onSave, onCancel, updateTeacher }) => {
-  const [subject, setSubject] = useState<Subject | Omit<Subject, 'id'>>(
-    item || {
+  const [subject, setSubject] = useState<Subject | Omit<Subject, 'id'>>(() => {
+    const initial: Subject | Omit<Subject, 'id'> = item || {
       name: '',
       weeklyHours: 1,
       blockHours: 0,
@@ -23,8 +21,17 @@ export const SubjectForm: React.FC<{
       locationId: undefined,
       pinnedTeacherByClassroom: {},
       requiredTeacherCount: 1,
+    };
+    // Ensure pinnedTeacherByClassroom values are arrays
+    if (initial.pinnedTeacherByClassroom) {
+      for (const key in initial.pinnedTeacherByClassroom) {
+        if (!Array.isArray(initial.pinnedTeacherByClassroom[key])) {
+          initial.pinnedTeacherByClassroom[key] = [initial.pinnedTeacherByClassroom[key] as any];
+        }
+      }
     }
-  );
+    return initial;
+  });
 
   const eligibleTeachers = useMemo(() => {
     if (!subject.name) return [];
@@ -73,11 +80,22 @@ export const SubjectForm: React.FC<{
     });
   };
 
-  const handlePinTeacher = (classroomId: string, teacherId: string) => {
+  const handlePinTeacher = (classroomId: string, teacherId: string, index: number) => {
     setSubject((prev: any) => {
       const newPinned = { ...(prev.pinnedTeacherByClassroom || {}) };
-      if (teacherId) newPinned[classroomId] = teacherId;
-      else delete newPinned[classroomId];
+      const currentPins = newPinned[classroomId] || [];
+      
+      const updatedPins = [...currentPins];
+      updatedPins[index] = teacherId;
+
+      const finalPins = Array.from(new Set(updatedPins.filter(tid => tid)));
+
+      if (finalPins.length > 0) {
+        newPinned[classroomId] = finalPins;
+      } else {
+        delete newPinned[classroomId];
+      }
+
       return { ...prev, pinnedTeacherByClassroom: newPinned };
     });
 
@@ -230,32 +248,41 @@ export const SubjectForm: React.FC<{
       {(subject as any).assignedClassIds.length > 0 && data.teachers.length > 0 && (
         <div className="mt-4 border rounded-md p-3">
           <p className="text-sm font-medium text-slate-700 mb-2">Sınıf Bazlı Öğretmen Sabitle (opsiyonel)</p>
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid md:grid-cols-2 gap-4">
             {(subject as any).assignedClassIds.map((cid: string) => {
               const className = data.classrooms.find((c) => c.id === cid)?.name || cid;
-              const pinned = (subject as any).pinnedTeacherByClassroom?.[cid] || '';
+              const pinned = (subject as any).pinnedTeacherByClassroom?.[cid] || [];
               return (
-                <div key={cid} className="flex items-center gap-2">
-                  <span className="w-24 text-sm font-medium text-slate-600 truncate">{className}:</span>
-                  <select value={pinned} onChange={(e) => handlePinTeacher(cid, e.target.value)} className="flex-1 rounded-md border-slate-300 shadow-sm text-sm p-1.5">
-                    <option value="">(Otomatik Seç)</option>
-                    <optgroup label="Önerilen Öğretmenler">
-                      {allTeachersForPinning.eligible.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                    {allTeachersForPinning.others.length > 0 && (
-                      <optgroup label="Diğer Öğretmenler">
-                        {allTeachersForPinning.others.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </select>
+                <div key={cid} className="p-2 border rounded-md bg-slate-50">
+                  <span className="text-sm font-medium text-slate-600 truncate">{className}</span>
+                  <div className="mt-1 space-y-2">
+                    {Array.from({ length: (subject as any).requiredTeacherCount || 1 }).map((_, index) => (
+                      <select
+                        key={index}
+                        value={pinned[index] || ''}
+                        onChange={(e) => handlePinTeacher(cid, e.target.value, index)}
+                        className="w-full rounded-md border-slate-300 shadow-sm text-sm p-1.5"
+                      >
+                        <option value="">(Otomatik Seç - Slot {index + 1})</option>
+                        <optgroup label="Önerilen Öğretmenler">
+                          {allTeachersForPinning.eligible.map((t) => (
+                            <option key={t.id} value={t.id} disabled={pinned.includes(t.id) && pinned[index] !== t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        {allTeachersForPinning.others.length > 0 && (
+                          <optgroup label="Diğer Öğretmenler">
+                            {allTeachersForPinning.others.map((t) => (
+                              <option key={t.id} value={t.id} disabled={pinned.includes(t.id) && pinned[index] !== t.id}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    ))}
+                  </div>
                 </div>
               );
             })}
