@@ -252,6 +252,96 @@ function makeWorkerScript() {
           return [];
         }
 
+
+teacherObjectsFromIds(ids: string[]): Teacher[] {
+  if (!Array.isArray(ids)) return [];
+  const out: Teacher[] = [];
+  for (const id of ids) {
+    const teacher = this.teacherById.get(id);
+    if (teacher) out.push(teacher);
+  }
+  return out;
+}
+
+buildTeacherCombos(subject: Subject | undefined, classroomId: string): Teacher[][] {
+  if (!subject) return [];
+  const required = Math.max(1, subject.requiredTeacherCount || 1);
+  const pinnedRaw = (subject.pinnedTeacherByClassroom || {})[classroomId] || [];
+  const pinnedTeachers: Teacher[] = [];
+  const seenPinned = new Set<string>();
+  const toIterate = Array.isArray(pinnedRaw) ? pinnedRaw : [pinnedRaw];
+  for (const pid of toIterate) {
+    if (typeof pid !== 'string') continue;
+    const teacher = this.teacherById.get(pid);
+    if (teacher && !seenPinned.has(pid)) {
+      pinnedTeachers.push(teacher);
+      seenPinned.add(pid);
+    }
+  }
+
+  if (pinnedTeachers.length >= required) {
+    return [pinnedTeachers.slice(0, required)];
+  }
+
+  const candidateIds = this.getTeacherCandidates(subject, classroomId);
+  const uniqueCandidateIds: string[] = [];
+  for (const id of candidateIds) {
+    if (!seenPinned.has(id) && !uniqueCandidateIds.includes(id)) uniqueCandidateIds.push(id);
+  }
+  const candidateTeachers: Teacher[] = [];
+  for (const id of uniqueCandidateIds) {
+    const teacher = this.teacherById.get(id);
+    if (teacher) candidateTeachers.push(teacher);
+  }
+
+  const need = required - pinnedTeachers.length;
+  if (need <= 0) {
+    return [pinnedTeachers.slice(0, required)];
+  }
+  if (candidateTeachers.length + pinnedTeachers.length < required) {
+    return [];
+  }
+
+  const combos: Teacher[][] = [];
+  const current: Teacher[] = [];
+  const limit = 40;
+  const dfs = (start: number) => {
+    if (combos.length >= limit) return;
+    if (current.length === need) {
+      combos.push(pinnedTeachers.concat(current.slice()));
+      return;
+    }
+    for (let i = start; i < candidateTeachers.length; i++) {
+      current.push(candidateTeachers[i]);
+      dfs(i + 1);
+      current.pop();
+      if (combos.length >= limit) return;
+    }
+  };
+  dfs(0);
+
+  if (!combos.length && candidateTeachers.length) {
+    const fallback = pinnedTeachers.slice();
+    for (const teacher of candidateTeachers) {
+      if (fallback.length < required) fallback.push(teacher);
+    }
+    if (fallback.length === required) combos.push(fallback);
+  }
+
+  const unique: Teacher[][] = [];
+  const seen = new Set<string>();
+  for (const combo of combos) {
+    if (combo.length !== required) continue;
+    const key = combo.map((t) => t.id).sort().join('|');
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(combo);
+    }
+  }
+
+  return unique;
+}
+
         // ---- Öğretmen adayları ----
         getTeacherCandidates(subject: Subject, classroomId: string){
           const list: string[] = [];
@@ -418,27 +508,29 @@ function makeWorkerScript() {
         }
 
         // ---- Sabitler ----
-        placeFixedAssignments() {
-          for (const f of (this.data.fixedAssignments || [])) {
-            const cls = this.classroomById.get(f.classroomId);
-            const sub = this.subjectById.get(f.subjectId);
-            if (!cls || !sub) continue;
-            const w = this.getAllowedWindow(cls, f.dayIndex|0);
-            const d = f.dayIndex|0, h = f.hourIndex|0;
-            if (d<0 || d>=DAYS || h<w.start || h>=w.end) return false;
-            const teachers = this.getTeacherCandidates(sub, f.classroomId).map(id=>this.teacherById.get(id)).filter(Boolean);
-            let placed = false;
-            for (const t of teachers) {
-              if (this.isValid(f.classroomId, sub, t, d, h, 1)) {
-                this.placeLesson(f.classroomId, sub, t, d, h, 1);
-                this.fixedMask[f.classroomId][d][h] = true;
-                placed = true; break;
-              }
-            }
-            if (!placed) return false;
-          }
-          return true;
-        }
+
+placeFixedAssignments() {
+  for (const f of (this.data.fixedAssignments || [])) {
+    const cls = this.classroomById.get(f.classroomId);
+    const sub = this.subjectById.get(f.subjectId);
+    if (!cls || !sub) continue;
+    const w = this.getAllowedWindow(cls, f.dayIndex|0);
+    const d = f.dayIndex|0, h = f.hourIndex|0;
+    if (d<0 || d>=DAYS || h<w.start || h>=w.end) return false;
+    const combos = this.buildTeacherCombos(sub, f.classroomId);
+    if (!combos.length) return false;
+    let placed = false;
+    for (const combo of combos) {
+      if (this.isValid(f.classroomId, sub, combo, d, h, 1)) {
+        this.placeLesson(f.classroomId, sub, combo, d, h, 1);
+        this.fixedMask[f.classroomId][d][h] = true;
+        placed = true; break;
+      }
+    }
+    if (!placed) return false;
+  }
+  return true;
+}
 
         // ---- Unit üretimi ----
         buildUnits() {
@@ -499,12 +591,12 @@ function makeWorkerScript() {
               const s = this.subjectById.get(u.subjectId);
               const c = this.classroomById.get(u.classroomId);
               if (!s || !c) continue;
-              const tlist = this.getTeacherCandidates(s, u.classroomId).map(id=>this.teacherById.get(id)).filter(Boolean);
-              const cands = this.enumerateValidSlotsForSingle(u, s, c, tlist);
+              const combos = this.buildTeacherCombos(s, u.classroomId);
+              const cands = this.enumerateValidSlotsForSingle(u, s, c, combos);
               if (cands.length) {
-                cands.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teacher) - this.scorePlacement(b.unit,b.d,b.h,b.teacher)).reverse();
+                cands.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teachers) - this.scorePlacement(b.unit,b.d,b.h,b.teachers)).reverse();
                 const top = cands[0];
-                this.placeLesson(u.classroomId, s, top.teacher, top.d, top.h, u.span);
+                this.placeLesson(u.classroomId, s, top.teachers, top.d, top.h, u.span);
                 placed.add(scored[k].i);
               }
             }
@@ -587,55 +679,61 @@ function makeWorkerScript() {
         }
 
         // Tekil + küçük sök-tak
-        placeUnitSingleWithRepair(u: any) {
-          const sub = this.subjectById.get(u.subjectId);
-          const cls = this.classroomById.get(u.classroomId);
-          if (!sub || !cls) return false;
-          const teachers = this.getTeacherCandidates(sub, u.classroomId).map(id=>this.teacherById.get(id)).filter(Boolean);
 
-          const cands = this.enumerateValidSlotsForSingle(u, sub, cls, teachers);
-          if (cands.length) {
-            cands.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teacher) - this.scorePlacement(b.unit,b.d,b.h,b.teacher)).reverse();
-            const top = cands[0];
-            this.placeLesson(u.classroomId, sub, top.teacher, top.d, top.h, u.span);
-            return true;
-          }
+placeUnitSingleWithRepair(u: any) {
+  const sub = this.subjectById.get(u.subjectId);
+  const cls = this.classroomById.get(u.classroomId);
+  if (!sub || !cls) return false;
+  const teacherCombos = this.buildTeacherCombos(sub, u.classroomId);
+  if (!teacherCombos.length) return false;
 
-          const victims = this.pickBlockingAssignmentsForSingle(u, sub, cls, teachers, 6);
-          if (!victims.length) return false;
+  const cands = this.enumerateValidSlotsForSingle(u, sub, cls, teacherCombos);
+  if (cands.length) {
+    cands.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teachers) - this.scorePlacement(b.unit,b.d,b.h,b.teachers)).reverse();
+    const top = cands[0];
+    this.placeLesson(u.classroomId, sub, top.teachers, top.d, top.h, u.span);
+    return true;
+  }
 
-          const removed: any[] = [], removedAssn = new Set();
-          for (const v of victims) {
-            if (this.fixedMask[v.classroomId]?.[v.day]?.[v.hour]) continue;
-            const assn = this.schedule[v.classroomId]?.[v.day]?.[v.hour];
-            if (!assn || removedAssn.has(assn)) continue;
-            const span = this.getSpanAt(v.classroomId, v.day, v.hour);
-            this.removeLesson(v.classroomId, assn, v.day, v.hour, span);
-            removedAssn.add(assn);
-            removed.push({ type:'single', classroomId:v.classroomId, subjectId:assn.subjectId, span });
-            if (this.isTimedOut()) break;
-          }
+  const victims = this.pickBlockingAssignmentsForSingle(u, sub, cls, teacherCombos, 6);
+  if (!victims.length) return false;
 
-          const c2 = this.enumerateValidSlotsForSingle(u, sub, cls, teachers);
-          if (c2.length) {
-            c2.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teacher) - this.scorePlacement(b.unit,b.d,b.h,b.teacher)).reverse();
-            const top = c2[0];
-            this.placeLesson(u.classroomId, sub, top.teacher, top.d, top.h, u.span);
-            this.stats.backtracks += removed.length;
-            this._deferredReinsert = (this._deferredReinsert || []).concat(removed);
-            return true;
-          }
+  const removed: any[] = [], removedAssn = new Set();
+  for (const v of victims) {
+    if (this.fixedMask[v.classroomId]?.[v.day]?.[v.hour]) continue;
+    const assn = this.schedule[v.classroomId]?.[v.day]?.[v.hour];
+    if (!assn || removedAssn.has(assn)) continue;
+    const span = this.getSpanAt(v.classroomId, v.day, v.hour);
+    this.removeLesson(v.classroomId, assn, v.day, v.hour, span);
+    removedAssn.add(assn);
+    removed.push({ type:'single', classroomId:v.classroomId, subjectId:assn.subjectId, span });
+    if (this.isTimedOut()) break;
+  }
 
-          // rollback best-effort
-          for (const r of removed) {
-            const s2 = this.subjectById.get(r.subjectId); if (!s2) continue;
-            const tlist = this.getTeacherCandidates(s2, r.classroomId).map(id=>this.teacherById.get(id)).filter(Boolean);
-            const cls2 = this.classroomById.get(r.classroomId); if (!cls2) continue;
-            const cR = this.enumerateValidSlotsForSingle(r, s2, cls2, tlist);
-            if (cR.length) { const top = rng.pick(cR); this.placeLesson(r.classroomId, s2, top.teacher, top.d, top.h, r.span); }
-          }
-          return false;
-        }
+  const c2 = this.enumerateValidSlotsForSingle(u, sub, cls, teacherCombos);
+  if (c2.length) {
+    c2.sort((a,b)=> this.scorePlacement(a.unit,a.d,a.h,a.teachers) - this.scorePlacement(b.unit,b.d,b.h,b.teachers)).reverse();
+    const top = c2[0];
+    this.placeLesson(u.classroomId, sub, top.teachers, top.d, top.h, u.span);
+    this.stats.backtracks += removed.length;
+    this._deferredReinsert = (this._deferredReinsert || []).concat(removed);
+    return true;
+  }
+
+  // rollback best-effort
+  for (const r of removed) {
+    const s2 = this.subjectById.get(r.subjectId); if (!s2) continue;
+    const cls2 = this.classroomById.get(r.classroomId); if (!cls2) continue;
+    const combos2 = this.buildTeacherCombos(s2, r.classroomId);
+    if (!combos2.length) continue;
+    const cR = this.enumerateValidSlotsForSingle(r, s2, cls2, combos2);
+    if (cR.length) {
+      const top = cR[Math.floor(rng.next() * cR.length)];
+      this.placeLesson(r.classroomId, s2, top.teachers, top.d, top.h, r.span);
+    }
+  }
+  return false;
+}
 
         // Grup (varsa)
         placeUnitGroupWithRepair(unit: any) {
@@ -669,10 +767,11 @@ function makeWorkerScript() {
           // rollback
           for (const r of removed) {
             const s2 = this.subjectById.get(r.subjectId); if (!s2) continue;
-            const tlist = this.getTeacherCandidates(s2, r.classroomId).map(id=>this.teacherById.get(id)).filter(Boolean);
             const cls2 = this.classroomById.get(r.classroomId); if (!cls2) continue;
-            const cR = this.enumerateValidSlotsForSingle(r, s2, cls2, tlist);
-            if (cR.length) { const top = rng.pick(cR); this.placeLesson(r.classroomId, s2, top.teacher, top.d, top.h, r.span); }
+            const combos2 = this.buildTeacherCombos(s2, r.classroomId);
+            if (!combos2.length) continue;
+            const cR = this.enumerateValidSlotsForSingle(r, s2, cls2, combos2);
+            if (cR.length) { const top = cR[Math.floor(rng.next() * cR.length)]; this.placeLesson(r.classroomId, s2, top.teachers, top.d, top.h, r.span); }
           }
           return false;
         }
@@ -691,103 +790,111 @@ function makeWorkerScript() {
         }
 
         // ---- Aday sayımı & aday üretimi ----
-        countValidPlacementsApprox(unit: any) {
-          if (unit.type==='group') {
-            const group = (this.data.lessonGroups||[]).find(g=>g.id===unit.groupId);
-            const subject = this.subjectById.get(group?.subjectId); if (!group || !subject) return 0;
-            const teachers = this.findTeachersForSubject(subject.name);
-            const span = unit.blockSpan || 1;
-            let cnt=0;
-            for (let d=0; d<DAYS; d++) {
-              const win = this.getGroupAllowedWindow(group.classroomIds, d);
-              const maxH = win.end - (span-1);
-              for (let h=win.start; h<maxH; h++) if (this.findGroupAssignment(group, subject, d, h, teachers, span)) cnt++;
-            }
-            return cnt;
-          } else {
-            const subject = this.subjectById.get(unit.subjectId);
-            const classroom = this.classroomById.get(unit.classroomId);
-            if (!subject || !classroom) return 0;
-            const teachers = this.getTeacherCandidates(subject, unit.classroomId).map(id=>this.teacherById.get(id)).filter(Boolean);
-            let cnt=0;
-            for (const t of teachers) {
-              for (let d=0; d<DAYS; d++) {
-                const win = this.getAllowedWindow(classroom, d);
-                const maxH = win.end - (unit.span-1);
-                for (let h=win.start; h<maxH; h++) if (this.isValid(unit.classroomId, subject, t, d, h, unit.span)) cnt++;
-              }
-            }
-            return cnt;
-          }
-        }
 
-        enumerateValidSlotsForSingle(unit: any, subject: Subject, classroom: Classroom, teachers: Teacher[]) {
-          const out: any[] = []; const span = unit.span || 1;
-          for (const t of teachers) {
-            for (let d=0; d<DAYS; d++) {
-              const win = this.getAllowedWindow(classroom, d);
-              const maxH = win.end - (span-1);
-              for (let h=win.start; h<maxH; h++) if (this.isValid(unit.classroomId, subject, t, d, h, span)) out.push({d, h, teacher:t, unit: unit});
-            }
-          }
-          return out;
-        }
+countValidPlacementsApprox(unit: any) {
+  if (unit.type==='group') {
+    const group = (this.data.lessonGroups||[]).find(g=>g.id===unit.groupId);
+    const subject = this.subjectById.get(group?.subjectId); if (!group || !subject) return 0;
+    const teachers = this.findTeachersForSubject(subject.name);
+    const span = unit.blockSpan || 1;
+    let cnt=0;
+    for (let d=0; d<DAYS; d++) {
+      const win = this.getGroupAllowedWindow(group.classroomIds, d);
+      const maxH = win.end - (span-1);
+      for (let h=win.start; h<maxH; h++) if (this.findGroupAssignment(group, subject, d, h, teachers, span)) cnt++;
+    }
+    return cnt;
+  } else {
+    const subject = this.subjectById.get(unit.subjectId);
+    const classroom = this.classroomById.get(unit.classroomId);
+    if (!subject || !classroom) return 0;
+    const combos = this.buildTeacherCombos(subject, unit.classroomId);
+    if (!combos.length) return 0;
+    let cnt=0;
+    for (const combo of combos) {
+      for (let d=0; d<DAYS; d++) {
+        const win = this.getAllowedWindow(classroom, d);
+        const maxH = win.end - (unit.span-1);
+        for (let h=win.start; h<maxH; h++) if (this.isValid(unit.classroomId, subject, combo, d, h, unit.span)) cnt++;
+      }
+    }
+    return cnt;
+  }
+}
 
-        pickBlockingAssignmentsForSingle(unit: any, subject: Subject, classroom: Classroom, teachers: Teacher[], K: number) {
-          const blocks: any[] =[]; const span = unit.span || 1;
-          for (const t of teachers) {
-            for (let d=0; d<DAYS; d++) {
-              const win = this.getAllowedWindow(classroom, d);
-              const maxH = win.end - (span-1);
-              for (let h=win.start; h<maxH; h++) {
-                const b = this.listConflictingAssignments(unit.classroomId, subject, t, d, h, span);
-                if (b) blocks.push(b);
-              }
-            }
-          }
-          if (!blocks.length) return [];
-          blocks.sort((a,b)=> a.items.length - b.items.length);
-          const best = blocks[0].items.filter((x: any) => !this.fixedMask[x.classroomId]?.[x.day]?.[x.hour]);
-          return best.slice(0, K||6);
-        }
+enumerateValidSlotsForSingle(unit: any, subject: Subject, classroom: Classroom, teacherCombos: Teacher[][]) {
+  const out: any[] = []; const span = unit.span || 1;
+  for (const combo of teacherCombos) {
+    if (!combo.length) continue;
+    for (let d=0; d<DAYS; d++) {
+      const win = this.getAllowedWindow(classroom, d);
+      const maxH = win.end - (span-1);
+      for (let h=win.start; h<maxH; h++) if (this.isValid(unit.classroomId, subject, combo, d, h, span)) out.push({d, h, teachers: combo, unit});
+    }
+  }
+  return out;
+}
 
-        listConflictingAssignments(classroomId: string, subject: Subject, teacher: Teacher, day: number, hour: number, span: number) {
-          const classroom = this.classroomById.get(classroomId)!;
-          const { start, end } = this.getAllowedWindow(classroom, day);
-          if (hour<start || (hour+span)>end) return null;
-          if (classroom.level==='Ortaokul' && !teacher.canTeachMiddleSchool) return null;
-          if (classroom.level==='Lise' && !teacher.canTeachHighSchool) return null;
+pickBlockingAssignmentsForSingle(unit: any, subject: Subject, classroom: Classroom, teacherCombos: Teacher[][], K: number) {
+  const span = unit.span || 1;
+  const candidates: any[] = [];
+  for (const combo of teacherCombos) {
+    if (!combo.length) continue;
+    for (let d=0; d<DAYS; d++) {
+      const win = this.getAllowedWindow(classroom, d);
+      const maxH = win.end - (span-1);
+      for (let h=win.start; h<maxH; h++) {
+        const block = this.listConflictingAssignments(unit.classroomId, subject, combo, d, h, span);
+        if (block) candidates.push(block);
+      }
+    }
+  }
+  if (!candidates.length) return [];
+  candidates.sort((a,b)=> a.items.length - b.items.length);
+  const best = candidates[0].items.filter((x: any) => !this.fixedMask[x.classroomId]?.[x.day]?.[x.hour]);
+  return best.slice(0, K||6);
+}
 
-          const items: any[] = [];
-          const row = this.schedule[classroomId][day];
-          let left=0, right=0;
-          for (let i=hour-1; i>=start; i--) { const a=row[i]; if (a && a.subjectId===subject.id) left++; else break; }
-          for (let i=hour+span; i<end; i++) { const a=row[i]; if (a && a.subjectId===subject.id) right++; else break; }
-          
-          const maxC = this.getRunLimitFor(classroomId, subject.id);
+listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teacher[], day: number, hour: number, span: number) {
+  const classroom = this.classroomById.get(classroomId)!;
+  const { start, end } = this.getAllowedWindow(classroom, day);
+  if (hour<start || (hour+span)>end) return null;
+  if (!teachers || !teachers.length) return null;
+  for (const teacher of teachers) {
+    if (classroom.level==='Ortaokul' && !teacher.canTeachMiddleSchool) return null;
+    if (classroom.level==='Lise' && !teacher.canTeachHighSchool) return null;
+  }
 
-          if (left + span + right > maxC) {
-            for (let i=hour-1;i>=start;i--){ const a=row[i]; if (a&&a.subjectId===subject.id) items.push({classroomId,day,hour:i}); else break; }
-            for (let i=hour+span;i<end;i++){ const a=row[i]; if (a&&a.subjectId===subject.id) items.push({classroomId,day,hour:i}); else break; }
-          }
+  const items: any[] = [];
+  const row = this.schedule[classroomId][day];
+  let left=0, right=0;
+  for (let i=hour-1; i>=start; i--) { const a=row[i]; if (a && a.subjectId===subject.id) left++; else break; }
+  for (let i=hour+span; i<end; i++) { const a=row[i]; if (a && a.subjectId===subject.id) right++; else break; }
 
-          for (let k=0;k<span;k++) {
-            const h = hour+k;
-            if (!teacher.availability?.[day]?.[h]) return null;
-            const assnC = this.schedule[classroomId][day][h]; if (assnC) items.push({classroomId,day,hour:h});
-            if (this.teacherOccupied[teacher.id][day][h]) {
-              const clash = this.findAssignmentByTeacherAt(teacher.id, day, h); if (clash) items.push({classroomId:clash.classroomId, day, hour:clash.hour});
-            }
-            if (subject.locationId && this.locationOccupied[subject.locationId]?.[day]?.[h]) {
-              const clash = this.findAssignmentByLocationAt(subject.locationId, day, h); if (clash) items.push({classroomId:clash.classroomId, day, hour:clash.hour});
-            }
-          }
+  const maxC = this.getRunLimitFor(classroomId, subject.id);
+  if (left + span + right > maxC) {
+    for (let i=hour-1;i>=start;i--){ const a=row[i]; if (a&&a.subjectId===subject.id) items.push({classroomId,day,hour:i}); else break; }
+    for (let i=hour+span;i<end;i++){ const a=row[i]; if (a&&a.subjectId===subject.id) items.push({classroomId,day,hour:i}); else break; }
+  }
 
-          // uniq
-          const seen = new Set(); const uniq: any[] = [];
-          for (const it of items) { const k = it.classroomId+'|'+it.day+'|'+it.hour; if (!seen.has(k)) { seen.add(k); uniq.push(it); } }
-          return { items: uniq };
-        }
+  for (let k=0;k<span;k++) {
+    const h = hour+k;
+    const assnC = this.schedule[classroomId][day][h]; if (assnC) items.push({classroomId,day,hour:h});
+    for (const teacher of teachers) {
+      if (!teacher.availability?.[day]?.[h]) return null;
+      if (this.teacherOccupied[teacher.id][day][h]) {
+        const clash = this.findAssignmentByTeacherAt(teacher.id, day, h); if (clash) items.push({classroomId:clash.classroomId, day, hour:clash.hour});
+      }
+    }
+    if (subject.locationId && this.locationOccupied[subject.locationId]?.[day]?.[h]) {
+      const clash = this.findAssignmentByLocationAt(subject.locationId, day, h); if (clash) items.push({classroomId:clash.classroomId, day, hour:clash.hour});
+    }
+  }
+
+  const seen = new Set(); const uniq: any[] = [];
+  for (const it of items) { const key = it.classroomId+'|'+it.day+'|'+it.hour; if (!seen.has(key)) { seen.add(key); uniq.push(it); } }
+  return { items: uniq };
+}
 
         findAssignmentByTeacherAt(teacherId: string, day: number, hour: number) {
           for (const classId of Object.keys(this.schedule)) {
@@ -872,21 +979,25 @@ function makeWorkerScript() {
           return (left + span + right) > maxC;
         }
 
-        isValid(classroomId: string, subject: Subject, teacher: Teacher, day: number, hour: number, span: number) {
-          // Count every feasibility check as an attempt for reporting
+        isValid(classroomId: string, subject: Subject, teachers: Teacher[], day: number, hour: number, span: number) {
           this.stats.attempts++;
           const classroom = this.classroomById.get(classroomId)!;
           const { start, end } = this.getAllowedWindow(classroom, day);
           if (hour<start || (hour+span)>end) { this.stats.invalidReasons.blockBoundary++; return false; }
-          if (classroom.level==='Ortaokul' && !teacher.canTeachMiddleSchool) { this.stats.invalidReasons.levelMismatch++; return false; }
-          if (classroom.level==='Lise' && !teacher.canTeachHighSchool) { this.stats.invalidReasons.levelMismatch++; return false; }
+          if (!teachers || !teachers.length) return false;
+          for (const teacher of teachers) {
+            if (classroom.level==='Ortaokul' && !teacher.canTeachMiddleSchool) { this.stats.invalidReasons.levelMismatch++; return false; }
+            if (classroom.level==='Lise' && !teacher.canTeachHighSchool) { this.stats.invalidReasons.levelMismatch++; return false; }
+          }
 
           for (let k=0;k<span;k++) {
             const h = hour+k;
             if (this.fixedMask[classroomId]?.[day]?.[h]) return false;
-            if (!teacher.availability?.[day]?.[h]) { this.stats.invalidReasons.availability++; return false; }
             if (this.schedule[classroomId][day][h]) { this.stats.invalidReasons.classBusy++; return false; }
-            if (this.teacherOccupied[teacher.id][day][h]) { this.stats.invalidReasons.teacherBusy++; return false; }
+            for (const teacher of teachers) {
+              if (!teacher.availability?.[day]?.[h]) { this.stats.invalidReasons.availability++; return false; }
+              if (this.teacherOccupied[teacher.id][day][h]) { this.stats.invalidReasons.teacherBusy++; return false; }
+            }
             if (subject.locationId && this.locationOccupied[subject.locationId]?.[day]?.[h]) { this.stats.invalidReasons.locationBusy++; return false; }
           }
           if (this.violatesRunLimit(classroomId, subject.id, day, hour, span)) { this.stats.invalidReasons.blockBoundary++; return false; }
@@ -894,18 +1005,17 @@ function makeWorkerScript() {
         }
 
         // ---- Place/Remove ----
-        placeLesson(classroomId: string, subject: Subject, teacher: Teacher, day: number, hour: number, span: number) {
-          // Create assignment using teacherIds array to support multi-teacher assignments
-          const a = { subjectId: subject.id, teacherIds: [teacher.id], classroomId, locationId: subject.locationId } as any;
+        placeLesson(classroomId: string, subject: Subject, teachers: Teacher[], day: number, hour: number, span: number) {
+          const teacherIds = Array.isArray(teachers) ? Array.from(new Set(teachers.filter(Boolean).map(t => t.id))) : [];
+          if (!teacherIds.length) return null;
+          const a = { subjectId: subject.id, teacherIds, classroomId, locationId: subject.locationId } as any;
           for (let k=0;k<span;k++) {
             this.schedule[classroomId][day][hour+k] = a;
-            // mark occupied for each teacher in the assignment (currently only one)
-            if (a.teacherIds && Array.isArray(a.teacherIds)) {
-              for (const tid of a.teacherIds) {
+            for (const tid of teacherIds) {
+              if (this.teacherOccupied[tid]) {
                 this.teacherOccupied[tid][day][hour+k] = true;
               }
             }
-            // Guard against undefined location maps when subject.locationId is not listed in data.locations
             if (subject.locationId && this.locationOccupied[subject.locationId]) {
               this.locationOccupied[subject.locationId][day][hour+k] = true;
             }
@@ -945,7 +1055,7 @@ function makeWorkerScript() {
         placeGroupLesson(group: any, subject: Subject, day: number, hour: number, teacherAssignments: any, span: number) {
           for (const classId of group.classroomIds) {
             const t = teacherAssignments[classId];
-            this.placeLesson(classId, subject, t, day, hour, span);
+            this.placeLesson(classId, subject, [t], day, hour, span);
           }
         }
 
@@ -966,13 +1076,12 @@ function makeWorkerScript() {
                   if (k>=end) break;
                   const assn = this.schedule[classId][d][k]; if (!assn) { h=k+1; continue; }
                   const subject = this.subjectById.get(assn.subjectId);
-                  const primaryTid = this.primaryTeacherId(assn as any);
-                  const teacher = primaryTid ? this.teacherById.get(primaryTid) : undefined;
-                  if (!subject || !teacher) { h++; continue; }
+                  const teachers = this.teacherObjectsFromIds(this.teacherIdsOf(assn));
+                  if (!subject || !teachers.length) { h++; continue; }
                   const span = this.getSpanAt(classId, d, k);
-                  if (this.isValid(classId, subject, teacher, d, h, span)) {
+                  if (this.isValid(classId, subject, teachers, d, h, span)) {
                     this.removeLesson(classId, assn, d, k, span);
-                    this.placeLesson(classId, subject, teacher, d, h, span);
+                    this.placeLesson(classId, subject, teachers, d, h, span);
                     changed = true; h += span;
                   } else h++;
                 }
@@ -1068,8 +1177,8 @@ function makeWorkerScript() {
                 if (!a) continue;
                 if (h>start && this.schedule[classId][d][h-1]===a) continue;
                 const span = this.getSpanAt(classId, d, h);
-                const primaryTidA = this.primaryTeacherId(a as any);
-                const cost = this.localBlockCost(classId, d, h, span, primaryTidA || '');
+                const teacherIds = this.teacherIdsOf(a);
+                const cost = this.localBlockCost(classId, d, h, span, teacherIds);
                 starts.push({ classId, day:d, hour:h, span, subjectId:a.subjectId, cost });
               }
             }
@@ -1104,7 +1213,7 @@ function makeWorkerScript() {
           return false;
         }
 
-        localBlockCost(classId: string, day: number, hour: number, span: number, teacherId: string) {
+        localBlockCost(classId: string, day: number, hour: number, span: number, teacherIds: string[] | string | undefined) {
           // Heuristic badness: class gaps that day + teacher edge/single penalties that day
           let cost = 0;
           cost += this.countGapsForDay(classId, day);
@@ -1118,12 +1227,14 @@ function makeWorkerScript() {
             const maxC = this.getRunLimitFor(classId, a.subjectId);
             if (left + span + right > maxC) cost += (left + span + right - maxC)*3;
           }
-          // teacher edge/single for that day
-          const trow = this.teacherOccupied[teacherId]?.[day];
-          if (trow && trow.length) {
-            if (trow[0]) cost += 0.5;
-            if (trow[trow.length-1]) cost += 0.5;
-            let h=0; while (h<trow.length) { if (!trow[h]) { h++; continue; } let s=h; while (h<trow.length && trow[h]) h++; if (h-s===1) cost += 0.75; }
+          const idList = Array.isArray(teacherIds) ? teacherIds : (teacherIds ? [teacherIds] : []);
+          for (const tid of idList) {
+            const trow = this.teacherOccupied[tid]?.[day];
+            if (trow && trow.length) {
+              if (trow[0]) cost += 0.5;
+              if (trow[trow.length-1]) cost += 0.5;
+              let h=0; while (h<trow.length) { if (!trow[h]) { h++; continue; } let s=h; while (h<trow.length && trow[h]) h++; if (h-s===1) cost += 0.75; }
+            }
           }
           return cost;
         }
@@ -1141,10 +1252,11 @@ function makeWorkerScript() {
                 if (h>start && this.schedule[classId][d][h-1]===a) continue; // blok başı değil
                 const span = this.getSpanAt(classId, d, h);
                 const subject = this.subjectById.get(a.subjectId)!;
-                const teacher = this.teacherById.get(this.primaryTeacherId(a as any) || '')!;
+                const teachers = this.teacherObjectsFromIds(this.teacherIdsOf(a));
+                if (!teachers.length) continue;
                 for (let nh=start; nh<=end-span; nh++) {
                   if (nh===h) continue;
-                  if (this.isValid(classId, subject, teacher, d, nh, span))
+                  if (this.isValid(classId, subject, teachers, d, nh, span))
                     moves.push({ type:'relocate', classId, day:d, from:h, to:nh, span });
                 }
               }
@@ -1164,15 +1276,17 @@ function makeWorkerScript() {
                 if (h>start && this.schedule[classId][d][h-1]===A) continue;
                 const spanA = this.getSpanAt(classId, d, h);
                 const subjA = this.subjectById.get(A.subjectId)!;
-                const teachA= this.teacherById.get(this.primaryTeacherId(A as any) || '')!;
+                const teachersA = this.teacherObjectsFromIds(this.teacherIdsOf(A));
+                if (!teachersA.length) continue;
                 for (let k=h+spanA; k<end; k++) {
                   const B = this.schedule[classId][d][k];
                   if (!B) continue;
                   if (k>h+spanA && this.schedule[classId][d][k-1]===B) continue;
                   const spanB = this.getSpanAt(classId, d, k);
                   const subjB = this.subjectById.get(B.subjectId)!;
-                  const teachB= this.teacherById.get(this.primaryTeacherId(B as any) || '')!;
-                  if (this.isValid(classId, subjA, teachA, d, k, spanA) && this.isValid(classId, subjB, teachB, d, h, spanB))
+                  const teachersB = this.teacherObjectsFromIds(this.teacherIdsOf(B));
+                  if (!teachersB.length) continue;
+                  if (this.isValid(classId, subjA, teachersA, d, k, spanA) && this.isValid(classId, subjB, teachersB, d, h, spanB))
                     moves.push({ type:'swap', classId, day:d, aStart:h, aSpan:spanA, bStart:k, bSpan:spanB });
                 }
               }
@@ -1185,19 +1299,21 @@ function makeWorkerScript() {
             const a = this.schedule[m.classId][m.day][m.from];
             if (!a) return;
             const subj = this.subjectById.get(a.subjectId)!;
-            const teach= this.teacherById.get(this.primaryTeacherId(a as any) || '')!;
+            const teachers = this.teacherObjectsFromIds(this.teacherIdsOf(a));
+            if (!teachers.length) return;
             this.removeLesson(m.classId, a, m.day, m.from, m.span);
-            this.placeLesson(m.classId, subj, teach, m.day, m.to, m.span);
+            this.placeLesson(m.classId, subj, teachers, m.day, m.to, m.span);
           } else {
             const A = this.schedule[m.classId][m.day][m.aStart];
             const B = this.schedule[m.classId][m.day][m.bStart];
             if (!A || !B) return;
-            const subjA = this.subjectById.get(A.subjectId)!; const teachA = this.teacherById.get(this.primaryTeacherId(A as any) || '')!;
-            const subjB = this.subjectById.get(B.subjectId)!; const teachB = this.teacherById.get(this.primaryTeacherId(B as any) || '')!;
+            const subjA = this.subjectById.get(A.subjectId)!; const teachersA = this.teacherObjectsFromIds(this.teacherIdsOf(A));
+            const subjB = this.subjectById.get(B.subjectId)!; const teachersB = this.teacherObjectsFromIds(this.teacherIdsOf(B));
+            if (!teachersA.length || !teachersB.length) return;
             this.removeLesson(m.classId, A, m.day, m.aStart, m.aSpan);
             this.removeLesson(m.classId, B, m.day, m.bStart, m.bSpan);
-            this.placeLesson(m.classId, subjA, teachA, m.day, m.bStart, m.aSpan);
-            this.placeLesson(m.classId, subjB, teachB, m.day, m.aStart, m.bSpan);
+            this.placeLesson(m.classId, subjA, teachersA, m.day, m.bStart, m.aSpan);
+            this.placeLesson(m.classId, subjB, teachersB, m.day, m.aStart, m.bSpan);
           }
         }
         reverseMove(m: any) { this.applyMove(m); } // swap kendi tersi; relocate tersi de aynı apply ile geri alınır
@@ -1347,7 +1463,7 @@ function makeWorkerScript() {
         }
 
         // ---- Puanlama ----
-        scorePlacement(lesson: any, d: number, h: number, teacher: Teacher) {
+        scorePlacement(lesson: any, d: number, h: number, teachers: Teacher[]) {
           let score = 0;
           const classroom = this.classroomById.get(lesson.classroomId)!;
           const { start, end } = this.getAllowedWindow(classroom, d);
@@ -1363,13 +1479,25 @@ function makeWorkerScript() {
             const a=row[x]; if (a?.subjectId===lesson.subjectId) { same++; if (x+1<end && row[x+1]===a) hasBlock=true; }
           }
           score -= same*10; if ((lesson.span||1)>1 && hasBlock) score -= 14;
-          let tload=0; for (let x=start;x<end;x++) if (this.teacherOccupied[teacher.id][d][x]) tload++;
-          if (tload>5) score -= (tload-5);
+
+          let loadCount = 0;
+          for (const teacher of (teachers || [])) {
+            const occupiedRow = this.teacherOccupied[teacher.id]?.[d];
+            if (!occupiedRow) continue;
+            for (let x=start; x<end; x++) if (occupiedRow[x]) loadCount++;
+          }
+          const loadThreshold = 5 * Math.max(1, teachers ? teachers.length : 1);
+          if (loadCount > loadThreshold) score -= (loadCount - loadThreshold);
+
           if (span===3) score += 3; else if (span===2) score += 1;
-          // Prefer pinned teacher for this class/subject when available
+
           const subj = this.subjectById.get(lesson.subjectId || lesson.groupSubjectId);
-          const pinnedIds = subj?.pinnedTeacherByClassroom?.[lesson.classroomId];
-          if (pinnedIds && Array.isArray(pinnedIds) && pinnedIds.includes(teacher.id)) score += 15;
+          const pinnedRaw = subj?.pinnedTeacherByClassroom?.[lesson.classroomId];
+          const pinnedIds = Array.isArray(pinnedRaw) ? pinnedRaw : [];
+          if (pinnedIds.length && teachers && teachers.length) {
+            const teacherIds = teachers.map(t => t.id);
+            if (teacherIds.every(id => pinnedIds.includes(id))) score += 15;
+          }
           return score;
         }
 
