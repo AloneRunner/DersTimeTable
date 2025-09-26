@@ -6,3 +6,4 @@ pydantic==2.8.2
 python-multipart==0.0.9
 typing-extensions>=4.9.0
 psycopg[binary,pool]==3.1.18
+pydantic[email]==2.8.2
