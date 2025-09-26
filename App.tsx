@@ -28,6 +28,9 @@ import TeacherActualLoadPanel from './components/TeacherActualLoadPanel';
 import TeacherAvailabilityHeatmap from './components/analysis/TeacherAvailabilityHeatmap';
 import MobileDataEntry from './components/mobile/MobileDataEntry';
 import TeacherMobileView from './components/mobile/TeacherMobileView';
+import MobileScheduleView from './components/mobile/MobileScheduleView';
+import { buildSchedulePdf } from './services/pdfExporter';
+import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, type SessionInfo as AuthSessionInfo } from './services/authClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
@@ -268,15 +271,64 @@ const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState<Tab>('teachers');
     const [viewType, setViewType] = useState<ViewType>(ViewType.Class);
     const [viewMode, setViewMode] = useState<ViewMode>('single');
+    const [pdfScope, setPdfScope] = useState<'selected' | 'classes' | 'teachers'>('selected');
     const [selectedHeaderId, setSelectedHeaderId] = useState<string>('');
     const [schoolHours, setSchoolHours] = useState<SchoolHours>({
         [SchoolLevel.Middle]: [8, 8, 8, 8, 8],
         [SchoolLevel.High]: [8, 8, 8, 8, 8],
     });
     const [modalState, setModalState] = useState<ModalState>({ type: null, item: null });
+    const [sessionToken, setSessionToken] = useState<string | null>(() => {
+        if (typeof window === 'undefined') return null;
+        try {
+            return localStorage.getItem('ozarik.session');
+        } catch {
+            return null;
+        }
+    });
+    const [sessionInfo, setSessionInfo] = useState<AuthSessionInfo | null>(null);
+    const [sessionStatus, setSessionStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+    const [sessionError, setSessionError] = useState<string | null>(null);
+    const [codeInput, setCodeInput] = useState<string>('');
+    const [verifyLoading, setVerifyLoading] = useState<boolean>(false);
+    const [bridgeEmail, setBridgeEmail] = useState<string>('');
+    const [bridgeName, setBridgeName] = useState<string>('');
+    const [bridgeSchoolId, setBridgeSchoolId] = useState<string>('');
+    const [bridgeCodeInfo, setBridgeCodeInfo] = useState<{ code: string; expiresAt: string } | null>(null);
+    const [bridgeLoading, setBridgeLoading] = useState<boolean>(false);
+    const [bridgeError, setBridgeError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scheduleFileInputRef = useRef<HTMLInputElement>(null);
-    
+
+    const persistSessionToken = useCallback((token: string | null) => {
+        if (token) {
+            setSessionToken(token);
+            if (typeof window !== 'undefined') {
+                try {
+                    localStorage.setItem('ozarik.session', token);
+                } catch {
+                    // pass
+                }
+            }
+        } else {
+            setSessionToken(null);
+            if (typeof window !== 'undefined') {
+                try {
+                    localStorage.removeItem('ozarik.session');
+                } catch {
+                    // pass
+                }
+            }
+        }
+    }, []);
+
+    const clearSession = useCallback(() => {
+        persistSessionToken(null);
+        setSessionInfo(null);
+        setSessionStatus('idle');
+        setSessionError(null);
+    }, [persistSessionToken]);
+
     const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
     const [activeScheduleName, setActiveScheduleName] = useState<string | null>(null);
     
@@ -344,7 +396,44 @@ const App: React.FC = () => {
             setSelectedHeaderId(prev => data.teachers.some(t => t.id === prev) ? prev : data.teachers[0].id);
         }
     }, [viewType, data.classrooms, data.teachers]);
-    
+
+    useEffect(() => {
+        if (!sessionToken) {
+            setSessionInfo(null);
+            setSessionStatus('idle');
+            return;
+        }
+        let cancelled = false;
+        setSessionStatus('loading');
+        setSessionError(null);
+        fetchSessionInfo(sessionToken)
+            .then((info) => {
+                if (cancelled) return;
+                setSessionInfo(info);
+                setSessionStatus('ready');
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                console.error('session-check failed', err);
+                setSessionError(err instanceof Error ? err.message : 'Oturum doğrulanamadı');
+                setSessionStatus('error');
+                persistSessionToken(null);
+                setSessionInfo(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [sessionToken, persistSessionToken]);
+
+    useEffect(() => {
+        if (sessionInfo?.user?.email && !bridgeEmail) {
+            setBridgeEmail(sessionInfo.user.email);
+        }
+        if (sessionInfo?.user?.name && !bridgeName) {
+            setBridgeName(sessionInfo.user.name || '');
+        }
+    }, [sessionInfo, bridgeEmail, bridgeName]);
+
     const handleAssignRandomRestDays = useCallback((teacherId: string, restCount: number) => {
         if (restCount <= 0) return;
         const teacher = data.teachers.find(t => t.id === teacherId);
@@ -460,6 +549,66 @@ const App: React.FC = () => {
         reader.readAsText(file, 'UTF-8');
     };
 
+    const handleVerifyBridgeCode = useCallback(async () => {
+        const trimmed = codeInput.trim();
+        if (trimmed.length < 4) {
+            setSessionError('Geçerli bir kod girin');
+            return;
+        }
+        setVerifyLoading(true);
+        setSessionError(null);
+        try {
+            const info = await verifyBridgeCode({ code: trimmed });
+            if (info.session_token) {
+                persistSessionToken(info.session_token);
+            }
+            setSessionInfo(info);
+            setSessionStatus('ready');
+            setCodeInput('');
+            setBridgeCodeInfo(null);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Doğrulama başarısız';
+            setSessionError(message);
+            setSessionStatus('error');
+        } finally {
+            setVerifyLoading(false);
+        }
+    }, [codeInput, persistSessionToken]);
+
+    const handleRequestBridgeCode = useCallback(async () => {
+        const email = bridgeEmail.trim().toLowerCase();
+        if (!email) {
+            setBridgeError('E-posta adresi gerekli');
+            return;
+        }
+        setBridgeLoading(true);
+        setBridgeError(null);
+        try {
+            const payload: { email: string; name?: string; schoolId?: number } = { email };
+            const nameTrimmed = bridgeName.trim();
+            if (nameTrimmed) {
+                payload.name = nameTrimmed;
+            }
+            const schoolTrimmed = bridgeSchoolId.trim();
+            if (schoolTrimmed) {
+                const parsedId = Number(schoolTrimmed);
+                if (!Number.isNaN(parsedId)) {
+                    payload.schoolId = parsedId;
+                }
+            }
+            const response = await requestBridgeCode(payload);
+            setBridgeCodeInfo({ code: response.code, expiresAt: response.expires_at });
+            if (!bridgeName.trim() && response.user?.name) {
+                setBridgeName(response.user.name);
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Kod oluşturma başarısız';
+            setBridgeError(message);
+            setBridgeCodeInfo(null);
+        } finally {
+            setBridgeLoading(false);
+        }
+    }, [bridgeEmail, bridgeName, bridgeSchoolId]);
     const [optTime, setOptTime] = useState<number>(150);
     const [optSeedRatio, setOptSeedRatio] = useState<number>(0.15);
     const [optTabuTenure, setOptTabuTenure] = useState<number>(50);
@@ -486,6 +635,32 @@ const App: React.FC = () => {
     const [cpDailyMaxOn, setCpDailyMaxOn] = useState<boolean>(false);
     const [cpDailyMaxVal, setCpDailyMaxVal] = useState<string>('6');
     const [cpHelpOpen, setCpHelpOpen] = useState<boolean>(false);
+
+    const [isMobileAdvancedOpen, setIsMobileAdvancedOpen] = useState<boolean>(false);
+    const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return;
+        }
+        const mediaQuery = window.matchMedia('(min-width: 768px)');
+        const update = (matches: boolean) => {
+            if (matches) {
+                setIsSmallScreen(false);
+                setIsMobileAdvancedOpen(false);
+            } else {
+                setIsSmallScreen(true);
+            }
+        };
+        update(mediaQuery.matches);
+        const handler = (event: MediaQueryListEvent) => update(event.matches);
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handler);
+            return () => mediaQuery.removeEventListener('change', handler);
+        }
+        mediaQuery.addListener(handler);
+        return () => mediaQuery.removeListener(handler);
+    }, []);
 
     // Load persisted CP-SAT toggles
     useEffect(() => {
@@ -522,11 +697,11 @@ const App: React.FC = () => {
     const [showAnalyzer, setShowAnalyzer] = useState<boolean>(false);
     const [isQrOpen, setIsQrOpen] = useState<boolean>(false);
     const [defaultMaxConsec, setDefaultMaxConsec] = useState<number | undefined>(3);
-    const [showTeacherLoadSummary, setShowTeacherLoadSummary] = useState<boolean>(true);
-    const [showTeacherActualLoad, setShowTeacherActualLoad] = useState<boolean>(true);
-    const [showHeatmapPanel, setShowHeatmapPanel] = useState<boolean>(true);
-    const [showDutyWarnings, setShowDutyWarnings] = useState<boolean>(true);
-    const [showDutyCoverage, setShowDutyCoverage] = useState<boolean>(true);
+    const [showTeacherLoadSummary, setShowTeacherLoadSummary] = useState<boolean>(false);
+    const [showTeacherActualLoad, setShowTeacherActualLoad] = useState<boolean>(false);
+    const [showHeatmapPanel, setShowHeatmapPanel] = useState<boolean>(false);
+    const [showDutyWarnings, setShowDutyWarnings] = useState<boolean>(false);
+    const [showDutyCoverage, setShowDutyCoverage] = useState<boolean>(false);
     const [isMobileEntryOpen, setIsMobileEntryOpen] = useState<boolean>(false);
     const [isTeacherMobileOpen, setIsTeacherMobileOpen] = useState<boolean>(false);
 
@@ -677,6 +852,29 @@ const App: React.FC = () => {
         link.href = jsonString;
         link.download = "ders-programi.json";
         link.click();
+    };
+
+    const handleExportPdf = () => {
+        if (!schedule) {
+            alert('Önce ders programı oluşturun.');
+            return;
+        }
+        try {
+            const { doc, fileName } = buildSchedulePdf({
+                schedule,
+                data,
+                schoolHours,
+                maxDailyHours,
+                mode: pdfScope,
+                viewType,
+                selectedHeaderId,
+                viewMode,
+            });
+            doc.save(fileName);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'PDF oluşturulurken bir hata oluştu.';
+            alert(message);
+        }
     };
 
     const handleImportClick = () => {
@@ -910,102 +1108,240 @@ const App: React.FC = () => {
         let headers: string[] = [];
         let rows: React.ReactNode[] = [];
         let onRemove: (id: string) => void = () => {};
+        let cardList: React.ReactNode[] | null = null;
+        let cardTitle: string | null = null;
+        let cardDescription: string | null = null;
         
         const classroomErrors = validation.overflowingClasses.reduce((acc, err) => ({...acc, [err.id]: err.message}), {} as Record<string, string>);
         const subjectErrors = validation.unassignedSubjects.reduce((acc, err) => ({...acc, [err.id]: err.message}), {} as Record<string, string>);
         
         switch (activeTab) {
-            case 'teachers':
-                headers = ["Ad Soyad", "Branşlar", "Okul Türü", "Haftalık Yük", "Eylemler"];
-                onRemove = removeTeacher;
-                rows = data.teachers.map(item => {
-                    const load = teacherLoads.get(item.id) || { demand: 0, capacity: 0 };
-                    return (
-                    <tr key={item.id}>
-                        <td className="px-4 py-3 whitespace-nowrap">{item.name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{item.branches.join(', ')}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                            {item.canTeachMiddleSchool && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">Ortaokul</span>}
-                            {item.canTeachHighSchool && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full bg-green-100 text-green-800">Lise</span>}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-600">{Math.round(load.demand)} saat</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex flex-wrap items-center gap-1">
-                                <button onClick={() => handleAssignRandomRestDays(item.id, 1)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 1 tam gün izin ayarla">1 Gün</button>
-                                <button onClick={() => handleAssignRandomRestDays(item.id, 2)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 2 tam gün izin ayarla">2 Gün</button>
-                                <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
-                                <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
-                            </div>
-                        </td>
-                    </tr>
-                )});
+
+case 'teachers':
+    headers = ["Ad Soyad", "Branşlar", "Okul Türü", "Haftalık Yük", "Eylemler"];
+    onRemove = removeTeacher;
+    rows = data.teachers.map(item => {
+        const load = teacherLoads.get(item.id) || { demand: 0, capacity: 0 };
+        return (
+        <tr key={item.id}>
+            <td className="px-4 py-3 whitespace-nowrap">{item.name}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{item.branches.join(', ')}</td>
+            <td className="px-4 py-3 whitespace-nowrap">
+                {item.canTeachMiddleSchool && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">Ortaokul</span>}
+                {item.canTeachHighSchool && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full bg-green-100 text-green-800">Lise</span>}
+            </td>
+            <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-600">{Math.round(load.demand)} saat</td>
+            <td className="px-4 py-3 whitespace-nowrap">
+                <div className="flex flex-wrap items-center gap-1">
+                    <button onClick={() => handleAssignRandomRestDays(item.id, 1)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 1 tam gün izin ayarla">1 Gün</button>
+                    <button onClick={() => handleAssignRandomRestDays(item.id, 2)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 2 tam gün izin ayarla">2 Gün</button>
+                    <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
+                    <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
+                </div>
+            </td>
+        </tr>
+    )});
+    const shortDayLabels = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum'];
+    cardTitle = 'Öğretmenler';
+                cardDescription = 'Temel bilgiler ve hızlı izin işlemleri';
+                cardList = data.teachers.map(item => {
+        const load = teacherLoads.get(item.id) || { demand: 0, capacity: 0 };
+        const branches = item.branches.filter(Boolean);
+        const availabilityMatrix = Array.isArray(item.availability) ? item.availability : [];
+        const availableDays = availabilityMatrix
+            .map((slots, index) => (Array.isArray(slots) && slots.some(Boolean) ? shortDayLabels[index] : null))
+            .filter((label): label is string => Boolean(label));
+        const totalAvailability = availabilityMatrix.reduce((sum, slots) => sum + (Array.isArray(slots) ? slots.filter(Boolean).length : 0), 0);
+        return (
+            <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 className="text-base font-semibold text-slate-800">{item.name}</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            {branches.length ? branches.join(', ') : 'Branş belirtilmemiş'}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600" title="Düzenle">
+                            <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600" title="Sil">
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    <button onClick={() => handleAssignRandomRestDays(item.id, 1)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100">1 Gün İzin</button>
+                    <button onClick={() => handleAssignRandomRestDays(item.id, 2)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100">2 Gün İzin</button>
+                    {item.canTeachMiddleSchool && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Ortaokul</span>}
+                    {item.canTeachHighSchool && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">Lise</span>}
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-y-2 gap-x-4 text-xs text-slate-600">
+                    <div>
+                        <span className="block text-slate-500 font-medium">Haftalık yük</span>
+                        <span>{Math.round(load.demand)} saat</span>
+                    </div>
+                    <div>
+                        <span className="block text-slate-500 font-medium">Müsait slot</span>
+                        <span>{totalAvailability} saat</span>
+                    </div>
+                    <div className="col-span-2">
+                        <span className="block text-slate-500 font-medium">Müsait günler</span>
+                        <span>{availableDays.length ? availableDays.join(', ') : 'Belirtilmemiş'}</span>
+                    </div>
+                </div>
+            </div>
+        );
+    });
+    break;
+case 'classrooms':
+    headers = ["Sınıf Adı", "Seviye", "Grup", "Sınıf Öğretmeni", "Haftalık Yük", "Eylemler"];
+    onRemove = removeClassroom;
+    rows = data.classrooms.map(item => {
+        const load = classroomLoads.get(item.id) || { demand: 0, capacity: 0 };
+        const isOverloaded = load.demand > load.capacity;
+        return (
+        <tr key={item.id}>
+            <td className="px-4 py-3 whitespace-nowrap">
+               <div className="flex items-center gap-2">
+                   <span>{item.name}</span>
+                   {classroomErrors[item.id] && (
+                       <div className="group relative">
+                           <WarningIcon className="w-5 h-5 text-yellow-500" />
+                           <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-2 bg-slate-700 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                               {classroomErrors[item.id]}
+                           </span>
+                       </div>
+                   )}
+               </div>
+            </td>
+            <td className="px-4 py-3 whitespace-nowrap">{item.level}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{item.group}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{data.teachers.find(t => t.id === item.homeroomTeacherId)?.name || '-'}</td>
+            <td className={`px-4 py-3 whitespace-nowrap font-medium ${isOverloaded ? 'text-red-600' : 'text-slate-600'}`}>
+                {load.demand} / {load.capacity} saat
+            </td>
+            <td className="px-4 py-3 whitespace-nowrap">
+                <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
+                <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
+            </td>
+        </tr>
+    )});
+    cardTitle = 'Sınıflar';
+    cardDescription = 'Yük durumu ve sınıf öğretmeni bilgileri';
+    cardList = data.classrooms.map(item => {
+        const load = classroomLoads.get(item.id) || { demand: 0, capacity: 0 };
+        const subjectsForClass = data.subjects.filter(subject => subject.assignedClassIds.includes(item.id));
+        const teacherName = data.teachers.find(t => t.id === item.homeroomTeacherId)?.name;
+        return (
+            <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 className="text-base font-semibold text-slate-800">{item.name}</h3>
+                        <p className="text-xs text-slate-500 mt-1">{item.level} · {item.group}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600" title="Düzenle">
+                            <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600" title="Sil">
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-3 text-xs text-slate-600">
+                    <span className="block text-slate-500 font-medium">Sınıf öğretmeni</span>
+                    <span>{teacherName ?? 'Atanmamış'}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className={`px-2 py-0.5 rounded-full font-medium ${load.demand > load.capacity ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {load.demand}/{load.capacity} saat
+                    </span>
+                    {classroomErrors[item.id] && <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Denge uyarısı</span>}
+                </div>
+                <div className="mt-4 text-xs text-slate-600">
+                    <span className="block text-slate-500 font-medium">Dersler</span>
+                    <span>{subjectsForClass.length ? subjectsForClass.map(subject => subject.name).join(', ') : 'Atanmamış'}</span>
+                </div>
+            </div>
+        );
+    });
+    break;
                 break;
-            case 'classrooms':
-                headers = ["Sınıf Adı", "Seviye", "Grup", "Sınıf Öğretmeni", "Haftalık Yük", "Eylemler"];
-                onRemove = removeClassroom;
-                rows = data.classrooms.map(item => {
-                    const load = classroomLoads.get(item.id) || { demand: 0, capacity: 0 };
-                    const isOverloaded = load.demand > load.capacity;
-                    return (
-                    <tr key={item.id}>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                           <div className="flex items-center gap-2">
-                               <span>{item.name}</span>
-                               {classroomErrors[item.id] && (
-                                   <div className="group relative">
-                                       <WarningIcon className="w-5 h-5 text-yellow-500" />
-                                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-2 bg-slate-700 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                           {classroomErrors[item.id]}
-                                       </span>
-                                   </div>
-                               )}
-                           </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">{item.level}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{item.group}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{data.teachers.find(t => t.id === item.homeroomTeacherId)?.name || '-'}</td>
-                        <td className={`px-4 py-3 whitespace-nowrap font-medium ${isOverloaded ? 'text-red-600' : 'text-slate-600'}`}>
-                            {load.demand} / {load.capacity} saat
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                            <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
-                            <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
-                        </td>
-                    </tr>
-                )});
+case 'subjects':
+    headers = ["Ders Adı", "Haftalık Saat", "Atanan Sınıflar", "Mekan", "Eylemler"];
+    onRemove = removeSubject;
+    rows = data.subjects.map(item => (
+       <tr key={item.id}>
+           <td className="px-4 py-3 whitespace-nowrap">
+               <div className="flex items-center gap-2">
+                   <span>
+                       {item.name}
+                       {item.blockHours > 0 && <span className="text-xs font-medium ml-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">Blok ({item.blockHours}s)</span>}
+                       {item.tripleBlockHours > 0 && <span className="text-xs font-medium ml-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">3'lü Blok ({item.tripleBlockHours}s)</span>}
+                   </span>
+                   {subjectErrors[item.id] && (
+                      <div className="group relative">
+                          <WarningIcon className="w-5 h-5 text-yellow-500" />
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-2 bg-slate-700 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                              {subjectErrors[item.id]}
+                          </span>
+                      </div>
+                   )}
+               </div>
+           </td>
+           <td className="px-4 py-3 whitespace-nowrap">{item.weeklyHours}</td>
+           <td className="px-4 py-3 text-xs">{item.assignedClassIds.map(id => data.classrooms.find(c=>c.id === id)?.name).filter(Boolean).join(', ') || '-'}</td>
+           <td className="px-4 py-3 whitespace-nowrap">{item.locationId ? data.locations.find(l => l.id === item.locationId)?.name : '-'}</td>
+           <td className="px-4 py-3 whitespace-nowrap">
+               <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
+               <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
+           </td>
+       </tr>
+   ));
+    cardTitle = 'Dersler';
+    cardDescription = 'Haftalık saatler ve atanan sınıflar';
+    cardList = data.subjects.map(item => {
+        const assignedClasses = item.assignedClassIds.map(id => data.classrooms.find(c => c.id === id)?.name).filter(Boolean);
+        const locationName = item.locationId ? data.locations.find(l => l.id === item.locationId)?.name : undefined;
+        return (
+            <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 className="text-base font-semibold text-slate-800">{item.name}</h3>
+                        <p className="text-xs text-slate-500 mt-1">Haftalık {item.weeklyHours} saat</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600" title="Düzenle">
+                            <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600" title="Sil">
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    {item.blockHours > 0 && <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">Blok {item.blockHours}</span>}
+                    {item.tripleBlockHours > 0 && <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">3'lü blok {item.tripleBlockHours}</span>}
+                    {item.pinnedTeacherByClassroom && Object.keys(item.pinnedTeacherByClassroom).length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Sabit öğretmenler var</span>
+                    )}
+                </div>
+                <div className="mt-4 text-xs text-slate-600 space-y-1">
+                    <div>
+                        <span className="block text-slate-500 font-medium">Sınıflar</span>
+                        <span>{assignedClasses.length ? assignedClasses.join(', ') : 'Atanmamış'}</span>
+                    </div>
+                    <div>
+                        <span className="block text-slate-500 font-medium">Mekan</span>
+                        <span>{locationName ?? 'Belirtilmemiş'}</span>
+                    </div>
+                </div>
+            </div>
+        );
+    });
+    break;
                 break;
-            case 'subjects':
-                 headers = ["Ders Adı", "Haftalık Saat", "Atanan Sınıflar", "Mekan", "Eylemler"];
-                 onRemove = removeSubject;
-                 rows = data.subjects.map(item => (
-                    <tr key={item.id}>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                                <span>
-                                    {item.name} 
-                                    {item.blockHours > 0 && <span className="text-xs font-medium ml-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">Blok ({item.blockHours}s)</span>}
-                                    {item.tripleBlockHours > 0 && <span className="text-xs font-medium ml-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">3'lü Blok ({item.tripleBlockHours}s)</span>}
-                                </span>
-                                {subjectErrors[item.id] && (
-                                   <div className="group relative">
-                                       <WarningIcon className="w-5 h-5 text-yellow-500" />
-                                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-2 bg-slate-700 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                           {subjectErrors[item.id]}
-                                       </span>
-                                   </div>
-                                )}
-                            </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">{item.weeklyHours}</td>
-                        <td className="px-4 py-3 text-xs">{item.assignedClassIds.map(id => data.classrooms.find(c=>c.id === id)?.name).join(', ')}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{data.locations.find(l => l.id === item.locationId)?.name || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                            <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
-                            <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
-                        </td>
-                    </tr>
-                 ));
-                 break;
             case 'locations':
                 headers = ["Mekan Adı", "Eylemler"];
                 onRemove = removeLocation;
@@ -1033,52 +1369,124 @@ const App: React.FC = () => {
                     </tr>
                 ));
                 break;
-            case 'lessonGroups':
-                headers = ["Grup Adı", "Ders", "Sınıflar", "Haftalık Saat", "Eylemler"];
-                onRemove = removeLessonGroup;
-                rows = data.lessonGroups.map(item => (
-                     <tr key={item.id}>
-                        <td className="px-4 py-3 whitespace-nowrap">{item.name} {item.isBlock && <span className="text-xs font-medium ml-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">Blok</span>}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{data.subjects.find(s => s.id === item.subjectId)?.name}</td>
-                        <td className="px-4 py-3 text-xs">{item.classroomIds.map(id => data.classrooms.find(c=>c.id === id)?.name).join(', ')}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{item.weeklyHours}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                           <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
-                           <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
-                        </td>
-                    </tr>
-                ));
+case 'lessonGroups':
+    headers = ["Grup Adı", "Ders", "Sınıflar", "Haftalık Saat", "Eylemler"];
+    onRemove = removeLessonGroup;
+    rows = data.lessonGroups.map(item => (
+         <tr key={item.id}>
+            <td className="px-4 py-3 whitespace-nowrap">{item.name} {item.isBlock && <span className="text-xs font-medium ml-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">Blok</span>}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{data.subjects.find(s => s.id === item.subjectId)?.name}</td>
+            <td className="px-4 py-3 text-xs">{item.classroomIds.map(id => data.classrooms.find(c=>c.id === id)?.name).join(', ')}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{item.weeklyHours}</td>
+            <td className="px-4 py-3 whitespace-nowrap">
+               <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
+               <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
+            </td>
+        </tr>
+    ));
+    cardTitle = 'Grup dersleri';
+    cardDescription = 'Blok dersler ve dahil edilen sınıflar';
+    cardList = data.lessonGroups.map(item => {
+        const subjectName = data.subjects.find(s => s.id === item.subjectId)?.name;
+        const classNames = item.classroomIds.map(id => data.classrooms.find(c => c.id === id)?.name).filter(Boolean);
+        return (
+            <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 className="text-base font-semibold text-slate-800">{item.name}</h3>
+                        <p className="text-xs text-slate-500 mt-1">{subjectName ?? 'Ders seçilmemiş'}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600" title="Düzenle">
+                            <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600" title="Sil">
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-3 text-xs text-slate-600 flex flex-wrap gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{item.weeklyHours} saat</span>
+                    {item.isBlock && <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">Blok</span>}
+                </div>
+                <div className="mt-4 text-xs text-slate-600">
+                    <span className="block text-slate-500 font-medium">Sınıflar</span>
+                    <span>{classNames.length ? classNames.join(', ') : 'Atanmamış'}</span>
+                </div>
+            </div>
+        );
+    });
+    break;
                 break;
-            case 'duties':
-                headers = ["Görev Adı", "Öğretmen", "Zaman", "Eylemler"];
-                onRemove = removeDuty;
-                rows = data.duties.map(item => (
-                     <tr key={item.id}>
-                        <td className="px-4 py-3 whitespace-nowrap">{item.name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{data.teachers.find(t => t.id === item.teacherId)?.name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{DAYS[item.dayIndex]}, {item.hourIndex + 1}. Ders</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                           <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
-                           <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
-                        </td>
-                    </tr>
-                ));
+case 'duties':
+    headers = ["Görev Adı", "Öğretmen", "Zaman", "Eylemler"];
+    onRemove = removeDuty;
+    rows = data.duties.map(item => (
+         <tr key={item.id}>
+            <td className="px-4 py-3 whitespace-nowrap">{item.name}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{data.teachers.find(t => t.id === item.teacherId)?.name}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{DAYS[item.dayIndex]}, {item.hourIndex + 1}. Ders</td>
+            <td className="px-4 py-3 whitespace-nowrap">
+               <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
+               <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
+            </td>
+        </tr>
+    ));
+    cardTitle = 'Görevler';
+    cardDescription = 'Nöbet ve ek görev planları';
+    cardList = data.duties.map(item => {
+        const teacherName = data.teachers.find(t => t.id === item.teacherId)?.name;
+        return (
+            <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 className="text-base font-semibold text-slate-800">{item.name}</h3>
+                        <p className="text-xs text-slate-500 mt-1">{teacherName ?? 'Öğretmen atanmadı'}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600" title="Düzenle">
+                            <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600" title="Sil">
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-3 text-xs text-slate-600">
+                    <span className="block text-slate-500 font-medium">Zaman</span>
+                    <span>{DAYS[item.dayIndex]}, {item.hourIndex + 1}. ders</span>
+                </div>
+            </div>
+        );
+    });
+    break;
                 break;
         }
 
+        const tableWrapperClass = cardList ? 'hidden md:block overflow-x-auto' : 'overflow-x-auto';
+
         return (
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
-                        <tr>
-                            {headers.map(h => <th key={h} className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{h}</th>)}
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-slate-200 text-sm text-slate-700">
-                        {rows}
-                    </tbody>
-                </table>
-            </div>
+            <>
+                <div className={tableWrapperClass}>
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-50">
+                            <tr>
+                                {headers.map(h => <th key={h} className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{h}</th>)}
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-slate-200 text-sm text-slate-700">
+                            {rows}
+                        </tbody>
+                    </table>
+                </div>
+                {cardList && (
+                    <div className="md:hidden space-y-3 mt-4">
+                        {cardTitle && <h3 className="text-sm font-semibold text-slate-700">{cardTitle}</h3>}
+                        {cardDescription && <p className="text-xs text-slate-500">{cardDescription}</p>}
+                        {cardList}
+                    </div>
+                )}
+            </>
         )
       };
 
@@ -1154,6 +1562,11 @@ const App: React.FC = () => {
         }
     }
     
+    const sessionLoading = sessionStatus === 'loading';
+    const requiresWebAuth = !isSmallScreen && !sessionInfo && !sessionLoading;
+    const activeSessionUser = sessionInfo?.user;
+    const bridgeCodeExpiryText = bridgeCodeInfo ? new Date(bridgeCodeInfo.expiresAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+
     const viewOptions = useMemo(() => {
         if (viewType === ViewType.Class) return data.classrooms;
         return data.teachers;
@@ -1234,223 +1647,575 @@ const App: React.FC = () => {
         );
     };
 
+    const buildCpBlock = (layout: 'desktop' | 'mobile') => {
+        if (classicMode || solverStrategy !== 'cp') {
+            return null;
+        }
+        const containerClass = layout === 'mobile'
+            ? 'flex flex-col gap-2 w-full border-t border-slate-200 pt-3'
+            : 'flex flex-wrap items-center gap-2 pl-2 ml-2 border-l border-slate-200';
+        const innerClass = layout === 'mobile'
+            ? 'flex flex-col gap-2'
+            : 'flex flex-wrap items-center gap-2';
+        const maxInputClass = layout === 'mobile'
+            ? 'w-20 border rounded px-1 py-1 text-sm'
+            : 'w-14 border rounded px-1 py-0.5 ml-1';
+
+        return (
+            <div className={containerClass}>
+                <label className="flex items-center gap-1">
+                    <input type="checkbox" checked={cpUseCustom} onChange={(e) => setCpUseCustom(e.target.checked)} />
+                    <Tooltip text="İşaretlersen alttaki ayarlar devreye girer; işaretlemezsen varsayılan davranış korunur."><span className="text-slate-600">CP-SAT Özel Ayarlar</span></Tooltip>
+                </label>
+                {cpUseCustom && (
+                    <div className={innerClass}>
+                        <label className="flex items-center gap-1">
+                            <input type="checkbox" checked={cpAllowSplit} onChange={(e) => setCpAllowSplit(e.target.checked)} />
+                            <Tooltip text="Ders aynı gün içinde araya boşluk girerek bölünebilir. Kapalı tutmak blok/bütünlüğü artırır."><span className="text-slate-600">Aynı gün parçalanabilir</span></Tooltip>
+                        </label>
+                        <label className="flex items-center gap-1">
+                            <input type="checkbox" checked={cpEdgeReduce} onChange={(e) => setCpEdgeReduce(e.target.checked)} />
+                            <Tooltip text="Öğretmenlerin 1. ve son ders saatlerine yerleşmesini azaltmaya çalışır."><span className="text-slate-600">Kenar saat azalt</span></Tooltip>
+                        </label>
+                        <label className="flex items-center gap-1">
+                            <input type="checkbox" checked={cpGapReduce} onChange={(e) => setCpGapReduce(e.target.checked)} />
+                            <Tooltip text="Öğretmenlerin gün içindeki boş saatlerini (gap) azaltmaya çalışır."><span className="text-slate-600">Boşlukları azalt</span></Tooltip>
+                        </label>
+                        <label className="flex items-center gap-1">
+                            <Tooltip text="İki ders arasındaki en fazla boş saat. Aşılırsa ceza uygulanır. 1=sıkı, 2=daha esnek."><span className="text-slate-600">Gap üst sınırı</span></Tooltip>
+                            <select value={cpGapLimit} onChange={(e) => setCpGapLimit(e.target.value as 'default' | '1' | '2')} className="border rounded px-1 py-0.5">
+                                <option value="default">Varsayılan</option>
+                                <option value="1">1 saat</option>
+                                <option value="2">2 saat</option>
+                            </select>
+                        </label>
+                        <label className="flex items-center gap-1">
+                            <input type="checkbox" checked={cpDailyMaxOn} onChange={(e) => setCpDailyMaxOn(e.target.checked)} />
+                            <Tooltip text="Öğretmene bir günde verilebilecek en fazla ders saati (hard kısıt)."><span className="text-slate-600">Günlük max saat</span></Tooltip>
+                            <input
+                                type="number"
+                                min={1}
+                                max={12}
+                                value={cpDailyMaxVal}
+                                onChange={(e) => setCpDailyMaxVal(e.target.value)}
+                                className={maxInputClass}
+                            />
+                        </label>
+                        <div className="text-xs text-slate-500">Not: Bu ayarlar kısıtları yumuşak şekilde yönlendirir. Çok sıkı kombinasyonlar çözümsüzlüğe yol açabilir.</div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderSolverAdvancedRows = (layout: 'desktop' | 'mobile', includeStrategySelect: boolean): React.ReactNode => {
+        const rowClass = layout === 'mobile'
+            ? 'flex flex-wrap items-center gap-3'
+            : 'flex flex-wrap items-center gap-2';
+        const numericInputClass = layout === 'mobile'
+            ? 'w-20 border rounded px-1 py-1 text-sm'
+            : 'w-16 border rounded px-1 py-0.5';
+        const rngInputClass = layout === 'mobile'
+            ? 'w-24 border rounded px-1 py-1 text-sm'
+            : 'w-20 border rounded px-1 py-0.5';
+        const rows: React.ReactNode[] = [];
+
+        const firstRowItems: React.ReactNode[] = [];
+        if (includeStrategySelect) {
+            firstRowItems.push(
+                <label key="strategy" className="flex items-center gap-1">
+                    <span className="text-slate-600">Strateji</span>
+                    <select
+                        value={classicMode ? 'repair' : (solverStrategy || 'cp')}
+                        onChange={(e) => {
+                            const value = e.target.value as 'repair' | 'tabu' | 'alns' | 'cp';
+                            if (value === 'repair') {
+                                setClassicMode(true);
+                            } else {
+                                setClassicMode(false);
+                                setSolverStrategy(value);
+                            }
+                        }}
+                        className="border rounded px-1 py-0.5"
+                    >
+                        <option value="repair">Repair</option>
+                        <option value="tabu">Tabu</option>
+                        <option value="alns">ALNS</option>
+                        <option value="cp">CP-SAT (Server)</option>
+                    </select>
+                </label>
+            );
+        }
+
+        if (layout === 'desktop') {
+            const desktopCp = buildCpBlock('desktop');
+            if (desktopCp) {
+                firstRowItems.push(desktopCp);
+            }
+        }
+
+        firstRowItems.push(
+            <Tooltip key="time-label" text="Toplam arama süresi. Daha uzun süre = daha yüksek başarı.">
+                <span className="font-medium text-slate-600">Süre (sn)</span>
+            </Tooltip>
+        );
+        firstRowItems.push(
+            <input
+                key="time-input"
+                value={timeText}
+                onChange={(e) => setTimeText(e.target.value)}
+                onBlur={() => {
+                    const parsed = parseInt(timeText, 10);
+                    const next = Number.isNaN(parsed) ? optTime : parsed;
+                    const clamped = Math.max(10, Math.min(600, next));
+                    setOptTime(clamped);
+                    setTimeText(String(clamped));
+                }}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                type="text"
+                className={numericInputClass}
+            />
+        );
+        firstRowItems.push(
+            <Tooltip key="seed-label" text="Greedy tohumlama oranı. Düşük (0.10–0.15) daha esnek; yüksek daha hızlı fakat kilitlenebilir.">
+                <span className="font-medium text-slate-600">Seed</span>
+            </Tooltip>
+        );
+        firstRowItems.push(
+            <input
+                key="seed-input"
+                value={seedText}
+                onChange={(e) => setSeedText(e.target.value)}
+                onBlur={() => {
+                    const parsed = parseFloat(seedText);
+                    const next = Number.isNaN(parsed) ? optSeedRatio : parsed;
+                    const clamped = Math.max(0.05, Math.min(0.5, next));
+                    const fixed = Number(clamped.toFixed(2));
+                    setOptSeedRatio(fixed);
+                    setSeedText(String(fixed));
+                }}
+                type="text"
+                inputMode="decimal"
+                className={numericInputClass}
+            />
+        );
+
+        rows.push(
+            <div key="row-1" className={rowClass}>
+                {firstRowItems}
+            </div>
+        );
+
+        if (layout === 'mobile') {
+            const mobileCp = buildCpBlock('mobile');
+            if (mobileCp) {
+                rows.push(<React.Fragment key="cp-mobile">{mobileCp}</React.Fragment>);
+            }
+        }
+
+        rows.push(
+            <div key="row-2" className={rowClass}>
+                <Tooltip text="Tabu tenure: aynı hamlenin tabu kaldığı iterasyon. 50–80 önerilir.">
+                    <span className="font-medium text-slate-600">Tenure</span>
+                </Tooltip>
+                <input
+                    value={tenureText}
+                    onChange={(e) => setTenureText(e.target.value)}
+                    onBlur={() => {
+                        const parsed = parseInt(tenureText, 10);
+                        const next = Number.isNaN(parsed) ? optTabuTenure : parsed;
+                        const clamped = Math.max(10, Math.min(200, next));
+                        setOptTabuTenure(clamped);
+                        setTenureText(String(clamped));
+                    }}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    type="text"
+                    className={numericInputClass}
+                />
+                <Tooltip text="Tabu iterasyon sayısı. 2000–3500 dengeli.">
+                    <span className="font-medium text-slate-600">Iter</span>
+                </Tooltip>
+                <input
+                    value={iterText}
+                    onChange={(e) => setIterText(e.target.value)}
+                    onBlur={() => {
+                        const parsed = parseInt(iterText, 10);
+                        const next = Number.isNaN(parsed) ? optTabuIter : parsed;
+                        const clamped = Math.max(500, Math.min(6000, next));
+                        setOptTabuIter(clamped);
+                        setIterText(String(clamped));
+                    }}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    type="text"
+                    className={numericInputClass}
+                />
+                <Tooltip text="Deterministik RNG tohumu. Aynı tohum = aynı arama çizgisi.">
+                    <span className="font-medium text-slate-600">RNG</span>
+                </Tooltip>
+                <input
+                    value={rngText}
+                    onChange={(e) => setRngText(e.target.value)}
+                    onBlur={() => {
+                        const parsed = parseInt(rngText, 10);
+                        if (!Number.isNaN(parsed)) {
+                            setOptRngSeed(parsed);
+                            setRngText(String(parsed));
+                        } else {
+                            setRngText(rngText ? rngText : '');
+                        }
+                    }}
+                    placeholder="seed"
+                    type="text"
+                    inputMode="numeric"
+                    className={rngInputClass}
+                />
+            </div>
+        );
+
+        rows.push(
+            <div key="row-3" className={rowClass}>
+                <label className="flex items-center gap-1">
+                    <input type="checkbox" checked={useDeterministic} onChange={(e) => setUseDeterministic(e.target.checked)} />
+                    <Tooltip text="İşaretliyken randomSeed gönderilir; aynı parametrelerle aynı sonuçları üretir."><span className="text-slate-600">Deterministik</span></Tooltip>
+                </label>
+                <label className="flex items-center gap-1">
+                    <input type="checkbox" checked={optStopFirst} onChange={(e) => setOptStopFirst(e.target.checked)} />
+                    <Tooltip text="İlk feasible çözüm bulunduğunda hemen durur (hızlı denemeler için)."><span className="text-slate-600">StopFirst</span></Tooltip>
+                </label>
+                <label className="flex items-center gap-1">
+                    <input type="checkbox" checked={optDisableLNS} onChange={(e) => setOptDisableLNS(e.target.checked)} />
+                    <Tooltip text="Ruin&Recreate iyileştirmesini kapatır; daha klasik/kararlı davranış."><span className="text-slate-600">LNS kapalı</span></Tooltip>
+                </label>
+                <label className="flex items-center gap-1">
+                    <input type="checkbox" checked={optDisableEdge} onChange={(e) => setOptDisableEdge(e.target.checked)} />
+                    <Tooltip text="Öğretmenin gün başı/sonu ve tekil saat cezalarını kapatır."><span className="text-slate-600">Kenar cezası kapalı</span></Tooltip>
+                </label>
+            </div>
+        );
+
+        rows.push(
+            <div key="row-4" className={rowClass}>
+                <Tooltip text="45 sn, seed 0.12, tenure 60, iter 2500, StopFirst açık">
+                    <button onClick={() => applyProfile('fast')} className="px-2 py-1 border rounded text-slate-600 hover:bg-slate-50">Hızlı</button>
+                </Tooltip>
+                <Tooltip text="90 sn, seed 0.12, tenure 70, iter 3000">
+                    <button onClick={() => applyProfile('balanced')} className="px-2 py-1 border rounded text-slate-600 hover:bg-slate-50">Dengeli</button>
+                </Tooltip>
+                <Tooltip text="150 sn, seed 0.12, tenure 80, iter 3500">
+                    <button onClick={() => applyProfile('max')} className="px-2 py-1 border rounded text-slate-600 hover:bg-slate-50">Maks</button>
+                </Tooltip>
+                <Tooltip text="Klasik: Repair, StopFirst, LNS kapalı, kenar ve yayılım cezası yok">
+                    <button onClick={() => applyProfile('classic')} className={`px-2 py-1 border rounded ${classicMode ? 'bg-amber-500 text-white border-amber-500' : 'text-slate-600 hover:bg-slate-50'}`}>Klasik</button>
+                </Tooltip>
+                <Tooltip text="Bu ayarları başlangıçta otomatik yüklensin diye kaydeder.">
+                    <button onClick={saveSettingsAsDefault} className="px-2 py-1 border rounded text-emerald-600 hover:bg-emerald-50">Varsayılan Yap</button>
+                </Tooltip>
+            </div>
+        );
+
+        return <>{rows}</>;
+    };
+
+    const renderAnalysisToggles = (layout: 'desktop' | 'mobile') => {
+        const containerClass = layout === 'mobile'
+            ? 'flex flex-wrap items-center gap-2 text-xs text-slate-600 mt-3'
+            : 'flex flex-wrap items-center gap-2 text-xs text-slate-600 mt-3';
+        return (
+            <div className={containerClass}>
+                <label className="flex items-center gap-1">
+                    <input
+                        type="checkbox"
+                        checked={showTeacherLoadSummary}
+                        onChange={(e) => setShowTeacherLoadSummary(e.target.checked)}
+                    />
+                    <span>Öğretmen yük analizi</span>
+                </label>
+                <label className="flex items-center gap-1">
+                    <input
+                        type="checkbox"
+                        checked={showTeacherActualLoad}
+                        onChange={(e) => setShowTeacherActualLoad(e.target.checked)}
+                    />
+                    <span>Gerçekleşen yük</span>
+                </label>
+                <label className="flex items-center gap-1">
+                    <input
+                        type="checkbox"
+                        checked={showHeatmapPanel}
+                        onChange={(e) => setShowHeatmapPanel(e.target.checked)}
+                    />
+                    <span>Gün / saat analizi</span>
+                </label>
+                <label className="flex items-center gap-1">
+                    <input
+                        type="checkbox"
+                        checked={showDutyWarnings}
+                        onChange={(e) => setShowDutyWarnings(e.target.checked)}
+                    />
+                    <span>Paylaşılan ders uyarıları</span>
+                </label>
+                <label className="flex items-center gap-1">
+                    <input
+                        type="checkbox"
+                        checked={showDutyCoverage}
+                        onChange={(e) => setShowDutyCoverage(e.target.checked)}
+                    />
+                    <span>Nöbetçi yardımcısı</span>
+                </label>
+            </div>
+        );
+    };
+
     return (
         <div className="min-h-screen p-4 sm:p-6 lg:p-8">
-            <header className="mb-8 no-print">
-                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+        {!isSmallScreen && sessionLoading && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70">
+                <div className="bg-white rounded-lg shadow-xl px-6 py-5 w-full max-w-md text-center space-y-3">
+                    <h2 className="text-lg font-semibold text-slate-800">Oturum doğrulanıyor</h2>
+                    <p className="text-sm text-slate-500">Yetki kodu kontrol ediliyor, lütfen bekleyin...</p>
+                </div>
+            </div>
+        )}
+        {requiresWebAuth && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75">
+                <div className="bg-white rounded-xl shadow-2xl px-6 py-6 w-full max-w-md space-y-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900">Ozarik DersTimeTable</h1>
-                        <p className="text-slate-500 mt-1">Haftalık ders programınızı saniyeler içinde oluşturun.</p>
+                        <h2 className="text-xl font-semibold text-slate-900">Kod ile giriş yap</h2>
+                        <p className="text-sm text-slate-500 mt-1">Mobil uygulamada oluşturulan 6 haneli web erişim kodunu gir.</p>
                     </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
-                        <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-100 p-3 rounded-lg border">
-                             <div>
-                                <label className="text-xs font-medium text-slate-500 block mb-2">Günlük Ders Saatleri</label>
-                                <div className="space-y-2">
-                                    {[SchoolLevel.Middle, SchoolLevel.High].map(level => (
-                                        <div key={level} className="flex items-center gap-2">
-                                            <span className="w-20 text-sm font-medium text-slate-600">{level}:</span>
-                                            {DAYS.map((day, dayIndex) => (
-                                                <input 
-                                                    key={dayIndex}
-                                                    type="number"
-                                                    title={`${level} - ${day}`}
-                                                    value={schoolHours[level][dayIndex]}
-                                                    onChange={(e) => handleSchoolHoursChange(level, dayIndex, e.target.value)}
-                                                    min="4" max="16"
-                                                    className="w-12 rounded-md border-slate-300 text-center text-sm p-1"
-                                                />
-                                            ))}
-                                        </div>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        value={codeInput}
+                        onChange={(e) => setCodeInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleVerifyBridgeCode(); } }}
+                        placeholder="Örn: 123456"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        maxLength={6}
+                    />
+                    {sessionError && (
+                        <p className="text-sm text-red-600">{sessionError}</p>
+                    )}
+                    <div className="flex items-center justify-between gap-3">
+                        <button
+                            type="button"
+                            onClick={handleVerifyBridgeCode}
+                            disabled={verifyLoading || !codeInput.trim()}
+                            className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white font-medium shadow hover:bg-blue-700 disabled:opacity-60"
+                        >
+                            {verifyLoading ? 'Doğrulanıyor...' : 'Kodu doğrula'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setCodeInput(''); setSessionError(null); }}
+                            className="px-3 py-2 text-sm text-slate-500 hover:text-slate-700"
+                        >
+                            Temizle
+                        </button>
+                    </div>
+                    <p className="text-xs text-slate-400">Mobil uygulamada "Web erişim kodu" bölümünden yeni kod oluşturabilirsiniz.</p>
+                </div>
+            </div>
+        )}
+            <header className="mb-8 no-print">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+            <div>
+                <h1 className="text-3xl font-bold text-slate-900">Ozarik DersTimeTable</h1>
+                <p className="text-slate-500 mt-1">Haftalık ders programınızı saniyeler içinde oluşturun.</p>
+                {!isSmallScreen && activeSessionUser && (
+                    <div className="mt-1 text-xs text-slate-500">
+                        Bagli kullanici: <span className="font-medium text-slate-700">{activeSessionUser.name || activeSessionUser.email}</span>
+                        <button type="button" onClick={clearSession} className="ml-2 text-red-600">Cikis</button>
+                    </div>
+                )}
+            </div>
+            <div className="flex flex-col gap-3 w-full xl:w-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-100 p-3 rounded-lg border">
+                    <div>
+                        <label className="text-xs font-medium text-slate-500 block mb-2">Günlük Ders Saatleri</label>
+                        <div className="space-y-2">
+                            {[SchoolLevel.Middle, SchoolLevel.High].map(level => (
+                                <div key={level} className="flex items-center gap-2">
+                                    <span className="w-20 text-sm font-medium text-slate-600">{level}:</span>
+                                    {DAYS.map((day, dayIndex) => (
+                                        <input
+                                            key={dayIndex}
+                                            type="number"
+                                            title={`${level} - ${day}`}
+                                            value={schoolHours[level][dayIndex]}
+                                            onChange={(e) => handleSchoolHoursChange(level, dayIndex, e.target.value)}
+                                            min="4"
+                                            max="16"
+                                            className="w-12 rounded-md border-slate-300 text-center text-sm p-1"
+                                        />
                                     ))}
                                 </div>
-                             </div>
-                        </div>
-                        <div className='flex items-center gap-3 shrink-0'>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                accept=".json"
-                                className="hidden"
-                            />
-                            <input
-                                type="file"
-                                ref={scheduleFileInputRef}
-                                onChange={handleScheduleFileChange}
-                                accept=".json"
-                                className="hidden"
-                            />
-                            <button
-                                onClick={handleImportClick}
-                                className="p-2 bg-white text-slate-700 rounded-lg border border-slate-300 hover:bg-slate-50"
-                                title="Veri dosyasını yükle"
-                            >
-                                <UploadIcon className="w-5 h-5" />
-                            </button>
-                            {/* Örnek yükleme butonlarını header'dan kaldırdık */}
-                             <button
-                                onClick={handleExportData}
-                                className="p-2 bg-white text-slate-700 rounded-lg border border-slate-300 hover:bg-slate-50"
-                                title="Sadece girilen verileri indir"
-                            >
-                                <DownloadIcon className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={handleClearAllData}
-                                className="p-2 bg-white text-slate-700 rounded-lg border border-slate-300 hover:bg-red-50 hover:text-red-600"
-                                title="Tüm Verileri Sıfırla"
-                            >
-                                <TrashIcon className="w-5 h-5" />
-                            </button>
-                            <button 
-                                onClick={handleGenerate}
-                                disabled={isLoading || !validation.isValid}
-                                className="px-5 py-2 font-medium bg-sky-500 text-white rounded-lg shadow-md hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
-                            >
-                                {isLoading ? 'Oluşturuluyor...' : 'Program Oluştur'}
-                            </button>
-                            <div className="hidden md:flex md:flex-col md:items-start gap-2 ml-2 text-xs bg-white rounded-md px-3 py-2 shadow-sm max-w-[720px]">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <label className="flex items-center gap-1">
-                                        <span className="text-slate-600">Strateji</span>
-                                        <select value={classicMode ? 'repair' : (solverStrategy || 'cp')} onChange={(e)=>{ const v=e.target.value as any; if (v==='repair') setClassicMode(true); else { setClassicMode(false); setSolverStrategy(v);} }} className="border rounded px-1 py-0.5">
-                                            <option value="repair">Repair</option>
-                                            <option value="tabu">Tabu</option>
-                                            <option value="alns">ALNS</option>
-                                            <option value="cp">CP-SAT (Server)</option>
-                                        </select>
-                                    </label>
-                                    {/* CP-SAT quick toggles (simple on/off + small select). Defaults remain unchanged unless enabled. */}
-                                    {(!classicMode && solverStrategy==='cp') && (
-                                      <div className="flex flex-wrap items-center gap-2 pl-2 ml-2 border-l border-slate-200">
-                                        <label className="flex items-center gap-1">
-                                          <input type="checkbox" checked={cpUseCustom} onChange={e=>setCpUseCustom(e.target.checked)} />
-                                          <Tooltip text="İşaretlersen alttaki ayarlar devreye girer; işaretlemezsen varsayılan davranış korunur."><span className="text-slate-600">CP-SAT Özel Ayarlar</span></Tooltip>
-                                        </label>
-                                          {cpUseCustom && (
-                                            <>
-                                            <label className="flex items-center gap-1">
-                                              <input type="checkbox" checked={cpAllowSplit} onChange={e=>setCpAllowSplit(e.target.checked)} />
-                                              <Tooltip text="Ders aynı gün içinde araya boşluk girerek bölünebilir. Kapalı tutmak blok/bütünlüğü artırır."><span className="text-slate-600">Aynı gün parçalanabilir</span></Tooltip>
-                                            </label>
-                                            <label className="flex items-center gap-1">
-                                              <input type="checkbox" checked={cpEdgeReduce} onChange={e=>setCpEdgeReduce(e.target.checked)} />
-                                              <Tooltip text="Öğretmenlerin 1. ve son ders saatlerine yerleşmesini azaltmaya çalışır."><span className="text-slate-600">Kenar saat azalt</span></Tooltip>
-                                            </label>
-                                            <label className="flex items-center gap-1">
-                                              <input type="checkbox" checked={cpGapReduce} onChange={e=>setCpGapReduce(e.target.checked)} />
-                                              <Tooltip text="Öğretmenlerin gün içindeki boş saatlerini (gap) azaltmaya çalışır."><span className="text-slate-600">Boşlukları azalt</span></Tooltip>
-                                            </label>
-                                            <label className="flex items-center gap-1">
-                                              <Tooltip text="İki ders arasındaki en fazla boş saat. Aşılırsa ceza uygulanır. 1=sıkı, 2=daha esnek."><span className="text-slate-600">Gap üst sınırı</span></Tooltip>
-                                              <select value={cpGapLimit} onChange={e=>setCpGapLimit(e.target.value as any)} className="border rounded px-1 py-0.5">
-                                                <option value="default">Varsayılan</option>
-                                                <option value="1">1 saat</option>
-                                                <option value="2">2 saat</option>
-                                              </select>
-                                            </label>
-                                            <label className="flex items-center gap-1">
-                                              <input type="checkbox" checked={cpDailyMaxOn} onChange={e=>setCpDailyMaxOn(e.target.checked)} />
-                                              <Tooltip text="Öğretmene bir günde verilebilecek en fazla ders saati (hard kısıt)."><span className="text-slate-600">Günlük max saat</span></Tooltip>
-                                              <input type="number" min={1} max={12} value={cpDailyMaxVal} onChange={e=>setCpDailyMaxVal(e.target.value)} className="w-14 border rounded px-1 py-0.5 ml-1" />
-                                            </label>
-                                            <div className="basis-full text-xs text-slate-500">Not: Bu ayarlar kısıtları yumuşak şekilde yönlendirir. Çok sıkı kombinasyonlar çözümsüzlüğe yol açabilir.</div>
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                    <Tooltip text="Toplam arama süresi. Daha uzun süre = daha yüksek başarı.">
-                                      <span className="font-medium text-slate-600">Süre(s)</span>
-                                    </Tooltip>
-                                    <input value={timeText} onChange={e=>setTimeText(e.target.value)} onBlur={()=>{ const v = Math.max(10, Math.min(600, parseInt(timeText)||optTime)); setOptTime(v); setTimeText(String(v)); }} inputMode="numeric" pattern="[0-9]*" type="text" className="w-16 border rounded px-1 py-0.5" />
-                                    <Tooltip text="Greedy tohumlama oranı. Düşük (0.10–0.15) daha esnek; yüksek daha hızlı fakat kilitlenebilir.">
-                                      <span className="font-medium text-slate-600">Seed</span>
-                                    </Tooltip>
-                                    <input value={seedText} onChange={e=>setSeedText(e.target.value)} onBlur={()=>{ const v = Math.max(0.05, Math.min(0.5, parseFloat(seedText)||optSeedRatio)); setOptSeedRatio(Number(v.toFixed(2))); setSeedText(String(Number(v.toFixed(2)))); }} type="text" inputMode="decimal" className="w-16 border rounded px-1 py-0.5" />
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Tooltip text="Tabu tenure: aynı hamlenin tabu kaldığı iterasyon. 50–80 önerilir.">
-                                      <span className="font-medium text-slate-600">Tenure</span>
-                                    </Tooltip>
-                                    <input value={tenureText} onChange={e=>setTenureText(e.target.value)} onBlur={()=>{ const v = Math.max(5, Math.min(300, parseInt(tenureText)||optTabuTenure)); setOptTabuTenure(v); setTenureText(String(v)); }} type="text" inputMode="numeric" className="w-16 border rounded px-1 py-0.5" />
-                                    <Tooltip text="Tabu iterasyon sayısı. 2000–3500 dengeli.">
-                                      <span className="font-medium text-slate-600">Iter</span>
-                                    </Tooltip>
-                                    <input value={iterText} onChange={e=>setIterText(e.target.value)} onBlur={()=>{ const v = Math.max(100, Math.min(10000, parseInt(iterText)||optTabuIter)); setOptTabuIter(v); setIterText(String(v)); }} type="text" inputMode="numeric" className="w-20 border rounded px-1 py-0.5" />
-                                    <Tooltip text="Deterministik RNG tohumu. Aynı tohum = aynı arama çizgisi.">
-                                      <span className="font-medium text-slate-600">RNG</span>
-                                    </Tooltip>
-                                    <input value={rngText} onChange={e=>setRngText(e.target.value)} onBlur={()=>{ const v = parseInt(rngText); if (!Number.isNaN(v)) setOptRngSeed(v); setRngText(String(Number.isNaN(v)?(rngText||''):v)); }} placeholder="seed" type="text" inputMode="numeric" className="w-20 border rounded px-1 py-0.5" />
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={useDeterministic} onChange={e=>setUseDeterministic(e.target.checked)} />
-                                        <Tooltip text="İşaretliyken randomSeed gönderilir; aynı parametrelerle aynı sonuçları üretir.">
-                                          <span className="text-slate-600">Deterministik</span>
-                                        </Tooltip>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={optStopFirst} onChange={e=>setOptStopFirst(e.target.checked)} />
-                                        <Tooltip text="İlk feasible çözüm bulunduğunda hemen durur (hızlı denemeler için)."><span className="text-slate-600">StopFirst</span></Tooltip>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={optDisableLNS} onChange={e=>setOptDisableLNS(e.target.checked)} />
-                                        <Tooltip text="Ruin&Recreate iyileştirmesini kapatır; daha klasik/kararlı davranış."><span className="text-slate-600">LNS kapalı</span></Tooltip>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={optDisableEdge} onChange={e=>setOptDisableEdge(e.target.checked)} />
-                                        <Tooltip text="Öğretmenin gün başı/sonu ve tekil saat cezalarını kapatır."><span className="text-slate-600">Kenar cezası kapalı</span></Tooltip>
-                                    </label>
-                                    <label className="flex items-center gap-1 ml-2">
-                                        <input type="checkbox" checked={showAnalyzer} onChange={e=>setShowAnalyzer(e.target.checked)} />
-                                        <Tooltip text="Uyuşmazlık Analiz Aracı'nı göster/gizle (bazı senaryolarda yer kapladığı için kapalı başlayabilir)"><span className="text-slate-600">Analiz Aracı</span></Tooltip>
-                                    </label>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Tooltip text="45s, seed 0.12, tenure 60, iter 2500, StopFirst açık">
-                                      <button onClick={()=>applyProfile('fast')} className="px-2 py-1 border rounded text-slate-600 hover:bg-slate-50">Hızlı</button>
-                                    </Tooltip>
-                                    <Tooltip text="90s, seed 0.12, tenure 70, iter 3000">
-                                      <button onClick={()=>applyProfile('balanced')} className="px-2 py-1 border rounded text-slate-600 hover:bg-slate-50">Dengeli</button>
-                                    </Tooltip>
-                                    <Tooltip text="150s, seed 0.12, tenure 80, iter 3500">
-                                      <button onClick={()=>applyProfile('max')} className="px-2 py-1 border rounded text-slate-600 hover:bg-slate-50">Maks</button>
-                                    </Tooltip>
-                                    <Tooltip text="Klasik: Repair, StopFirst, LNS kapalı, kenar ve yayılım cezası yok">
-                                      <button onClick={()=>applyProfile('classic')} className={`px-2 py-1 border rounded ${classicMode ? 'bg-amber-500 text-white border-amber-500' : 'text-slate-600 hover:bg-slate-50'}`}>Klasik</button>
-                                    </Tooltip>
-                                    <Tooltip text="Bu ayarları başlangıçta otomatik yüklensin diye kaydeder.">
-                                      <button onClick={saveSettingsAsDefault} className="px-2 py-1 border rounded text-emerald-600 hover:bg-emerald-50">Varsayılan Yap</button>
-                                    </Tooltip>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-2">
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={showTeacherLoadSummary} onChange={e=>setShowTeacherLoadSummary(e.target.checked)} />
-                                        <span>Öğretmen yük analizi</span>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={showTeacherActualLoad} onChange={e=>setShowTeacherActualLoad(e.target.checked)} />
-                                        <span>Gerçekleşen yük</span>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={showHeatmapPanel} onChange={e=>setShowHeatmapPanel(e.target.checked)} />
-                                        <span>Gün / saat analizi</span>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={showDutyWarnings} onChange={e=>setShowDutyWarnings(e.target.checked)} />
-                                        <span>Paylaşılan ders uyarıları</span>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                        <input type="checkbox" checked={showDutyCoverage} onChange={e=>setShowDutyCoverage(e.target.checked)} />
-                                        <span>Nöbetçi yardımcısı</span>
-                                    </label>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </div>
                 </div>
-            </header>
+                <div className="flex flex-wrap items-center gap-2">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".json"
+                        className="hidden"
+                    />
+                    <input
+                        type="file"
+                        ref={scheduleFileInputRef}
+                        onChange={handleScheduleFileChange}
+                        accept=".json"
+                        className="hidden"
+                    />
+                    <button
+                        onClick={handleImportClick}
+                        className="flex items-center justify-center p-2 bg-white text-slate-700 rounded-lg border border-slate-300 hover:bg-slate-50"
+                        title="Veri dosyasını yükle"
+                    >
+                        <UploadIcon className="w-5 h-5" />
+                    </button>
+                    {/* Örnek yükleme butonlarını header'dan kaldırdık */}
+                    <button
+                        onClick={handleExportData}
+                        className="flex items-center justify-center p-2 bg-white text-slate-700 rounded-lg border border-slate-300 hover:bg-slate-50"
+                        title="Sadece girilen verileri indir"
+                    >
+                        <DownloadIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={handleClearAllData}
+                        className="flex items-center justify-center p-2 bg-white text-slate-700 rounded-lg border border-slate-300 hover:bg-red-50 hover:text-red-600"
+                        title="Tüm verileri sıfırla"
+                    >
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isLoading || !validation.isValid}
+                        className="w-full sm:w-auto px-5 py-2 font-medium bg-sky-500 text-white rounded-lg shadow-md hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {isLoading ? 'Oluşturuluyor...' : 'Program Oluştur'}
+                    </button>
+                </div>
+                <div className="md:hidden bg-white border border-slate-200 rounded-lg px-3 py-3 shadow-sm">
+                    <div className="flex flex-col gap-3">
+                        <label className="flex flex-col gap-1 text-sm text-slate-600">
+                            <span className="font-medium">Strateji</span>
+                            <select
+                                value={classicMode ? 'repair' : (solverStrategy || 'cp')}
+                                onChange={(e) => {
+                                    const value = e.target.value as 'repair' | 'tabu' | 'alns' | 'cp';
+                                    if (value === 'repair') {
+                                        setClassicMode(true);
+                                    } else {
+                                        setClassicMode(false);
+                                        setSolverStrategy(value);
+                                    }
+                                }}
+                                className="border rounded px-2 py-1 text-sm"
+                            >
+                                <option value="repair">Repair</option>
+                                <option value="tabu">Tabu</option>
+                                <option value="alns">ALNS</option>
+                                <option value="cp">CP-SAT (Server)</option>
+                            </select>
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => setIsMobileAdvancedOpen((prev) => !prev)}
+                            className="inline-flex items-center justify-between rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                            <span>Gelişmiş ayarlar</span>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className={`w-4 h-4 transition-transform ${isMobileAdvancedOpen ? 'rotate-180' : ''}`}
+                            >
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
+                        </button>
+                    </div>
+                    {isMobileAdvancedOpen && (
+                        <div className="mt-3 space-y-3 text-xs text-slate-600">
+                            {renderSolverAdvancedRows('mobile', false)}
+                            <div className="space-y-3 border-t border-slate-200 pt-3">
+                                {activeSessionUser ? (
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="text-[11px] leading-tight text-slate-500">
+                                            <div className="font-medium text-slate-700">{activeSessionUser?.name || activeSessionUser?.email}</div>
+                                            <div>Mobil oturum aktif</div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={clearSession}
+                                            className="text-[11px] text-red-600"
+                                        >
+                                            Cikis yap
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <p className="text-[11px] text-slate-500">Web paneline baglanmak icin kod olusturun.</p>
+                                )}
+                                <div className="grid grid-cols-1 gap-2">
+                                    <input
+                                        type="email"
+                                        value={bridgeEmail}
+                                        onChange={(e) => setBridgeEmail(e.target.value)}
+                                        placeholder="E-posta adresi"
+                                        className="rounded border border-slate-300 px-3 py-2 text-xs"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={bridgeName}
+                                        onChange={(e) => setBridgeName(e.target.value)}
+                                        placeholder="Ad (opsiyonel)"
+                                        className="rounded border border-slate-300 px-3 py-2 text-xs"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={bridgeSchoolId}
+                                        onChange={(e) => setBridgeSchoolId(e.target.value)}
+                                        placeholder="Okul ID (opsiyonel)"
+                                        className="rounded border border-slate-300 px-3 py-2 text-xs"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleRequestBridgeCode}
+                                        disabled={bridgeLoading}
+                                        className="rounded bg-blue-600 px-3 py-2 text-white text-xs font-medium shadow hover:bg-blue-700 disabled:opacity-60"
+                                    >
+                                        {bridgeLoading ? 'Kod olusturuluyor...' : 'Kod olustur'}
+                                    </button>
+                                </div>
+                                {bridgeError && <p className="text-[11px] text-red-600">{bridgeError}</p>}
+                                {bridgeCodeInfo && (
+                                    <div className="rounded-lg bg-slate-900 text-white text-center py-3">
+                                        <div className="font-mono text-2xl tracking-[0.35em]">{bridgeCodeInfo.code}</div>
+                                        <p className="text-[11px] mt-1 text-slate-300">Kod {bridgeCodeExpiryText || '10 dakikada'} sona erer.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    {renderAnalysisToggles('mobile')}
+                </div>
+                <div className="hidden md:flex md:flex-col md:items-start gap-2 text-xs bg-white rounded-md px-3 py-2 shadow-sm max-w-[720px]">
+                    {renderSolverAdvancedRows('desktop', true)}
+                    {renderAnalysisToggles('desktop')}
+                </div>
+            </div>
+        </div>
+    </header>
 
             <main className="flex flex-col gap-8">
                 
@@ -1525,7 +2290,7 @@ const App: React.FC = () => {
                                     <button onClick={() => setViewMode('master')} className={`px-2 py-1 text-xs rounded ${viewMode === 'master' ? 'bg-white shadow' : 'text-slate-500'}`}>Tümünü Gör</button>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                 <select 
                                     value={selectedHeaderId} 
                                     onChange={e => setSelectedHeaderId(e.target.value)}
@@ -1533,22 +2298,67 @@ const App: React.FC = () => {
                                 >
                                     {viewOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
                                 </select>
+                                <div className="flex items-center gap-2">
+                                    <select
+                                        value={pdfScope}
+                                        onChange={(e) => setPdfScope(e.target.value as 'selected' | 'classes' | 'teachers')}
+                                        className="rounded-md border-slate-300 bg-white text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500 px-2 py-1"
+                                        title="Hangi kayıtların PDF'e aktarılacağını seçin"
+                                    >
+                                        <option value="selected">Seçili kayıt</option>
+                                        <option value="classes">Tüm sınıflar</option>
+                                        <option value="teachers">Tüm öğretmenler</option>
+                                    </select>
+                                    <button
+                                        onClick={handleExportPdf}
+                                        disabled={pdfScope === 'selected' && (viewMode !== 'single' || !selectedHeaderId)}
+                                        className={`px-3 py-1.5 rounded-md border text-sm font-medium transition-colors ${pdfScope === 'selected' && (viewMode !== 'single' || !selectedHeaderId) ? 'cursor-not-allowed border-slate-200 text-slate-400 bg-slate-100' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+                                        title={pdfScope === 'selected' && viewMode !== 'single' ? 'Seçili kaydı PDF’e aktarmak için Sade görünüm moduna geçin.' : 'PDF indir'}
+                                    >
+                                        PDF indir
+                                    </button>
+                                </div>
                                 <button onClick={handleSaveSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı Kaydet"><SaveIcon className="w-5 h-5" /></button>
                                 <button onClick={handleExportSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı ve Verileri İndir"><DownloadIcon className="w-5 h-5" /></button>
                                 <button onClick={handlePrint} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Yazdır"><PrintIcon className="w-5 h-5" /></button>
                             </div>
                         </div>
-                        <TimetableView 
-                          schedule={schedule} 
-                          data={data} 
-                          viewType={viewType} 
-                          viewMode={viewMode}
-                          schoolHours={schoolHours}
-                          maxDailyHours={maxDailyHours} 
-                          selectedHeaderId={selectedHeaderId}
-                          onCellDrop={handleManualDrop} 
-                          onIsMoveValid={handleIsMoveValid}
-                        />
+                        {!isSmallScreen && (
+                            <TimetableView
+                              schedule={schedule}
+                              data={data}
+                              viewType={viewType}
+                              viewMode={viewMode}
+                              schoolHours={schoolHours}
+                              maxDailyHours={maxDailyHours}
+                              selectedHeaderId={selectedHeaderId}
+                              onCellDrop={handleManualDrop}
+                              onIsMoveValid={handleIsMoveValid}
+                            />
+                        )}
+                        {isSmallScreen && viewMode === 'single' && (
+                            <MobileScheduleView
+                              schedule={schedule}
+                              data={data}
+                              viewType={viewType}
+                              selectedHeaderId={selectedHeaderId}
+                              maxDailyHours={maxDailyHours}
+                            />
+                        )}
+                        {isSmallScreen && viewMode !== 'single' && (
+                            <div className="md:hidden mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                                <p className="mb-3">
+                                    Tüm tablo görünümü mobil ekranda desteklenmiyor. Sade görünümü seçerek seçili sınıf veya öğretmeni görüntüleyebilirsiniz.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('single')}
+                                    className="inline-flex items-center rounded-md bg-amber-600 px-3 py-1.5 text-white shadow-sm hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                                >
+                                    Sade Görünüm'e geç
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
                 
@@ -1676,3 +2486,6 @@ const App: React.FC = () => {
     );
 };
 export default App;
+
+
+

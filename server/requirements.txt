@@ -5,3 +5,4 @@ ortools==9.14.6206
 pydantic==2.8.2
 python-multipart==0.0.9
 typing-extensions>=4.9.0
+psycopg[binary,pool]==3.1.18

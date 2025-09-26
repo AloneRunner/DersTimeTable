@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Any
 from solver_cpsat import solve_cp_sat
 from schools import router as schools_router
 from subscriptions import router as subs_router
+from auth import router as auth_router
 
 
 class Teacher(BaseModel):
@@ -104,6 +105,7 @@ app.add_middleware(
 # Mount schools/api router (tenant helpers)
 app.include_router(schools_router)
 app.include_router(subs_router)
+app.include_router(auth_router)
 
 
 @app.get("/health")
@@ -129,3 +131,5 @@ def solve_cpsat(req: SolveRequest) -> Any:
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+
