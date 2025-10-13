@@ -30,24 +30,26 @@ import MobileDataEntry from './components/mobile/MobileDataEntry';
 import TeacherMobileView from './components/mobile/TeacherMobileView';
 import MobileScheduleView from './components/mobile/MobileScheduleView';
 import { buildSchedulePdf } from './services/pdfExporter';
-import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, type SessionInfo as AuthSessionInfo } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
 type ViewMode = 'single' | 'master';
 
 const DAYS = ["Pazartesi", "Sal\u0131", "\u00C7ar\u015Famba", "Per\u015Fembe", "Cuma"];
- // Normalize Turkish characters in DAYS to avoid encoding artifacts
- const __DAYS_FIX = ["Pazartesi", "Sal\u0131", "\u00C7ar\u015Famba", "Per\u015Fembe", "Cuma"];
- try {
-   // Mutate array in place; binding is const but contents are mutable
-   if (typeof DAYS !== 'undefined' && Array.isArray(DAYS)) {
-     for (let i = 0; i < Math.min(DAYS.length, __DAYS_FIX.length); i++) {
-       DAYS[i] = __DAYS_FIX[i];
-     }
-   }
- } catch {}
- 
+// Normalize Turkish characters in DAYS to avoid encoding artifacts
+const __DAYS_FIX = ["Pazartesi", "Sal\u0131", "\u00C7ar\u015Famba", "Per\u015Fembe", "Cuma"];
+try {
+  // Mutate array in place; binding is const but contents are mutable
+  if (typeof DAYS !== 'undefined' && Array.isArray(DAYS)) {
+    for (let i = 0; i < Math.min(DAYS.length, __DAYS_FIX.length); i++) {
+      DAYS[i] = __DAYS_FIX[i];
+    }
+  }
+} catch {}
+
+const WEB_PORTAL_URL = 'https://ozariktable.netlify.app';
+
  // --- Modal Component --- (moved to components/Modal)
 
 // Teacher load analysis UI is provided by the extracted `TeacherLoadAnalysis` component in components/TeacherLoadAnalysis.tsx
@@ -297,8 +299,18 @@ const App: React.FC = () => {
     const [bridgeCodeInfo, setBridgeCodeInfo] = useState<{ code: string; expiresAt: string } | null>(null);
     const [bridgeLoading, setBridgeLoading] = useState<boolean>(false);
     const [bridgeError, setBridgeError] = useState<string | null>(null);
+    const [newSchoolName, setNewSchoolName] = useState<string>('');
+    const [newSchoolStatus, setNewSchoolStatus] = useState<string>('');
+    const [newSchoolLoading, setNewSchoolLoading] = useState<boolean>(false);
+    const [webPortalStatus, setWebPortalStatus] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scheduleFileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!webPortalStatus) return;
+        const timeout = setTimeout(() => setWebPortalStatus(''), 4000);
+        return () => clearTimeout(timeout);
+    }, [webPortalStatus]);
 
     const persistSessionToken = useCallback((token: string | null) => {
         if (token) {
@@ -574,6 +586,67 @@ const App: React.FC = () => {
             setVerifyLoading(false);
         }
     }, [codeInput, persistSessionToken]);
+
+    const handleOpenWebPortal = useCallback(() => {
+        if (typeof window !== 'undefined') {
+            window.open(WEB_PORTAL_URL, '_blank');
+        }
+    }, []);
+
+    const handleCopyWebPortalLink = useCallback(async () => {
+        try {
+            if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(WEB_PORTAL_URL);
+                setWebPortalStatus('Baglanti panoya kopyalandi.');
+            } else {
+                setWebPortalStatus('Cihaz kopyalama desteklemiyor, adresi manuel girin.');
+            }
+        } catch {
+            setWebPortalStatus('Baglanti panoya kopyalanamadi.');
+        }
+    }, []);
+
+    const handleCreateSchool = useCallback(async () => {
+        const name = newSchoolName.trim();
+        if (!name) {
+            setNewSchoolStatus('Okul adi gerekli');
+            return;
+        }
+        setNewSchoolLoading(true);
+        setNewSchoolStatus('');
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/schools`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name }),
+            });
+            if (!response.ok) {
+                let message = response.statusText || 'Okul kaydedilemedi';
+                try {
+                    const data = await response.json();
+                    if (data && typeof data.detail === 'string') {
+                        message = data.detail;
+                    }
+                } catch {
+                    // ignore parse errors
+                }
+                throw new Error(message);
+            }
+            const body = await response.json();
+            if (body && body.id !== undefined) {
+                setBridgeSchoolId(String(body.id));
+                setNewSchoolStatus(`Okul kaydedildi. ID: ${body.id}`);
+            } else {
+                setNewSchoolStatus('Okul kaydedildi.');
+            }
+            setNewSchoolName('');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Okul kaydedilemedi';
+            setNewSchoolStatus(message);
+        } finally {
+            setNewSchoolLoading(false);
+        }
+    }, [newSchoolName]);
 
     const handleRequestBridgeCode = useCallback(async () => {
         const email = bridgeEmail.trim().toLowerCase();
@@ -2166,12 +2239,33 @@ case 'duties':
                                 ) : (
                                     <p className="text-[11px] text-slate-500">Web paneline baglanmak icin kod olusturun.</p>
                                 )}
-                                <div className="grid grid-cols-1 gap-2">
-                                    <input
-                                        type="email"
-                                        value={bridgeEmail}
-                                        onChange={(e) => setBridgeEmail(e.target.value)}
-                                        placeholder="E-posta adresi"
+                                  <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 space-y-2 text-[11px]">
+                                      <p>Bilgisayarinizdan erisim icin web paneli adresi:
+                                          <span className="ml-1 font-semibold text-slate-700">{WEB_PORTAL_URL}</span>
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                          <button
+                                              type="button"
+                                              onClick={handleOpenWebPortal}
+                                              className="rounded bg-slate-700 px-3 py-1 text-white text-[11px] hover:bg-slate-800"
+                                          >
+                                              Siteyi ac
+                                          </button>
+                                          <button
+                                              type="button"
+                                              onClick={handleCopyWebPortalLink}
+                                              className="rounded border border-slate-400 px-3 py-1 text-[11px] text-slate-700 hover:bg-slate-100"
+                                          >
+                                              Adresi kopyala
+                                          </button>
+                                      </div>
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-2">
+                                      <input
+                                          type="email"
+                                          value={bridgeEmail}
+                                          onChange={(e) => setBridgeEmail(e.target.value)}
+                                          placeholder="E-posta adresi"
                                         className="rounded border border-slate-300 px-3 py-2 text-xs"
                                     />
                                     <input
@@ -2184,24 +2278,44 @@ case 'duties':
                                     <input
                                         type="text"
                                         value={bridgeSchoolId}
-                                        onChange={(e) => setBridgeSchoolId(e.target.value)}
-                                        placeholder="Okul ID (opsiyonel)"
-                                        className="rounded border border-slate-300 px-3 py-2 text-xs"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleRequestBridgeCode}
-                                        disabled={bridgeLoading}
-                                        className="rounded bg-blue-600 px-3 py-2 text-white text-xs font-medium shadow hover:bg-blue-700 disabled:opacity-60"
-                                    >
-                                        {bridgeLoading ? 'Kod olusturuluyor...' : 'Kod olustur'}
-                                    </button>
-                                </div>
-                                {bridgeError && <p className="text-[11px] text-red-600">{bridgeError}</p>}
-                                {bridgeCodeInfo && (
-                                    <div className="rounded-lg bg-slate-900 text-white text-center py-3">
-                                        <div className="font-mono text-2xl tracking-[0.35em]">{bridgeCodeInfo.code}</div>
-                                        <p className="text-[11px] mt-1 text-slate-300">Kod {bridgeCodeExpiryText || '10 dakikada'} sona erer.</p>
+                                          onChange={(e) => setBridgeSchoolId(e.target.value)}
+                                          placeholder="Okul ID (opsiyonel)"
+                                          className="rounded border border-slate-300 px-3 py-2 text-xs"
+                                      />
+                                      <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 space-y-2">
+                                          <span className="text-[11px] text-slate-600">Okulunuz yoksa buradan ekleyebilirsiniz.</span>
+                                          <input
+                                              type="text"
+                                              value={newSchoolName}
+                                              onChange={(e) => setNewSchoolName(e.target.value)}
+                                              placeholder="Yeni okul adi"
+                                              className="rounded border border-slate-300 px-3 py-2 text-xs"
+                                          />
+                                          <button
+                                              type="button"
+                                              onClick={handleCreateSchool}
+                                              disabled={newSchoolLoading}
+                                              className="rounded bg-slate-700 px-3 py-2 text-white text-xs font-medium shadow hover:bg-slate-800 disabled:opacity-60"
+                                          >
+                                              {newSchoolLoading ? 'Kaydediliyor...' : 'Okul kaydet'}
+                                          </button>
+                                      </div>
+                                      <button
+                                          type="button"
+                                          onClick={handleRequestBridgeCode}
+                                          disabled={bridgeLoading}
+                                          className="rounded bg-blue-600 px-3 py-2 text-white text-xs font-medium shadow hover:bg-blue-700 disabled:opacity-60"
+                                      >
+                                          {bridgeLoading ? 'Kod olusturuluyor...' : 'Kod olustur'}
+                                      </button>
+                                  </div>
+                                  {newSchoolStatus && <p className="text-[11px] text-slate-500">{newSchoolStatus}</p>}
+                                  {webPortalStatus && <p className="text-[11px] text-sky-600">{webPortalStatus}</p>}
+                                  {bridgeError && <p className="text-[11px] text-red-600">{bridgeError}</p>}
+                                  {bridgeCodeInfo && (
+                                      <div className="rounded-lg bg-slate-900 text-white text-center py-3">
+                                          <div className="font-mono text-2xl tracking-[0.35em]">{bridgeCodeInfo.code}</div>
+                                          <p className="text-[11px] mt-1 text-slate-300">Kod {bridgeCodeExpiryText || '10 dakikada'} sona erer.</p>
                                     </div>
                                 )}
                             </div>

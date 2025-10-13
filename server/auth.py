@@ -10,7 +10,10 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
 import psycopg  # type: ignore
+from psycopg import errors as psycopg_errors  # type: ignore
 from psycopg.rows import dict_row  # type: ignore
+from psycopg.types.json import Json  # type: ignore
+from revenuecat import fetch_entitlement
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 USE_DB = bool(DATABASE_URL)
@@ -110,12 +113,15 @@ def _db_upsert_user(email: str, name: Optional[str]) -> Dict[str, Any]:
 
 
 def _db_attach_school(user_id: int, school_id: int) -> None:
-    _db_execute(
-        '''INSERT INTO school_users (user_id, school_id, role)
-           VALUES (%s, %s, %s)
-           ON CONFLICT (school_id, user_id) DO UPDATE SET role = EXCLUDED.role''',
-        (user_id, school_id, 'admin'),
-    )
+    try:
+        _db_execute(
+            '''INSERT INTO school_users (user_id, school_id, role)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (school_id, user_id) DO UPDATE SET role = EXCLUDED.role''',
+            (user_id, school_id, 'admin'),
+        )
+    except psycopg_errors.ForeignKeyViolation as exc:
+        raise HTTPException(status_code=404, detail='school-not-found') from exc
 
 
 def _db_get_school_memberships(user_id: int) -> List[Dict[str, Any]]:
@@ -144,7 +150,7 @@ def _db_insert_login_token(
         '''INSERT INTO login_tokens (user_id, token, code, purpose, expires_at, metadata, consumed)
            VALUES (%s, %s, %s, %s, %s, %s, %s)
            RETURNING id, user_id, token, code, purpose, expires_at, metadata, consumed''',
-        (user_id, token, code, purpose, expires_at, metadata, consumed),
+        (user_id, token, code, purpose, expires_at, Json(metadata) if metadata is not None else None, consumed),
         returning=True,
     )
     if not rec:
@@ -338,6 +344,19 @@ def _get_subscription(user_id: int) -> Optional[Dict[str, Any]]:
 
 def _session_payload(user: Dict[str, Any], school_memberships: List[Dict[str, Any]], session_token: Optional[str] = None, expires_at: Optional[datetime] = None) -> SessionResponse:
     subscription = _get_subscription(user['id'])
+    email = user.get('email')
+    rc_entitlement = fetch_entitlement(email) if email else None
+    if rc_entitlement:
+        expires_at_dt = rc_entitlement.get('parsed_expires_date')
+        start_at_dt = rc_entitlement.get('parsed_purchase_date')
+        subscription = {
+            'provider': 'revenuecat',
+            'status': 'active' if rc_entitlement.get('is_active') else 'inactive',
+            'product_id': rc_entitlement.get('product_identifier'),
+            'entitlement_id': os.environ.get('RC_ENTITLEMENT_ID'),
+            'expires_at': expires_at_dt.isoformat() if expires_at_dt else None,
+            'start_at': start_at_dt.isoformat() if start_at_dt else None,
+        }
     return SessionResponse(
         session_token=session_token,
         expires_at=expires_at,
