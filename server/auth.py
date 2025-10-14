@@ -211,7 +211,7 @@ def _db_get_subscription(user_id: int) -> Optional[Dict[str, Any]]:
            WHERE user_id = %s
            ORDER BY COALESCE(expires_at, start_at) DESC
            LIMIT 1''',
-        (user_id,),
+        (str(user_id),),
     )
     if not rows:
         return None
