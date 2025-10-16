@@ -28,7 +28,7 @@ type LessonEntry = {
 
 const getCurrentSlot = (maxDailyHours: number) => {
   const now = new Date();
-  const weekday = now.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const weekday = now.getDay(); // 0 = Sunday, 1 = Monday ...
   const dayIndex = weekday >= 1 && weekday <= 5 ? weekday - 1 : -1;
   if (dayIndex < 0) return null;
   const hour = now.getHours() + now.getMinutes() / 60;
@@ -157,7 +157,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-900/70 backdrop-blur-sm">
-      <div className="mt-auto max-h-[90vh] overflow-hidden rounded-t-3xl bg-white shadow-xl">
+      <div className="mt-auto w-full max-w-md mx-auto min-h-[70vh] max-h-[90vh] overflow-hidden rounded-t-3xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Öğretmen Paneli</h2>
@@ -176,85 +176,83 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
           </button>
         </div>
         <div className="space-y-4 overflow-y-auto px-4 py-4">
+          {teacherOptions.length > 0 ? (
+            <div className="space-y-3">
+              <label className="text-xs font-medium text-slate-600" htmlFor="teacher-select">Öğretmen seç</label>
+              <select
+                id="teacher-select"
+                value={selectedTeacherId}
+                onChange={(event) => setSelectedTeacherId(event.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {teacherOptions.map(option => (
+                  <option key={option.id} value={option.id}>{option.name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+              Bu okul için kayıtlı öğretmen bulunamadı. İdarecinin öğretmenleri tanımlaması gerekiyor.
+            </div>
+          )}
+
           {!hasPublication ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
               İdare henüz ders programı yayınlamadı. Program paylaşıldığında burada göreceksin.
             </div>
-          ) : (
+          ) : selectedTeacherId ? (
             <>
-              <div className="space-y-3">
-                <label className="text-xs font-medium text-slate-600" htmlFor="teacher-select">Öğretmen seç</label>
-                <select
-                  id="teacher-select"
-                  value={selectedTeacherId}
-                  onChange={(event) => setSelectedTeacherId(event.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {teacherOptions.map(option => (
-                    <option key={option.id} value={option.id}>{option.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {!selectedTeacherId && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                  Programı görüntülemek için öğretmen seç.
-                </div>
-              )}
-
-              {selectedTeacherId && (
-                <div className="space-y-4">
-                  {DAY_LABELS.map((dayName, dayIndex) => {
-                    const lessons = lessonsByDay[dayIndex] ?? [];
-                    return (
-                      <div key={dayName} className="rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">
-                          {dayName}
-                        </div>
-                        <div className="divide-y divide-slate-100">
-                          {lessons.length === 0 ? (
-                            <div className="px-3 py-3 text-xs text-slate-400">Bu gün için ders veya nöbet görevi yok.</div>
-                          ) : (
-                            lessons.map((lesson) => (
-                              <div
-                                key={`${lesson.dayIndex}-${lesson.hourIndex}-${lesson.type}-${lesson.classroomName}`}
-                                className={`px-3 py-3 text-sm transition-colors ${lesson.isCurrent ? 'bg-emerald-50' : 'bg-white'}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    {lesson.hourIndex + 1}. saat
+              <div className="space-y-4 pb-4">
+                {DAY_LABELS.map((dayName, dayIndex) => {
+                  const lessons = lessonsByDay[dayIndex] ?? [];
+                  return (
+                    <div key={dayName} className="rounded-xl border border-slate-200 bg-white shadow-sm">
+                      <div className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">
+                        {dayName}
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {lessons.length === 0 ? (
+                          <div className="px-3 py-3 text-xs text-slate-400">Bu gün için ders veya nöbet görevi yok.</div>
+                        ) : (
+                          lessons.map((lesson) => (
+                            <div
+                              key={`${lesson.dayIndex}-${lesson.hourIndex}-${lesson.type}-${lesson.classroomName}`}
+                              className={`px-3 py-3 text-sm transition-colors ${lesson.isCurrent ? 'bg-emerald-50' : 'bg-white'}`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                  {lesson.hourIndex + 1}. saat
+                                </span>
+                                {lesson.type === 'cover' && (
+                                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                    Nöbet görevi
                                   </span>
-                                  {lesson.type === 'cover' && (
-                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                                      Nöbet görevi
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="mt-1 text-base font-semibold text-slate-900">
-                                  {lesson.subjectName}
-                                </div>
-                                <div className="text-sm text-slate-600">{lesson.classroomName}</div>
-                                {lesson.type === 'cover' && lesson.absentTeacherName && (
-                                  <div className="mt-1 text-xs text-slate-500">
-                                    {lesson.absentTeacherName} yok. Dersi sen üstleniyorsun{lesson.dutyName ? ` (${lesson.dutyName})` : ''}.
-                                  </div>
-                                )}
-                                {lesson.isCurrent && (
-                                  <div className="mt-2 rounded-md bg-emerald-600/10 px-2 py-1 text-xs font-medium text-emerald-700">
-                                    Şu anda bu saattesin.
-                                  </div>
                                 )}
                               </div>
-                            ))
-                          )}
-                        </div>
+                              <div className="mt-1 text-base font-semibold text-slate-900">
+                                {lesson.subjectName}
+                              </div>
+                              <div className="text-sm text-slate-600">{lesson.classroomName}</div>
+                              {lesson.type === 'cover' && lesson.absentTeacherName && (
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {lesson.absentTeacherName} yok. Dersi sen üstleniyorsun{lesson.dutyName ? ` (${lesson.dutyName})` : ''}.
+                                </div>
+                              )}
+                              {lesson.isCurrent && (
+                                <div className="mt-2 rounded-md bg-emerald-600/10 px-2 py-1 text-xs font-medium text-emerald-700">
+                                  Şu anda bu saattesin.
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    </div>
+                  );
+                })}
+              </div>
 
-              {selectedTeacherId && todayCoverTasks.length > 0 && (
+              {todayCoverTasks.length > 0 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
                   <h3 className="text-sm font-semibold">Bugünkü nöbet görevlerin</h3>
                   <ul className="mt-2 space-y-1 text-xs">
@@ -268,6 +266,10 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
                 </div>
               )}
             </>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+              Programı görmek için yukarıdan öğretmen seç.
+            </div>
           )}
         </div>
       </div>
