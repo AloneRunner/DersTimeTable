@@ -2309,22 +2309,37 @@ case 'duties':
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">Ozarik DersTimeTable</h1>
                 <p className="text-slate-500 mt-1">Haftalık ders programınızı saniyeler içinde oluşturun.</p>
-                {!isSmallScreen && activeSessionUser && (
-                    <div className="mt-1 text-xs text-slate-500">
-                        Bagli kullanici: <span className="font-medium text-slate-700">{activeSessionUser.name || activeSessionUser.email}</span>
-                        <button type="button" onClick={clearSession} className="ml-2 text-red-600">Cikis</button>
+                {activeSessionUser && (
+                    <div
+                        className={`mt-1 text-slate-500 ${isSmallScreen ? 'flex flex-col gap-1 text-sm' : 'flex items-center text-xs'}`}
+                    >
+                        <span>
+                            Bagli kullanici:{' '}
+                            <span className="font-medium text-slate-700">{activeSessionUser.name || activeSessionUser.email}</span>
+                        </span>
+                        <button
+                            type="button"
+                            onClick={clearSession}
+                            className={`text-red-600 ${isSmallScreen ? 'mt-1 inline-flex items-center text-sm font-medium' : 'ml-2 text-xs'}`}
+                        >
+                            Cikis
+                        </button>
                     </div>
                 )}
-                {!isSmallScreen && schoolOptions.length > 0 && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                        <span>Aktif okul:</span>
+                {schoolOptions.length > 0 && (
+                    <div
+                        className={`mt-2 ${isSmallScreen ? 'flex w-full flex-col gap-1 text-sm text-slate-600' : 'flex items-center gap-2 text-xs text-slate-500'}`}
+                    >
+                        <span className={isSmallScreen ? 'font-medium text-slate-600' : undefined}>Aktif okul{isSmallScreen ? '' : ':'}</span>
                         <select
                             value={activeSchoolId ?? ''}
                             onChange={(event) => {
                                 const value = Number(event.target.value);
                                 setActiveSchoolId(Number.isNaN(value) ? null : value);
                             }}
-                            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            className={`rounded border border-slate-300 bg-white shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 ${
+                                isSmallScreen ? 'mt-1 w-full px-3 py-2 text-sm' : 'px-2 py-1 text-xs'
+                            }`}
                         >
                             {schoolOptions.map((school, index) => {
                                 const id = Number(school.id);
