@@ -169,3 +169,24 @@ export interface TeacherLoad {
   demand: number;
   capacity: number;
 }
+
+export interface SubstitutionAssignment {
+  id: string;
+  dayIndex: number;
+  hourIndex: number;
+  classroomId: string;
+  classroomName: string;
+  subjectName: string;
+  absentTeacherId: string;
+  absentTeacherName: string;
+  substituteTeacherId: string;
+  substituteTeacherName: string;
+  dutyName?: string;
+  createdAt: string;
+}
+
+export interface PublishedScheduleRecord {
+  schedule: Schedule;
+  data: TimetableData;
+  publishedAt: string;
+}

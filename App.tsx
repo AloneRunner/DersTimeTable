@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+﻿import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTimetableData } from './hooks/useTimetableData';
-import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats, Assignment } from './types';
+import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats, Assignment, SubstitutionAssignment, PublishedScheduleRecord } from './types';
 import { SchoolLevel, ClassGroup, ViewType } from './types';
 import { solveTimetableLocally } from './services/localSolver';
 import { TimetableView } from './components/TimetableView';
@@ -29,6 +29,7 @@ import TeacherAvailabilityHeatmap from './components/analysis/TeacherAvailabilit
 import MobileDataEntry from './components/mobile/MobileDataEntry';
 import TeacherMobileView from './components/mobile/TeacherMobileView';
 import MobileScheduleView from './components/mobile/MobileScheduleView';
+import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
 import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
 
@@ -61,11 +62,25 @@ const colorForPercent = (percent: number) => {
     return `hsl(${Math.round(hue)}, 70%, ${Math.round(lightness)}%)`;
 };
 
-const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | null; dayNames: string[]; }> = ({ data, schedule, dayNames }) => {
+const DutyCoveragePanel: React.FC<{
+    data: TimetableData;
+    schedule: Schedule | null;
+    dayNames: string[];
+    assignments: SubstitutionAssignment[];
+    onAssign: (assignment: SubstitutionAssignment) => void;
+    onCancel: (assignmentId: string) => void;
+}> = ({ data, schedule, dayNames, assignments, onAssign, onCancel }) => {
     const [selectedDay, setSelectedDay] = useState<number>(0);
     const [absentTeacherId, setAbsentTeacherId] = useState<string>('');
 
     const teacherOptions = useMemo(() => data.teachers.map(t => ({ id: t.id, name: t.name })), [data.teachers]);
+    const assignmentMap = useMemo(() => {
+        const map = new Map<string, SubstitutionAssignment>();
+        assignments.forEach((assignment) => {
+            map.set(`${assignment.dayIndex}:${assignment.hourIndex}:${assignment.classroomId}`, assignment);
+        });
+        return map;
+    }, [assignments]);
 
     useEffect(() => {
         if (teacherOptions.length === 0) {
@@ -78,23 +93,27 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
     }, [teacherOptions, absentTeacherId]);
 
     const suggestions = useMemo(() => {
-        if (!schedule || !absentTeacherId) return [] as Array<{
-            classroomName: string;
-            subjectName: string;
-            hourIndex: number;
-            options: Array<{ id: string; name: string; note: string; status: 'available' | 'unavailable'; dutyName?: string }>;
-        }>;
+        if (!schedule || !absentTeacherId) {
+            return [] as Array<{
+                slotKey: string;
+                classroomId: string;
+                classroomName: string;
+                subjectName: string;
+                hourIndex: number;
+                existingAssignment?: SubstitutionAssignment;
+                options: Array<{
+                    id: string;
+                    name: string;
+                    note: string;
+                    status: 'available' | 'unavailable';
+                    dutyName?: string;
+                    assigned: boolean;
+                }>;
+            }>;
+        }
 
         const teacherById = new Map(data.teachers.map(t => [t.id, t]));
         const subjectById = new Map(data.subjects.map(s => [s.id, s]));
-
-        const result: Array<{
-            classroomName: string;
-            subjectName: string;
-            hourIndex: number;
-            options: Array<{ id: string; name: string; note: string; status: 'available' | 'unavailable'; dutyName?: string }>;
-        }> = [];
-
         const dayIndex = selectedDay;
 
         const isTeacherBusy = (teacherId: string, hourIndex: number) => {
@@ -107,11 +126,30 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
             return false;
         };
 
+        const result: Array<{
+            slotKey: string;
+            classroomId: string;
+            classroomName: string;
+            subjectName: string;
+            hourIndex: number;
+            existingAssignment?: SubstitutionAssignment;
+            options: Array<{
+                id: string;
+                name: string;
+                note: string;
+                status: 'available' | 'unavailable';
+                dutyName?: string;
+                assigned: boolean;
+            }>;
+        }> = [];
+
         data.classrooms.forEach(classroom => {
             const lessonsForDay = schedule[classroom.id]?.[dayIndex] || [];
             lessonsForDay.forEach((assignment, hourIndex) => {
                 if (!assignment || !assignment.teacherIds.includes(absentTeacherId)) return;
                 const subjectName = (subjectById.get(assignment.subjectId) as { name: string })?.name || 'Ders';
+                const slotKey = `${dayIndex}:${hourIndex}:${classroom.id}`;
+                const existingAssignment = assignmentMap.get(slotKey);
 
                 const dutyCandidates = data.duties.filter(duty => {
                     if (duty.dayIndex !== dayIndex) return false;
@@ -120,7 +158,14 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
                     return duty.hourIndex === hourIndex;
                 });
 
-                const uniqueOptions = new Map<string, { id: string; name: string; note: string; status: 'available' | 'unavailable'; dutyName?: string }>();
+                const uniqueOptions = new Map<string, {
+                    id: string;
+                    name: string;
+                    note: string;
+                    status: 'available' | 'unavailable';
+                    dutyName?: string;
+                    assigned: boolean;
+                }>();
 
                 dutyCandidates.forEach(duty => {
                     const dutyTeacher = teacherById.get(duty.teacherId);
@@ -139,9 +184,11 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
                             note,
                             status,
                             dutyName: duty.name,
+                            assigned: existingAssignment?.substituteTeacherId === duty.teacherId,
                         });
                     }
                 });
+
                 const options = Array.from(uniqueOptions.values()).sort((a, b) => {
                     if (a.status === b.status) {
                         return a.name.localeCompare(b.name, 'tr');
@@ -150,9 +197,12 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
                 });
 
                 result.push({
+                    slotKey,
+                    classroomId: classroom.id,
                     classroomName: classroom.name,
                     subjectName,
                     hourIndex,
+                    existingAssignment,
                     options,
                 });
             });
@@ -162,26 +212,16 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
             if (a.hourIndex !== b.hourIndex) return a.hourIndex - b.hourIndex;
             return a.classroomName.localeCompare(b.classroomName, 'tr');
         });
-    }, [data.classrooms, data.duties, data.subjects, data.teachers, schedule, selectedDay, absentTeacherId]);
+    }, [assignmentMap, data.classrooms, data.duties, data.subjects, data.teachers, schedule, selectedDay, absentTeacherId]);
 
-    const absentLessonCount = useMemo(() => {
-        if (!schedule || !absentTeacherId) return 0;
-        const dayIndex = selectedDay;
-        let count = 0;
-        Object.keys(schedule).forEach(classroomId => {
-            const lessons = schedule[classroomId]?.[dayIndex] || [];
-            lessons.forEach(assignment => {
-                if (assignment?.teacherIds.includes(absentTeacherId)) count += 1;
-            });
-        });
-        return count;
-    }, [schedule, selectedDay, absentTeacherId]);
+    const absentLessonCount = useMemo(() => suggestions.length, [suggestions]);
+    const absentTeacherName = teacherOptions.find(opt => opt.id === absentTeacherId)?.name || '';
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-lg no-print">
             <h2 className="text-xl font-bold mb-3">Nöbetçi Yerine Geçme Yardımcısı</h2>
             <p className="text-sm text-slate-500 mb-4">
-                Bir öğretmen devamsız olduğunda, aynı gün ve saatte nöbetçi olarak atanmış öğretmenlerden hangilerinin derse girebileceğini listeler.
+                Bir öğretmen devamsız olduğunda, aynı gün ve saatte nöbetçi olarak atanmış öğretmenlerden hangilerinin derse girebileceğini listeler ve görevlendirme yapmanı sağlar.
             </p>
             <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
                 <label className="flex items-center gap-2">
@@ -212,7 +252,7 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
             )}
             {schedule && !absentTeacherId && (
                 <div className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-md p-3">
-                    Önce devamsız öğretmeni seçin.
+                    Önce devamsız öğretmeni seç.
                 </div>
             )}
             {schedule && absentTeacherId && suggestions.length === 0 && (
@@ -222,29 +262,78 @@ const DutyCoveragePanel: React.FC<{ data: TimetableData; schedule: Schedule | nu
             )}
             {schedule && absentTeacherId && suggestions.length > 0 && (
                 <div className="space-y-3">
-                    {suggestions.map(item => (
-                        <div key={`${item.classroomName}-${item.hourIndex}`} className="border border-slate-200 rounded-md p-3">
-                            <div className="flex flex-wrap items-center justify-between text-sm">
-                                <span className="font-semibold text-slate-700">{item.hourIndex + 1}. Ders</span>
-                                <span className="text-slate-500">{item.classroomName} · {item.subjectName}</span>
+                    {suggestions.map(item => {
+                        const existing = item.existingAssignment;
+                        return (
+                            <div key={item.slotKey} className="border border-slate-200 rounded-md p-3">
+                                <div className="flex flex-wrap items-center justify-between text-sm">
+                                    <span className="font-semibold text-slate-700">{item.hourIndex + 1}. ders</span>
+                                    <span className="text-slate-500">{item.classroomName} • {item.subjectName}</span>
+                                </div>
+                                {item.options.length > 0 ? (
+                                    <ul className="mt-2 space-y-2 text-sm">
+                                        {item.options.map(opt => (
+                                            <li key={opt.id} className={`flex flex-wrap items-center gap-2 rounded-md px-2 py-1 ${opt.assigned ? 'bg-emerald-100 text-emerald-800' : opt.status === 'available' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                <span className="font-medium">{opt.name}</span>
+                                                {opt.dutyName && (
+                                                    <span className="text-xs text-slate-500">({opt.dutyName})</span>
+                                                )}
+                                                <span className="text-xs ml-auto">{opt.note}</span>
+                                                {opt.assigned ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => existing && onCancel(existing.id)}
+                                                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 underline decoration-dotted"
+                                                    >
+                                                        Görevi iptal et
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        disabled={opt.status !== 'available'}
+                                                        onClick={() => {
+                                                            const substituteTeacher = data.teachers.find(t => t.id === opt.id);
+                                                            const absentTeacher = data.teachers.find(t => t.id === absentTeacherId);
+                                                            if (!substituteTeacher || !absentTeacher) return;
+                                                            onAssign({
+                                                                id: item.slotKey,
+                                                                dayIndex: selectedDay,
+                                                                hourIndex: item.hourIndex,
+                                                                classroomId: item.classroomId,
+                                                                classroomName: item.classroomName,
+                                                                subjectName: item.subjectName,
+                                                                absentTeacherId,
+                                                                absentTeacherName: absentTeacher.name,
+                                                                substituteTeacherId: substituteTeacher.id,
+                                                                substituteTeacherName: substituteTeacher.name,
+                                                                dutyName: opt.dutyName,
+                                                                createdAt: new Date().toISOString(),
+                                                            });
+                                                        }}
+                                                        className={`text-xs font-semibold ${opt.status === 'available' ? 'text-indigo-600 hover:text-indigo-700' : 'text-slate-400 cursor-not-allowed'}`}
+                                                    >
+                                                        Göreve ata
+                                                    </button>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="mt-2 text-sm text-slate-500">Bu saat için tanımlı nöbetçi yok.</p>
+                                )}
+                                {existing && !item.options.some(opt => opt.assigned) && (
+                                    <p className="mt-2 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
+                                        Görevde: {existing.substituteTeacherName}
+                                    </p>
+                                )}
+                                {!existing && absentTeacherName && (
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        {absentTeacherName} yerine derse girecek öğretmeni seç.
+                                    </p>
+                                )}
                             </div>
-                            {item.options.length > 0 ? (
-                                <ul className="mt-2 space-y-1 text-sm">
-                                    {item.options.map(opt => (
-                                        <li key={opt.id} className={`flex flex-wrap items-center gap-2 rounded-md px-2 py-1 ${opt.status === 'available' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                                            <span className="font-medium">{opt.name}</span>
-                                            {opt.dutyName && (
-                                                <span className="text-xs text-slate-500">({opt.dutyName})</span>
-                                            )}
-                                            <span className="text-xs ml-auto">{opt.note}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="mt-2 text-sm text-slate-500">Bu saat için tanımlı nöbetçi yok.</p>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
             {schedule && absentTeacherId && data.duties.length === 0 && (
@@ -341,8 +430,83 @@ const App: React.FC = () => {
         setSessionError(null);
     }, [persistSessionToken]);
 
+    const [substitutionAssignments, setSubstitutionAssignments] = useState<SubstitutionAssignment[]>(() => {
+        if (typeof window === 'undefined') return [];
+        try {
+            const stored = localStorage.getItem('ozarik.substitutions');
+            return stored ? JSON.parse(stored) as SubstitutionAssignment[] : [];
+        } catch {
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            localStorage.setItem('ozarik.substitutions', JSON.stringify(substitutionAssignments));
+        } catch {
+            // ignore persistence errors
+        }
+    }, [substitutionAssignments]);
+
+    const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(() => {
+        if (typeof window === 'undefined') return null;
+        try {
+            const stored = localStorage.getItem('ozarik.publishedSchedule');
+            return stored ? JSON.parse(stored) as PublishedScheduleRecord : null;
+        } catch {
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            if (publishedSchedule) {
+                localStorage.setItem('ozarik.publishedSchedule', JSON.stringify(publishedSchedule));
+            } else {
+                localStorage.removeItem('ozarik.publishedSchedule');
+            }
+        } catch {
+            // ignore persistence errors
+        }
+    }, [publishedSchedule]);
+
+    const handleAssignSubstitution = useCallback((assignment: SubstitutionAssignment) => {
+        setSubstitutionAssignments((prev) => {
+            const filtered = prev.filter(item => !(item.dayIndex === assignment.dayIndex && item.hourIndex === assignment.hourIndex && item.classroomId === assignment.classroomId));
+            return [...filtered, assignment];
+        });
+    }, []);
+
+    const handleCancelSubstitution = useCallback((assignmentId: string) => {
+        setSubstitutionAssignments((prev) => prev.filter(item => item.id !== assignmentId));
+    }, []);
+
+    const handlePublishSchedule = useCallback(() => {
+        if (!schedule) {
+            alert('Önce ders programı oluşturun.');
+            return;
+        }
+        const record: PublishedScheduleRecord = {
+            schedule: JSON.parse(JSON.stringify(schedule)),
+            data: JSON.parse(JSON.stringify(data)),
+            publishedAt: new Date().toISOString(),
+        };
+        setPublishedSchedule(record);
+        setWebPortalStatus('Program öğretmenlere paylaşıldı.');
+    }, [schedule, data]);
+
     const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
     const [activeScheduleName, setActiveScheduleName] = useState<string | null>(null);
+    const publishedAtText = useMemo(() => {
+        if (!publishedSchedule?.publishedAt) return null;
+        try {
+            return new Date(publishedSchedule.publishedAt).toLocaleString('tr-TR');
+        } catch {
+            return publishedSchedule.publishedAt;
+        }
+    }, [publishedSchedule]);
     
     const maxDailyHours = useMemo(() => {
         const flat = (Object.values(schoolHours).flat() as number[]);
@@ -776,6 +940,7 @@ const App: React.FC = () => {
     const [showDutyWarnings, setShowDutyWarnings] = useState<boolean>(false);
     const [showDutyCoverage, setShowDutyCoverage] = useState<boolean>(false);
     const [isMobileEntryOpen, setIsMobileEntryOpen] = useState<boolean>(false);
+    const [isTeacherAppOpen, setIsTeacherAppOpen] = useState<boolean>(false);
     const [isTeacherMobileOpen, setIsTeacherMobileOpen] = useState<boolean>(false);
 
 
@@ -2361,7 +2526,14 @@ case 'duties':
                 </div>
 
                 {showDutyCoverage && (
-                    <DutyCoveragePanel data={data} schedule={schedule} dayNames={DAYS} />
+                    <DutyCoveragePanel
+                        data={data}
+                        schedule={schedule}
+                        dayNames={DAYS}
+                        assignments={substitutionAssignments}
+                        onAssign={handleAssignSubstitution}
+                        onCancel={handleCancelSubstitution}
+                    />
                 )}
 
                 {renderContent()}
@@ -2432,11 +2604,24 @@ case 'duties':
                                         PDF indir
                                     </button>
                                 </div>
+                                <button
+                                    onClick={handlePublishSchedule}
+                                    className="px-3 py-1.5 rounded-md bg-sky-500 text-white text-sm font-medium shadow hover:bg-sky-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    disabled={!schedule}
+                                    title={schedule ? 'Programı öğretmen uygulamasıyla paylaş' : 'Önce program oluştur'}
+                                >
+                                    Programı Paylaş
+                                </button>
                                 <button onClick={handleSaveSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı Kaydet"><SaveIcon className="w-5 h-5" /></button>
                                 <button onClick={handleExportSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı ve Verileri İndir"><DownloadIcon className="w-5 h-5" /></button>
                                 <button onClick={handlePrint} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Yazdır"><PrintIcon className="w-5 h-5" /></button>
                             </div>
                         </div>
+                        {publishedAtText && (
+                            <p className="no-print text-xs text-slate-500 sm:text-right">
+                                Son paylaşılan program: {publishedAtText}
+                            </p>
+                        )}
                         {!isSmallScreen && (
                             <TimetableView
                               schedule={schedule}
@@ -2564,16 +2749,16 @@ case 'duties':
                     </svg>
                 </button>
 
-                                {/* Teacher list modal launcher for mobile */}
-                                <button
-                                        onClick={() => setIsTeacherMobileOpen(true)}
-                                        className="md:hidden fixed bottom-32 right-4 p-3 rounded-full shadow-lg bg-indigo-600 text-white hover:bg-indigo-700"
-                                        title="Öğretmenler (Mobil)"
-                                >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                                            <path d="M12 12a5 5 0 100-10 5 5 0 000 10zM2 20a10 10 0 0120 0H2z" />
-                                        </svg>
-                                </button>
+            {/* Teacher app launcher for mobile */}
+            <button
+                onClick={() => setIsTeacherAppOpen(true)}
+                className="md:hidden fixed bottom-32 right-4 p-3 rounded-full shadow-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                title="Öğretmen uygulaması"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                    <path d="M12 12a5 5 0 100-10 5 5 0 000 10zM2 20a10 10 0 0120 0H2z" />
+                </svg>
+            </button>
 
                 <MobileDataEntry
                     isOpen={isMobileEntryOpen}
@@ -2591,6 +2776,15 @@ case 'duties':
                     updateTeacher={updateTeacher}
                 />
 
+                <TeacherApp
+                    data={data}
+                    schedule={schedule}
+                    assignments={substitutionAssignments}
+                    maxDailyHours={maxDailyHours}
+                    isOpen={isTeacherAppOpen}
+                    onClose={() => setIsTeacherAppOpen(false)}
+                />
+
             {/* QR Tools Modal */}
             <Modal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} title="QR Araçları">
                 <QrTools data={data} schedule={schedule} onImportText={handleQrImportText} />
@@ -2600,6 +2794,17 @@ case 'duties':
     );
 };
 export default App;
+
+
+
+
+
+
+
+
+
+
+
 
 
 
