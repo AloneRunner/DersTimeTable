@@ -91,10 +91,18 @@ async function parseJson(resp: Response) {
 }
 
 export async function requestBridgeCode(payload: BridgeCodeRequest): Promise<BridgeCodeResponse> {
+  const body: Record<string, unknown> = { email: payload.email };
+  if (payload.name) {
+    body.name = payload.name;
+  }
+  if (payload.schoolId !== undefined && payload.schoolId !== null) {
+    body.school_id = payload.schoolId;
+  }
+
   const response = await fetch(`${API_BASE}/api/auth/request-code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const data = await parseJson(response).catch(() => ({}));
