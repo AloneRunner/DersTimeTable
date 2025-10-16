@@ -1,11 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
+from datetime import datetime, timezone
 from solver_cpsat import solve_cp_sat
 from schools import router as schools_router
 from subscriptions import router as subs_router
-from auth import router as auth_router
+from auth import router as auth_router, get_session_context
+from storage import upsert_published_schedule, get_published_schedule as storage_get_published_schedule
 
 
 class Teacher(BaseModel):
@@ -126,6 +128,59 @@ def solve_cpsat(req: SolveRequest) -> Any:
         stop_at_first=bool(req.stopAtFirst) if req.stopAtFirst is not None else False,
     )
     return result
+
+
+class PublishSchedulePayload(BaseModel):
+    school_id: int
+    schedule: Dict[str, Any]
+    data: TimetableData
+
+
+class PublishedScheduleRecord(BaseModel):
+    school_id: int
+    schedule: Dict[str, Any]
+    data: Dict[str, Any]
+    published_at: datetime
+    published_by: Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/schedules/publish")
+def api_publish_schedule(payload: PublishSchedulePayload, request: Request) -> Dict[str, Any]:
+    user, memberships, _ = get_session_context(request)
+    allowed_school_ids = {m.get('id') for m in memberships if m.get('id') is not None}
+    if payload.school_id not in allowed_school_ids:
+        raise HTTPException(status_code=403, detail="not-member-of-school")
+
+    published_at = datetime.now(timezone.utc).isoformat()
+    record = {
+        'school_id': payload.school_id,
+        'schedule': payload.schedule,
+        'data': payload.data.model_dump(),
+        'published_at': published_at,
+        'published_by': {
+            'user_id': user.get('id'),
+            'name': user.get('name'),
+            'email': user.get('email'),
+        },
+    }
+    upsert_published_schedule(record)
+    return {'ok': True, 'published_at': published_at, 'record': record}
+
+
+@app.get("/api/schedules/published", response_model=PublishedScheduleRecord)
+def api_get_published_schedule(request: Request, school_id: Optional[int] = None) -> Dict[str, Any]:
+    user, memberships, _ = get_session_context(request)
+    allowed_school_ids = [m.get('id') for m in memberships if m.get('id') is not None]
+    if not allowed_school_ids:
+        raise HTTPException(status_code=403, detail="no-school-memberships")
+    target_school_id = school_id if school_id is not None else allowed_school_ids[0]
+    if target_school_id not in allowed_school_ids:
+        raise HTTPException(status_code=403, detail="not-member-of-school")
+
+    record = storage_get_published_schedule(target_school_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="schedule-not-found")
+    return record
 
 
 if __name__ == "__main__":

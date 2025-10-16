@@ -186,7 +186,13 @@ export interface SubstitutionAssignment {
 }
 
 export interface PublishedScheduleRecord {
+  schoolId: number;
   schedule: Schedule;
   data: TimetableData;
   publishedAt: string;
+  publishedBy?: {
+    user_id?: number;
+    name?: string | null;
+    email?: string;
+  } | null;
 }

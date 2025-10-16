@@ -442,6 +442,11 @@ def verify_code(payload: VerifyPayload) -> SessionResponse:
 
 @router.get('/me', response_model=SessionResponse)
 def session_info(request: Request) -> SessionResponse:
+    user, memberships, record = get_session_context(request)
+    return _session_payload(user, memberships, session_token=record.get('token'), expires_at=record.get('expires_at'))
+
+
+def get_session_context(request: Request) -> tuple[Dict[str, Any], List[Dict[str, Any]], Dict[str, Any]]:
     auth_header = request.headers.get('Authorization') or request.headers.get('authorization')
     if not auth_header or not auth_header.lower().startswith('bearer '):
         raise HTTPException(status_code=401, detail='missing-session-token')
@@ -456,4 +461,4 @@ def session_info(request: Request) -> SessionResponse:
 
     memberships = _get_school_memberships(user['id'])
 
-    return _session_payload(user, memberships, session_token=token, expires_at=record.get('expires_at'))
+    return user, memberships, record

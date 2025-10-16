@@ -15,6 +15,7 @@ DEFAULT_STATE: Dict[str, Any] = {
     'school_users': [],
     'login_tokens': [],
     'subscriptions': [],
+    'published_schedules': [],
 }
 
 
@@ -302,3 +303,26 @@ def get_subscription_for_user(user_id: int | str) -> Optional[Dict[str, Any]]:
         if expires < datetime.now(timezone.utc):
             latest['status'] = 'expired'
     return latest
+
+
+# --- Published schedules -----------------------------------------------------
+
+def upsert_published_schedule(record: Dict[str, Any]) -> Dict[str, Any]:
+    school_id = record.get('school_id')
+    if school_id is None:
+        raise ValueError('school_id is required for published schedule')
+    obj = _read()
+    schedules = obj.setdefault('published_schedules', [])
+    filtered = [item for item in schedules if item.get('school_id') != school_id]
+    filtered.append(record)
+    obj['published_schedules'] = filtered
+    _write(obj)
+    return record
+
+
+def get_published_schedule(school_id: int) -> Optional[Dict[str, Any]]:
+    schedules = _read().get('published_schedules', [])
+    for record in schedules:
+        if record.get('school_id') == school_id:
+            return record
+    return None

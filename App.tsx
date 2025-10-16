@@ -31,6 +31,7 @@ import TeacherMobileView from './components/mobile/TeacherMobileView';
 import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
+import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
 import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
@@ -428,6 +429,8 @@ const App: React.FC = () => {
         setSessionInfo(null);
         setSessionStatus('idle');
         setSessionError(null);
+        setActiveSchoolId(null);
+        setPublishedSchedule(null);
     }, [persistSessionToken]);
 
     const [substitutionAssignments, setSubstitutionAssignments] = useState<SubstitutionAssignment[]>(() => {
@@ -449,28 +452,9 @@ const App: React.FC = () => {
         }
     }, [substitutionAssignments]);
 
-    const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(() => {
-        if (typeof window === 'undefined') return null;
-        try {
-            const stored = localStorage.getItem('ozarik.publishedSchedule');
-            return stored ? JSON.parse(stored) as PublishedScheduleRecord : null;
-        } catch {
-            return null;
-        }
-    });
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        try {
-            if (publishedSchedule) {
-                localStorage.setItem('ozarik.publishedSchedule', JSON.stringify(publishedSchedule));
-            } else {
-                localStorage.removeItem('ozarik.publishedSchedule');
-            }
-        } catch {
-            // ignore persistence errors
-        }
-    }, [publishedSchedule]);
+    const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(null);
+    const [activeSchoolId, setActiveSchoolId] = useState<number | null>(null);
+    const [isPublishing, setIsPublishing] = useState<boolean>(false);
 
     const handleAssignSubstitution = useCallback((assignment: SubstitutionAssignment) => {
         setSubstitutionAssignments((prev) => {
@@ -483,19 +467,80 @@ const App: React.FC = () => {
         setSubstitutionAssignments((prev) => prev.filter(item => item.id !== assignmentId));
     }, []);
 
-    const handlePublishSchedule = useCallback(() => {
+    const loadPublishedSchedule = useCallback(async (schoolId: number) => {
+        if (!sessionToken) return;
+        try {
+            const response = await fetchPublishedScheduleApi(sessionToken, schoolId);
+            setPublishedSchedule({
+                schoolId: response.school_id,
+                schedule: response.schedule,
+                data: response.data,
+                publishedAt: response.published_at,
+                publishedBy: response.published_by ?? null,
+            });
+        } catch (err: any) {
+            if (err?.code === 'schedule-not-found') {
+                setPublishedSchedule(null);
+            } else {
+                console.error('published-schedule-fetch-failed', err);
+            }
+        }
+    }, [sessionToken]);
+
+    const handlePublishSchedule = useCallback(async () => {
         if (!schedule) {
             alert('Önce ders programı oluşturun.');
             return;
         }
-        const record: PublishedScheduleRecord = {
-            schedule: JSON.parse(JSON.stringify(schedule)),
-            data: JSON.parse(JSON.stringify(data)),
-            publishedAt: new Date().toISOString(),
-        };
-        setPublishedSchedule(record);
-        setWebPortalStatus('Program öğretmenlere paylaşıldı.');
-    }, [schedule, data]);
+        if (!sessionToken) {
+            alert('Önce oturum açın.');
+            return;
+        }
+        if (!activeSchoolId) {
+            alert('Lütfen bağlı olduğunuz okulu seçin.');
+            return;
+        }
+        setIsPublishing(true);
+        try {
+            const record = await publishScheduleApi(sessionToken, {
+                schoolId: activeSchoolId,
+                schedule: schedule as Schedule,
+                data: data,
+            });
+            setPublishedSchedule({
+                schoolId: record.school_id,
+                schedule: record.schedule,
+                data: record.data,
+                publishedAt: record.published_at,
+                publishedBy: record.published_by ?? null,
+            });
+            setWebPortalStatus('Program öğretmenlerle paylaşıldı.');
+        } catch (err) {
+            console.error('publish-schedule-failed', err);
+            const message = err instanceof Error ? err.message : 'Program yayınlanamadı';
+            setWebPortalStatus(message);
+            alert(message);
+        } finally {
+            setIsPublishing(false);
+        }
+    }, [schedule, data, activeSchoolId, sessionToken]);
+
+    useEffect(() => {
+        const schools = sessionInfo?.schools;
+        if (!schools || schools.length === 0) return;
+        const numericIds = schools
+            .map((s: any) => Number(s.id))
+            .filter((id) => !Number.isNaN(id));
+        if (numericIds.length === 0) return;
+        if (!activeSchoolId || !numericIds.includes(activeSchoolId)) {
+            setActiveSchoolId(numericIds[0]);
+        }
+    }, [sessionInfo, activeSchoolId]);
+
+    useEffect(() => {
+        if (!sessionToken || !activeSchoolId) return;
+        loadPublishedSchedule(activeSchoolId);
+    }, [sessionToken, activeSchoolId, loadPublishedSchedule]);
 
     const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
     const [activeScheduleName, setActiveScheduleName] = useState<string | null>(null);
@@ -1803,6 +1848,7 @@ case 'duties':
     const sessionLoading = sessionStatus === 'loading';
     const requiresWebAuth = !isSmallScreen && !sessionInfo && !sessionLoading;
     const activeSessionUser = sessionInfo?.user;
+    const schoolOptions = sessionInfo?.schools ?? [];
     const bridgeCodeExpiryText = bridgeCodeInfo ? new Date(bridgeCodeInfo.expiresAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
 
     const viewOptions = useMemo(() => {
@@ -2269,6 +2315,29 @@ case 'duties':
                         <button type="button" onClick={clearSession} className="ml-2 text-red-600">Cikis</button>
                     </div>
                 )}
+                {!isSmallScreen && schoolOptions.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                        <span>Aktif okul:</span>
+                        <select
+                            value={activeSchoolId ?? ''}
+                            onChange={(event) => {
+                                const value = Number(event.target.value);
+                                setActiveSchoolId(Number.isNaN(value) ? null : value);
+                            }}
+                            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                        >
+                            {schoolOptions.map((school, index) => {
+                                const id = Number(school.id);
+                                const label = school.name || `Okul #${id || index + 1}`;
+                                return (
+                                    <option key={school.id ?? index} value={id}>
+                                        {label}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                    </div>
+                )}
             </div>
             <div className="flex flex-col gap-3 w-full xl:w-auto">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-100 p-3 rounded-lg border">
@@ -2388,18 +2457,43 @@ case 'duties':
                             {renderSolverAdvancedRows('mobile', false)}
                             <div className="space-y-3 border-t border-slate-200 pt-3">
                                 {activeSessionUser ? (
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="text-[11px] leading-tight text-slate-500">
-                                            <div className="font-medium text-slate-700">{activeSessionUser?.name || activeSessionUser?.email}</div>
-                                            <div>Mobil oturum aktif</div>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="text-[11px] leading-tight text-slate-500">
+                                                <div className="font-medium text-slate-700">{activeSessionUser?.name || activeSessionUser?.email}</div>
+                                                <div>Mobil oturum aktif</div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={clearSession}
+                                                className="text-[11px] text-red-600"
+                                            >
+                                                Cikis yap
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={clearSession}
-                                            className="text-[11px] text-red-600"
-                                        >
-                                            Cikis yap
-                                        </button>
+                                        {schoolOptions.length > 0 && (
+                                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                                                <span>Okul:</span>
+                                                <select
+                                                    value={activeSchoolId ?? ''}
+                                                    onChange={(event) => {
+                                                        const value = Number(event.target.value);
+                                                        setActiveSchoolId(Number.isNaN(value) ? null : value);
+                                                    }}
+                                                    className="flex-1 rounded border border-slate-300 bg-white px-2 py-1 text-[11px] shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                                                >
+                                                    {schoolOptions.map((school, index) => {
+                                                        const id = Number(school.id);
+                                                        const label = school.name || `Okul #${id || index + 1}`;
+                                                        return (
+                                                            <option key={school.id ?? index} value={id}>
+                                                                {label}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </select>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <p className="text-[11px] text-slate-500">Web paneline baglanmak icin kod olusturun.</p>
@@ -2607,10 +2701,16 @@ case 'duties':
                                 <button
                                     onClick={handlePublishSchedule}
                                     className="px-3 py-1.5 rounded-md bg-sky-500 text-white text-sm font-medium shadow hover:bg-sky-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                    disabled={!schedule}
-                                    title={schedule ? 'Programı öğretmen uygulamasıyla paylaş' : 'Önce program oluştur'}
+                                    disabled={!schedule || !activeSchoolId || isPublishing}
+                                    title={
+                                        !schedule
+                                            ? 'Önce program oluştur'
+                                            : !activeSchoolId
+                                                ? 'Bağlı okul seçilmedi'
+                                                : 'Programı öğretmen uygulamasıyla paylaş'
+                                    }
                                 >
-                                    Programı Paylaş
+                                    {isPublishing ? 'Paylaşılıyor…' : 'Programı Paylaş'}
                                 </button>
                                 <button onClick={handleSaveSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı Kaydet"><SaveIcon className="w-5 h-5" /></button>
                                 <button onClick={handleExportSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı ve Verileri İndir"><DownloadIcon className="w-5 h-5" /></button>
@@ -2777,12 +2877,13 @@ case 'duties':
                 />
 
                 <TeacherApp
-                    data={data}
-                    schedule={schedule}
+                    publishedData={publishedSchedule?.data ?? null}
+                    publishedSchedule={publishedSchedule?.schedule ?? null}
                     assignments={substitutionAssignments}
                     maxDailyHours={maxDailyHours}
                     isOpen={isTeacherAppOpen}
                     onClose={() => setIsTeacherAppOpen(false)}
+                    publishedAt={publishedSchedule?.publishedAt}
                 />
 
             {/* QR Tools Modal */}
@@ -2794,6 +2895,14 @@ case 'duties':
     );
 };
 export default App;
+
+
+
+
+
+
+
+
 
 
 

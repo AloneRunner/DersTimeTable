@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import type { Schedule, TimetableData, SubstitutionAssignment } from '../../types';
 
-const DAY_LABELS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+const DAY_LABELS = ['Pazartesi', 'SalÄ±', 'Ã‡arÅŸamba', 'PerÅŸembe', 'Cuma'];
 const FIRST_LESSON_HOUR = 8;
 const LESSON_DURATION_HOURS = 1;
 
@@ -84,7 +84,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
     }
 
     Object.entries(publishedSchedule).forEach(([classroomId, days]) => {
-      const classroomName = classroomMap.get(classroomId) ?? 'Sınıf';
+      const classroomName = classroomMap.get(classroomId) ?? 'SÄ±nÄ±f';
       days.forEach((day, dayIndex) => {
         day?.forEach((assignment, hourIndex) => {
           if (!assignment || !assignment.teacherIds.includes(selectedTeacherId)) return;
@@ -160,10 +160,10 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
       <div className="mt-auto w-full max-w-md mx-auto min-h-[70vh] max-h-[90vh] overflow-hidden rounded-t-3xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Öğretmen Paneli</h2>
-            <p className="text-xs text-slate-500">Güncel ders programını ve nöbet görevlerini takip et.</p>
+            <h2 className="text-lg font-semibold text-slate-900">Ã–ÄŸretmen Paneli</h2>
+            <p className="text-xs text-slate-500">GÃ¼ncel ders programÄ±nÄ± ve nÃ¶bet gÃ¶revlerini takip et.</p>
             {publishedAtText && (
-              <p className="mt-1 text-[11px] text-slate-400">Son paylaşım: {publishedAtText}</p>
+              <p className="mt-1 text-[11px] text-slate-400">Son paylaÅŸÄ±m: {publishedAtText}</p>
             )}
           </div>
           <button
@@ -172,13 +172,13 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
             className="rounded-full border border-slate-200 p-2 text-slate-500 hover:bg-slate-100"
             aria-label="Kapat"
           >
-            ✕
+            âœ•
           </button>
         </div>
         <div className="space-y-4 overflow-y-auto px-4 py-4">
           {teacherOptions.length > 0 ? (
             <div className="space-y-3">
-              <label className="text-xs font-medium text-slate-600" htmlFor="teacher-select">Öğretmen seç</label>
+              <label className="text-xs font-medium text-slate-600" htmlFor="teacher-select">Ã–ÄŸretmen seÃ§</label>
               <select
                 id="teacher-select"
                 value={selectedTeacherId}
@@ -192,13 +192,13 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
             </div>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-              Bu okul için kayıtlı öğretmen bulunamadı. İdarecinin öğretmenleri tanımlaması gerekiyor.
+              Bu okul iÃ§in kayÄ±tlÄ± Ã¶ÄŸretmen bulunamadÄ±. Ä°darecinin Ã¶ÄŸretmenleri tanÄ±mlamasÄ± gerekiyor.
             </div>
           )}
 
           {!hasPublication ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-              İdare henüz ders programı yayınlamadı. Program paylaşıldığında burada göreceksin.
+              Ä°dare henÃ¼z ders programÄ± yayÄ±nlamadÄ±. Program paylaÅŸÄ±ldÄ±ÄŸÄ±nda burada gÃ¶receksin.
             </div>
           ) : selectedTeacherId ? (
             <>
@@ -212,7 +212,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
                       </div>
                       <div className="divide-y divide-slate-100">
                         {lessons.length === 0 ? (
-                          <div className="px-3 py-3 text-xs text-slate-400">Bu gün için ders veya nöbet görevi yok.</div>
+                          <div className="px-3 py-3 text-xs text-slate-400">Bu gÃ¼n iÃ§in ders veya nÃ¶bet gÃ¶revi yok.</div>
                         ) : (
                           lessons.map((lesson) => (
                             <div
@@ -225,7 +225,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
                                 </span>
                                 {lesson.type === 'cover' && (
                                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                                    Nöbet görevi
+                                    NÃ¶bet gÃ¶revi
                                   </span>
                                 )}
                               </div>
@@ -235,12 +235,12 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
                               <div className="text-sm text-slate-600">{lesson.classroomName}</div>
                               {lesson.type === 'cover' && lesson.absentTeacherName && (
                                 <div className="mt-1 text-xs text-slate-500">
-                                  {lesson.absentTeacherName} yok. Dersi sen üstleniyorsun{lesson.dutyName ? ` (${lesson.dutyName})` : ''}.
+                                  {lesson.absentTeacherName} yok. Dersi sen Ã¼stleniyorsun{lesson.dutyName ? ` (${lesson.dutyName})` : ''}.
                                 </div>
                               )}
                               {lesson.isCurrent && (
                                 <div className="mt-2 rounded-md bg-emerald-600/10 px-2 py-1 text-xs font-medium text-emerald-700">
-                                  Şu anda bu saattesin.
+                                  ÅŞu anda bu saattesin.
                                 </div>
                               )}
                             </div>
@@ -254,11 +254,11 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
 
               {todayCoverTasks.length > 0 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
-                  <h3 className="text-sm font-semibold">Bugünkü nöbet görevlerin</h3>
+                  <h3 className="text-sm font-semibold">BugÃ¼nkÃ¼ nÃ¶bet gÃ¶revlerin</h3>
                   <ul className="mt-2 space-y-1 text-xs">
                     {todayCoverTasks.map(task => (
                       <li key={task.id}>
-                        {task.hourIndex + 1}. saat • {task.classroomName} – {task.subjectName}
+                        {task.hourIndex + 1}. saat â€¢ {task.classroomName} â€“ {task.subjectName}
                         {task.absentTeacherName ? ` (yerine: ${task.absentTeacherName})` : ''}
                       </li>
                     ))}
@@ -268,7 +268,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
             </>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-              Programı görmek için yukarıdan öğretmen seç.
+              ProgramÄ± gÃ¶rmek iÃ§in yukarÄ±dan Ã¶ÄŸretmen seÃ§.
             </div>
           )}
         </div>
