@@ -398,6 +398,8 @@ const App: React.FC = () => {
     const [linkTeacherName, setLinkTeacherName] = useState<string>('');
     const [linkTeacherStatus, setLinkTeacherStatus] = useState<string | null>(null);
     const [isLinkingTeacher, setIsLinkingTeacher] = useState<boolean>(false);
+    const [linkTeacherCodeInfo, setLinkTeacherCodeInfo] = useState<{ code: string; expiresAt: string } | null>(null);
+    const [isGeneratingTeacherCode, setIsGeneratingTeacherCode] = useState<boolean>(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scheduleFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -406,6 +408,14 @@ const App: React.FC = () => {
         const timeout = setTimeout(() => setWebPortalStatus(''), 4000);
         return () => clearTimeout(timeout);
     }, [webPortalStatus]);
+    const linkTeacherCodeExpiryText = useMemo(() => {
+        if (!linkTeacherCodeInfo?.expiresAt) return null;
+        try {
+            return new Date(linkTeacherCodeInfo.expiresAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return linkTeacherCodeInfo.expiresAt;
+        }
+    }, [linkTeacherCodeInfo]);
 
     const persistSessionToken = useCallback((token: string | null) => {
         if (token) {
@@ -687,6 +697,7 @@ const App: React.FC = () => {
         setLinkTeacherEmail('');
         setLinkTeacherName(teacher.name || '');
         setLinkTeacherStatus(null);
+        setLinkTeacherCodeInfo(null);
     }, []);
 
     const closeLinkTeacherModal = useCallback(() => {
@@ -695,6 +706,8 @@ const App: React.FC = () => {
         setLinkTeacherName('');
         setLinkTeacherStatus(null);
         setIsLinkingTeacher(false);
+        setLinkTeacherCodeInfo(null);
+        setIsGeneratingTeacherCode(false);
     }, []);
 
     const handleLinkTeacherSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
@@ -723,6 +736,7 @@ const App: React.FC = () => {
                 name: linkTeacherName.trim() || undefined,
             });
             setLinkTeacherStatus('Bağlantı kaydedildi. Öğretmen uygulamaya giriş yapabilir.');
+            setLinkTeacherCodeInfo(null);
             try {
                 const info = await fetchSessionInfo(sessionToken);
                 setSessionInfo(info);
@@ -737,6 +751,36 @@ const App: React.FC = () => {
             setIsLinkingTeacher(false);
         }
     }, [linkTeacherState, linkTeacherEmail, linkTeacherName, sessionToken, activeSchoolId]);
+
+    const handleGenerateTeacherCode = useCallback(async () => {
+        if (!linkTeacherState) {
+            setLinkTeacherStatus('Önce öğretmeni seçin.');
+            return;
+        }
+        const email = linkTeacherEmail.trim().toLowerCase();
+        if (!email) {
+            setLinkTeacherStatus('Kod oluşturmak için öğretmen e-postasını girin.');
+            return;
+        }
+        if (!activeSchoolId) {
+            setLinkTeacherStatus('Önce bağlı olduğunuz okulu seçin.');
+            return;
+        }
+        setIsGeneratingTeacherCode(true);
+        setLinkTeacherStatus(null);
+        try {
+            const response = await requestBridgeCode({
+                email,
+                name: linkTeacherName.trim() || undefined,
+                schoolId: activeSchoolId,
+            });
+            setLinkTeacherCodeInfo({ code: response.code, expiresAt: response.expires_at });
+        } catch (err: any) {
+            setLinkTeacherStatus(err instanceof Error ? err.message : 'Kod oluşturma başarısız');
+        } finally {
+            setIsGeneratingTeacherCode(false);
+        }
+    }, [linkTeacherState, linkTeacherEmail, linkTeacherName, activeSchoolId]);
 
     const handleSchoolHoursChange = (level: SchoolLevel, dayIndex: number, value: string) => {
         const newHours = parseInt(value) || 4;
@@ -2926,6 +2970,29 @@ case 'duties':
                         {linkTeacherStatus && (
                             <p className="text-xs text-slate-600">{linkTeacherStatus}</p>
                         )}
+                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 space-y-2 text-xs text-slate-600">
+                            <p>Bu öğretmeni mobil uygulamaya almak için aşağıdaki kodu üretip öğretmenle paylaşın. Kod 10 dakika geçerlidir.</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateTeacherCode}
+                                    disabled={isGeneratingTeacherCode || !linkTeacherState}
+                                    className="rounded-md border border-indigo-300 bg-white px-3 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
+                                >
+                                    {isGeneratingTeacherCode ? 'Kod oluşturuluyor…' : 'Kod oluştur'}
+                                </button>
+                                {linkTeacherCodeInfo && (
+                                    <span className="font-mono text-base tracking-[0.3em] text-slate-900">
+                                        {linkTeacherCodeInfo.code}
+                                    </span>
+                                )}
+                            </div>
+                            {linkTeacherCodeInfo && (
+                                <p className="text-[11px] text-slate-500">
+                                    Bu kod {linkTeacherCodeExpiryText || '10 dakika içinde'} sona erer.
+                                </p>
+                            )}
+                        </div>
                         <div className="flex items-center justify-end gap-2">
                             <button
                                 type="button"
