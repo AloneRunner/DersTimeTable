@@ -55,6 +55,7 @@ export type BridgeCodeResponse = {
     id: number;
     role?: string;
     name?: string | null;
+    teacher_id?: string | null;
   }>;
 };
 
@@ -71,6 +72,7 @@ export type SessionInfo = {
     id: number;
     role?: string;
     name?: string | null;
+    teacher_id?: string | null;
   }>;
   subscription?: {
     id?: number;
@@ -142,4 +144,29 @@ export async function fetchSessionInfo(token: string): Promise<SessionInfo> {
 
 export function getApiBaseUrl(): string {
   return API_BASE;
+}
+
+export async function linkTeacher(
+  token: string,
+  payload: { schoolId: number; teacherId: string; email: string; name?: string },
+): Promise<any> {
+  const response = await fetch(`${API_BASE}/api/auth/link-teacher`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      school_id: payload.schoolId,
+      teacher_id: payload.teacherId,
+      email: payload.email,
+      name: payload.name,
+    }),
+  });
+  if (!response.ok) {
+    const data = await parseJson(response).catch(() => ({}));
+    const detail = (data as any)?.detail ?? response.statusText;
+    throw new Error(typeof detail === 'string' ? detail : 'Öğretmen bağlantısı kurulamadı');
+  }
+  return response.json();
 }

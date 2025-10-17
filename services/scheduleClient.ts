@@ -74,3 +74,38 @@ export async function fetchPublishedSchedule(
   }
   return (await response.json()) as PublishedScheduleResponse;
 }
+
+export type TeacherScheduleResponse = {
+  school_id: number;
+  teacher_id: string;
+  teacher_name?: string | null;
+  data: TimetableData;
+  schedule: Schedule;
+  published_at: string;
+  max_daily_hours: number;
+};
+
+export async function fetchTeacherSchedule(
+  token: string,
+  params: { schoolId?: number } = {},
+): Promise<TeacherScheduleResponse> {
+  const query = params.schoolId !== undefined ? `?school_id=${encodeURIComponent(params.schoolId)}` : '';
+  const response = await fetch(`${API_BASE}/api/teacher/schedule${query}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (response.status === 404) {
+    const txt = await response.text();
+    const parsed = parseJson(txt);
+    const detail = parsed.detail ?? 'Öğretmen bağlantısı bulunamadı';
+    throw Object.assign(new Error(detail), { code: parsed.detail });
+  }
+  if (!response.ok) {
+    const txt = await response.text();
+    const parsed = parseJson(txt);
+    const detail = parsed.detail ?? response.statusText;
+    throw new Error(typeof detail === 'string' ? detail : 'Öğretmen programı yüklenemedi');
+  }
+  return (await response.json()) as TeacherScheduleResponse;
+}

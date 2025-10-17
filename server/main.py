@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from solver_cpsat import solve_cp_sat
 from schools import router as schools_router
 from subscriptions import router as subs_router
-from auth import router as auth_router, get_session_context
+from auth import router as auth_router, get_session_context, get_teacher_links_for_user
 from storage import upsert_published_schedule, get_published_schedule as storage_get_published_schedule
 
 
@@ -144,6 +144,16 @@ class PublishedScheduleRecord(BaseModel):
     published_by: Optional[Dict[str, Any]] = None
 
 
+class TeacherScheduleResponse(BaseModel):
+    school_id: int
+    teacher_id: str
+    teacher_name: Optional[str]
+    data: Dict[str, Any]
+    schedule: Dict[str, Any]
+    published_at: datetime
+    max_daily_hours: int
+
+
 @app.post("/api/schedules/publish")
 def api_publish_schedule(payload: PublishSchedulePayload, request: Request) -> Dict[str, Any]:
     user, memberships, _ = get_session_context(request)
@@ -181,6 +191,77 @@ def api_get_published_schedule(request: Request, school_id: Optional[int] = None
     if not record:
         raise HTTPException(status_code=404, detail="schedule-not-found")
     return record
+
+
+@app.get("/api/teacher/schedule", response_model=TeacherScheduleResponse)
+def api_teacher_schedule(request: Request, school_id: Optional[int] = None) -> Dict[str, Any]:
+    user, memberships, _ = get_session_context(request)
+    user_id = user.get('id')
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="unauthenticated")
+
+    teacher_links = get_teacher_links_for_user(user_id)
+    if not teacher_links:
+        raise HTTPException(status_code=404, detail="teacher-link-not-found")
+
+    target_link = None
+    if school_id is not None:
+        target_link = next((link for link in teacher_links if link.get('school_id') == school_id), None)
+        if target_link is None:
+            raise HTTPException(status_code=403, detail="not-linked-to-school")
+    else:
+        # pick first school where membership role is teacher if available
+        teacher_school_ids = {link.get('school_id') for link in teacher_links}
+        for membership in memberships:
+            if membership.get('id') in teacher_school_ids and membership.get('role') in ('teacher', 'admin'):
+                target_link = next((link for link in teacher_links if link.get('school_id') == membership.get('id')), None)
+                if target_link:
+                    break
+        if target_link is None:
+            target_link = teacher_links[0]
+
+    target_school_id = target_link.get('school_id')
+    teacher_id = target_link.get('teacher_id')
+    if target_school_id is None or teacher_id is None:
+        raise HTTPException(status_code=400, detail="invalid-teacher-link")
+
+    record = storage_get_published_schedule(target_school_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="schedule-not-found")
+
+    data = record.get('data') or {}
+    schedule = record.get('schedule') or {}
+
+    teacher_entry = None
+    for teacher in data.get('teachers', []):
+        if teacher.get('id') == teacher_id:
+            teacher_entry = teacher
+            break
+
+    max_daily_hours = 0
+    if teacher_entry and teacher_entry.get('availability'):
+        for day in teacher_entry['availability']:
+            if isinstance(day, list):
+                max_daily_hours = max(max_daily_hours, len(day))
+    if max_daily_hours == 0:
+        for class_schedule in schedule.values():
+            if not isinstance(class_schedule, list):
+                continue
+            for day in class_schedule:
+                if isinstance(day, list):
+                    max_daily_hours = max(max_daily_hours, len(day))
+    if max_daily_hours == 0:
+        max_daily_hours = 12
+
+    return {
+        'school_id': target_school_id,
+        'teacher_id': teacher_id,
+        'teacher_name': teacher_entry.get('name') if teacher_entry else None,
+        'data': data,
+        'schedule': schedule,
+        'published_at': record.get('published_at'),
+        'max_daily_hours': max_daily_hours,
+    }
 
 
 if __name__ == "__main__":

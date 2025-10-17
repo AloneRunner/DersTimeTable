@@ -11,6 +11,7 @@ _path = Path(__file__).parent / 'storage.json'
 DEFAULT_STATE: Dict[str, Any] = {
     'schools': [],
     'teacher_schools': [],
+    'teacher_user_links': [],
     'users': [],
     'school_users': [],
     'login_tokens': [],
@@ -326,3 +327,36 @@ def get_published_schedule(school_id: int) -> Optional[Dict[str, Any]]:
         if record.get('school_id') == school_id:
             return record
     return None
+def list_teacher_user_links() -> List[Dict[str, Any]]:
+    return _read().get('teacher_user_links', [])
+
+
+def upsert_teacher_user_link(school_id: int, teacher_id: str, user_id: int) -> Dict[str, Any]:
+    obj = _read()
+    links = obj.setdefault('teacher_user_links', [])
+    updated = False
+    for rec in links:
+        if rec.get('school_id') == school_id and rec.get('teacher_id') == teacher_id:
+            rec['user_id'] = user_id
+            rec['updated_at'] = datetime.now(timezone.utc).isoformat()
+            updated = True
+            break
+    if not updated:
+        rec = {
+            'id': _next_id(links),
+            'school_id': school_id,
+            'teacher_id': teacher_id,
+            'user_id': user_id,
+            'created_at': datetime.now(timezone.utc).isoformat(),
+        }
+        links.append(rec)
+    _write(obj)
+    return rec if updated else links[-1]
+
+
+def get_teacher_links_for_user(user_id: int) -> List[Dict[str, Any]]:
+    result = []
+    for rec in list_teacher_user_links():
+        if rec.get('user_id') == user_id:
+            result.append(dict(rec))
+    return result

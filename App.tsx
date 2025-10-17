@@ -32,7 +32,7 @@ import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
-import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
@@ -393,6 +393,11 @@ const App: React.FC = () => {
     const [newSchoolStatus, setNewSchoolStatus] = useState<string>('');
     const [newSchoolLoading, setNewSchoolLoading] = useState<boolean>(false);
     const [webPortalStatus, setWebPortalStatus] = useState<string>('');
+    const [linkTeacherState, setLinkTeacherState] = useState<{ teacherId: string; teacherName: string } | null>(null);
+    const [linkTeacherEmail, setLinkTeacherEmail] = useState<string>('');
+    const [linkTeacherName, setLinkTeacherName] = useState<string>('');
+    const [linkTeacherStatus, setLinkTeacherStatus] = useState<string | null>(null);
+    const [isLinkingTeacher, setIsLinkingTeacher] = useState<boolean>(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scheduleFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -676,6 +681,62 @@ const App: React.FC = () => {
 
         window.alert(`${teacher.name} için ${restCount} izin günü ayarlandı: ${chosenNames}.`);
     }, [data.teachers, updateTeacher, maxDailyHours]);
+
+    const handleOpenLinkTeacherModal = useCallback((teacher: Teacher) => {
+        setLinkTeacherState({ teacherId: teacher.id, teacherName: teacher.name });
+        setLinkTeacherEmail('');
+        setLinkTeacherName(teacher.name || '');
+        setLinkTeacherStatus(null);
+    }, []);
+
+    const closeLinkTeacherModal = useCallback(() => {
+        setLinkTeacherState(null);
+        setLinkTeacherEmail('');
+        setLinkTeacherName('');
+        setLinkTeacherStatus(null);
+        setIsLinkingTeacher(false);
+    }, []);
+
+    const handleLinkTeacherSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!linkTeacherState) return;
+        const email = linkTeacherEmail.trim().toLowerCase();
+        if (!email) {
+            setLinkTeacherStatus('Öğretmen e-postası gerekli');
+            return;
+        }
+        if (!sessionToken) {
+            setLinkTeacherStatus('Önce yönetici olarak oturum açmalısınız.');
+            return;
+        }
+        if (!activeSchoolId) {
+            setLinkTeacherStatus('Önce bağlı olduğunuz okulu seçin.');
+            return;
+        }
+        setIsLinkingTeacher(true);
+        setLinkTeacherStatus(null);
+        try {
+            await linkTeacher(sessionToken, {
+                schoolId: activeSchoolId,
+                teacherId: linkTeacherState.teacherId,
+                email,
+                name: linkTeacherName.trim() || undefined,
+            });
+            setLinkTeacherStatus('Bağlantı kaydedildi. Öğretmen uygulamaya giriş yapabilir.');
+            try {
+                const info = await fetchSessionInfo(sessionToken);
+                setSessionInfo(info);
+                setSessionStatus('ready');
+                setSessionError(null);
+            } catch (refreshErr) {
+                console.error('refresh session failed', refreshErr);
+            }
+        } catch (err: any) {
+            setLinkTeacherStatus(err instanceof Error ? err.message : 'Öğretmen bağlantısı kurulamadı');
+        } finally {
+            setIsLinkingTeacher(false);
+        }
+    }, [linkTeacherState, linkTeacherEmail, linkTeacherName, sessionToken, activeSchoolId]);
 
     const handleSchoolHoursChange = (level: SchoolLevel, dayIndex: number, value: string) => {
         const newHours = parseInt(value) || 4;

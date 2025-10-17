@@ -58,6 +58,13 @@ class SessionResponse(BaseModel):
     subscription: Optional[Dict[str, Any]] = None
 
 
+class LinkTeacherPayload(BaseModel):
+    school_id: int
+    teacher_id: str
+    email: EmailStr
+    name: Optional[str] = None
+
+
 def _generate_code(length: int = 6) -> str:
     digits = string.digits
     return ''.join(secrets.choice(digits) for _ in range(length))
@@ -94,7 +101,7 @@ def _db_query(query: str, params: tuple = ()) -> List[Dict[str, Any]]:
             return cur.fetchall()
 
 
-def _db_upsert_user(email: str, name: Optional[str]) -> Dict[str, Any]:
+def _db_upsert_user(email: str, name: Optional[str], *, default_role: str = 'admin') -> Dict[str, Any]:
     row = _db_query('SELECT id, email, name, role FROM users WHERE email = %s', (email.lower(),))
     if row:
         user = dict(row[0])
@@ -104,7 +111,7 @@ def _db_upsert_user(email: str, name: Optional[str]) -> Dict[str, Any]:
         return user
     created = _db_execute(
         'INSERT INTO users (email, name, role) VALUES (%s, %s, %s) RETURNING id, email, name, role',
-        (email.lower(), name, 'admin'),
+        (email.lower(), name, default_role or 'admin'),
         returning=True,
     )
     if not created:
@@ -112,23 +119,38 @@ def _db_upsert_user(email: str, name: Optional[str]) -> Dict[str, Any]:
     return dict(created)
 
 
-def _db_attach_school(user_id: int, school_id: int) -> None:
+def _db_attach_school(user_id: int, school_id: int, role: str = 'admin') -> None:
     try:
-        _db_execute(
-            '''INSERT INTO school_users (user_id, school_id, role)
-               VALUES (%s, %s, %s)
-               ON CONFLICT (school_id, user_id) DO UPDATE SET role = EXCLUDED.role''',
-            (user_id, school_id, 'admin'),
+        existing = _db_query(
+            'SELECT role FROM school_users WHERE user_id = %s AND school_id = %s',
+            (user_id, school_id),
         )
+        if existing:
+            current_role = existing[0]['role']
+            if current_role != (role or current_role):
+                _db_execute(
+                    'UPDATE school_users SET role = %s WHERE user_id = %s AND school_id = %s',
+                    (role or current_role, user_id, school_id),
+                )
+        else:
+            _db_execute(
+                'INSERT INTO school_users (user_id, school_id, role) VALUES (%s, %s, %s)',
+                (user_id, school_id, role or 'admin'),
+            )
     except psycopg_errors.ForeignKeyViolation as exc:
         raise HTTPException(status_code=404, detail='school-not-found') from exc
 
 
 def _db_get_school_memberships(user_id: int) -> List[Dict[str, Any]]:
     rows = _db_query(
-        '''SELECT su.school_id AS id, su.role, s.name
+        '''SELECT su.school_id AS id,
+                  su.role,
+                  s.name,
+                  tul.teacher_id
            FROM school_users su
            LEFT JOIN schools s ON s.id = su.school_id
+           LEFT JOIN teacher_user_links tul
+             ON tul.school_id = su.school_id AND tul.user_id = su.user_id
            WHERE su.user_id = %s
            ORDER BY su.school_id''',
         (user_id,),
@@ -222,20 +244,53 @@ def _db_get_subscription(user_id: int) -> Optional[Dict[str, Any]]:
     return rec
 
 
+def _db_insert_teacher_school(teacher_id: str, school_id: int) -> None:
+    _db_execute(
+        '''INSERT INTO teacher_schools (teacher_id, school_id)
+           VALUES (%s, %s)
+           ON CONFLICT (teacher_id, school_id) DO NOTHING''',
+        (teacher_id, school_id),
+    )
+
+
+def _db_upsert_teacher_link(school_id: int, teacher_id: str, user_id: int) -> Dict[str, Any]:
+    rec = _db_execute(
+        '''INSERT INTO teacher_user_links (school_id, teacher_id, user_id)
+           VALUES (%s, %s, %s)
+           ON CONFLICT (school_id, teacher_id)
+           DO UPDATE SET user_id = EXCLUDED.user_id
+           RETURNING id, school_id, teacher_id, user_id, created_at''',
+        (school_id, teacher_id, user_id),
+        returning=True,
+    )
+    if not rec:
+        raise HTTPException(status_code=500, detail='teacher-link-upsert-failed')
+    return rec
+
+
+def _db_get_teacher_links(user_id: int) -> List[Dict[str, Any]]:
+    rows = _db_query(
+        '''SELECT school_id, teacher_id FROM teacher_user_links WHERE user_id = %s''',
+        (user_id,),
+    )
+    return [dict(row) for row in rows]
+
+
 # -- JSON storage helpers ----------------------------------------------------
 
 
-def _storage_upsert_user(email: str, name: Optional[str]) -> Dict[str, Any]:
-    user = db.upsert_user(email, name, role='admin')  # type: ignore[attr-defined]
+def _storage_upsert_user(email: str, name: Optional[str], *, default_role: str = 'admin') -> Dict[str, Any]:
+    user = db.upsert_user(email, name, role=default_role or 'admin')  # type: ignore[attr-defined]
     return {k: user[k] for k in ('id', 'email', 'name', 'role') if k in user}
 
 
-def _storage_attach_school(user_id: int, school_id: int) -> None:
-    db.add_school_user(user_id, school_id)  # type: ignore[attr-defined]
+def _storage_attach_school(user_id: int, school_id: int, role: str = 'admin') -> None:
+    db.add_school_user(user_id, school_id, role)  # type: ignore[attr-defined]
 
 
 def _storage_get_school_memberships(user_id: int) -> List[Dict[str, Any]]:
     memberships = db.get_school_users_by_user(user_id)  # type: ignore[attr-defined]
+    teacher_links = {f"{link.get('school_id')}": link.get('teacher_id') for link in db.get_teacher_links_for_user(user_id)}  # type: ignore[attr-defined]
     result: List[Dict[str, Any]] = []
     for item in memberships:
         school = db.get_school_by_id(item.get('school_id'))  # type: ignore[attr-defined]
@@ -243,6 +298,7 @@ def _storage_get_school_memberships(user_id: int) -> List[Dict[str, Any]]:
             'id': item.get('school_id'),
             'role': item.get('role'),
             'name': school.get('name') if school else None,
+            'teacher_id': teacher_links.get(str(item.get('school_id'))),
         })
     return result
 
@@ -284,24 +340,60 @@ def _storage_get_subscription(user_id: int) -> Optional[Dict[str, Any]]:
     return db.get_subscription_for_user(user_id)  # type: ignore[attr-defined]
 
 
+def _storage_insert_teacher_school(teacher_id: str, school_id: int) -> None:
+    db.add_teacher_school(teacher_id, school_id)  # type: ignore[attr-defined]
+
+
+def _storage_upsert_teacher_link(school_id: int, teacher_id: str, user_id: int) -> Dict[str, Any]:
+    return db.upsert_teacher_user_link(school_id, teacher_id, user_id)  # type: ignore[attr-defined]
+
+
+def _storage_get_teacher_links(user_id: int) -> List[Dict[str, Any]]:
+    return db.get_teacher_links_for_user(user_id)  # type: ignore[attr-defined]
+
+
 # -- Common helpers ----------------------------------------------------------
 
 
-def _upsert_user(email: str, name: Optional[str]) -> Dict[str, Any]:
-    return _db_upsert_user(email, name) if USE_DB else _storage_upsert_user(email, name)
+def _upsert_user(email: str, name: Optional[str], *, default_role: str = 'admin') -> Dict[str, Any]:
+    return _db_upsert_user(email, name, default_role=default_role) if USE_DB else _storage_upsert_user(email, name, default_role=default_role)
 
 
-def _attach_school(user_id: int, school_id: Optional[int]) -> None:
+def _attach_school(user_id: int, school_id: Optional[int], role: str = 'admin') -> None:
     if school_id is None:
         return
     if USE_DB:
-        _db_attach_school(user_id, school_id)
+        _db_attach_school(user_id, school_id, role)
     else:  # pragma: no cover
-        _storage_attach_school(user_id, school_id)
+        _storage_attach_school(user_id, school_id, role)
 
 
 def _get_school_memberships(user_id: int) -> List[Dict[str, Any]]:
     return _db_get_school_memberships(user_id) if USE_DB else _storage_get_school_memberships(user_id)
+
+
+def _insert_teacher_school(teacher_id: str, school_id: int) -> None:
+    if USE_DB:
+        _db_insert_teacher_school(teacher_id, school_id)
+    else:  # pragma: no cover
+        _storage_insert_teacher_school(teacher_id, school_id)
+
+
+def _upsert_teacher_link(school_id: int, teacher_id: str, user_id: int) -> Dict[str, Any]:
+    if USE_DB:
+        return _db_upsert_teacher_link(school_id, teacher_id, user_id)
+    return _storage_upsert_teacher_link(school_id, teacher_id, user_id)  # pragma: no cover
+
+
+def _get_teacher_links(user_id: int) -> List[Dict[str, Any]]:
+    return _db_get_teacher_links(user_id) if USE_DB else _storage_get_teacher_links(user_id)
+
+
+def get_teacher_links_for_user(user_id: int) -> List[Dict[str, Any]]:
+    """
+    Expose teacher link mappings for other modules (e.g., schedule API).
+    """
+    return _get_teacher_links(user_id)
 
 
 def _insert_login_token(
@@ -372,7 +464,7 @@ def _session_payload(user: Dict[str, Any], school_memberships: List[Dict[str, An
 @router.post('/request-code', response_model=RequestCodeResponse)
 def request_code(payload: RequestCodePayload) -> RequestCodeResponse:
     user = _upsert_user(payload.email, payload.name)
-    _attach_school(user['id'], payload.school_id)
+    _attach_school(user['id'], payload.school_id, role=user.get('role') or 'admin')
 
     code = _generate_code()
     token = _generate_token()
@@ -397,6 +489,39 @@ def request_code(payload: RequestCodePayload) -> RequestCodeResponse:
         user=user,
         schools=memberships,
     )
+
+
+@router.post('/link-teacher')
+def link_teacher(payload: LinkTeacherPayload, request: Request) -> Dict[str, Any]:
+    requester, memberships, _ = get_session_context(request)
+    allowed = any(
+        m.get('id') == payload.school_id and (m.get('role') in ('admin', 'owner', 'manager', 'super_admin'))
+        for m in memberships
+    )
+    if not allowed:
+        raise HTTPException(status_code=403, detail='not-authorized')
+
+    teacher_user = _upsert_user(payload.email, payload.name, default_role='teacher')
+    _attach_school(teacher_user['id'], payload.school_id, role='teacher')
+    _insert_teacher_school(payload.teacher_id, payload.school_id)
+    link_record = _upsert_teacher_link(payload.school_id, payload.teacher_id, teacher_user['id'])
+
+    return {
+        'ok': True,
+        'teacher': {
+            'school_id': payload.school_id,
+            'teacher_id': payload.teacher_id,
+            'user_id': teacher_user['id'],
+            'email': teacher_user['email'],
+            'name': teacher_user.get('name'),
+        },
+        'linked_by': {
+            'id': requester.get('id'),
+            'email': requester.get('email'),
+            'name': requester.get('name'),
+        },
+        'link': link_record,
+    }
 
 
 @router.post('/verify', response_model=SessionResponse)
