@@ -1479,6 +1479,7 @@ case 'teachers':
                 <div className="flex flex-wrap items-center gap-1">
                     <button onClick={() => handleAssignRandomRestDays(item.id, 1)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 1 tam gün izin ayarla">1 Gün</button>
                     <button onClick={() => handleAssignRandomRestDays(item.id, 2)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 2 tam gün izin ayarla">2 Gün</button>
+                    <button onClick={() => handleOpenLinkTeacherModal(item)} className="px-2 py-1 text-xs font-medium rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50">Uygulamaya Bağla</button>
                     <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
                     <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
                 </div>
@@ -1517,6 +1518,7 @@ case 'teachers':
                 <div className="mt-3 flex flex-wrap gap-2">
                     <button onClick={() => handleAssignRandomRestDays(item.id, 1)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100">1 Gün İzin</button>
                     <button onClick={() => handleAssignRandomRestDays(item.id, 2)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100">2 Gün İzin</button>
+                    <button onClick={() => handleOpenLinkTeacherModal(item)} className="px-2 py-1 text-xs font-medium rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50">Uygulamaya Bağla</button>
                     {item.canTeachMiddleSchool && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Ortaokul</span>}
                     {item.canTeachHighSchool && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">Lise</span>}
                 </div>
@@ -2885,6 +2887,63 @@ case 'duties':
                 }`}
             >
                 {renderModalContent()}
+            </Modal>
+
+            <Modal
+                isOpen={linkTeacherState !== null}
+                onClose={closeLinkTeacherModal}
+                title="Öğretmeni Uygulamaya Bağla"
+            >
+                {linkTeacherState && (
+                    <form onSubmit={handleLinkTeacherSubmit} className="space-y-4 text-sm">
+                        <div className="space-y-1">
+                            <span className="block text-xs uppercase tracking-wide text-slate-500">Öğretmen</span>
+                            <span className="font-semibold text-slate-700">{linkTeacherState.teacherName}</span>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-slate-600" htmlFor="link-teacher-email">Öğretmen e-postası</label>
+                            <input
+                                id="link-teacher-email"
+                                type="email"
+                                value={linkTeacherEmail}
+                                onChange={(event) => setLinkTeacherEmail(event.target.value)}
+                                required
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                placeholder="ogretmen@example.com"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-slate-600" htmlFor="link-teacher-name">Ad (isteğe bağlı)</label>
+                            <input
+                                id="link-teacher-name"
+                                type="text"
+                                value={linkTeacherName}
+                                onChange={(event) => setLinkTeacherName(event.target.value)}
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                placeholder="Öğretmen adı"
+                            />
+                        </div>
+                        {linkTeacherStatus && (
+                            <p className="text-xs text-slate-600">{linkTeacherStatus}</p>
+                        )}
+                        <div className="flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={closeLinkTeacherModal}
+                                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+                            >
+                                İptal
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isLinkingTeacher}
+                                className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                {isLinkingTeacher ? 'Bağlanıyor...' : 'Bağlantıyı Kaydet'}
+                            </button>
+                        </div>
+                    </form>
+                )}
             </Modal>
 
             {/* CP-SAT Help Modal */}
