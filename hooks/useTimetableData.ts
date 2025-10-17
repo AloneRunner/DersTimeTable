@@ -1,6 +1,14 @@
-﻿
 import { useState } from 'react';
-import type { TimetableData, Teacher, Classroom, Subject, Location, FixedAssignment, LessonGroup, Duty } from '../types';
+import type {
+  TimetableData,
+  Teacher,
+  Classroom,
+  Subject,
+  Location,
+  FixedAssignment,
+  LessonGroup,
+  Duty,
+} from '../types';
 import { SchoolLevel, ClassGroup } from '../types';
 
 const createSimpleInitialData = (): TimetableData => {
@@ -40,7 +48,6 @@ const createSimpleInitialData = (): TimetableData => {
   };
 };
 
-
 export const useTimetableData = () => {
   const [data, setData] = useState<TimetableData>(() => createSimpleInitialData());
 
@@ -63,36 +70,36 @@ export const useTimetableData = () => {
 
   const removeItem = (itemType: keyof TimetableData, id: string) => {
     setData(prevData => {
-        const items = prevData[itemType] as {id: string}[];
-        return {
-            ...prevData,
-            [itemType]: items.filter(item => item.id !== id)
-        };
+      const items = prevData[itemType] as { id: string }[];
+      return {
+        ...prevData,
+        [itemType]: items.filter(item => item.id !== id),
+      };
     });
   };
 
-  const dedupeById = <T extends {id:string}>(arr: T[]|undefined) =>
-    Array.from(new Map((arr||[]).map(x => [x.id, x])).values());
+  const dedupeById = <T extends { id: string }>(arr: T[] | undefined) =>
+    Array.from(new Map((arr || []).map(x => [x.id, x])).values());
 
-  const unique = <T>(arr: T[]|undefined) =>
+  const unique = <T>(arr: T[] | undefined) =>
     Array.from(new Set(arr || []));
 
   const sanitizeSubjects = (subjects: Subject[], classrooms: Classroom[]) => {
     const classIds = new Set(classrooms.map(c => c.id));
     return subjects.map(s => ({
       ...s,
-      assignedClassIds: unique((s.assignedClassIds||[]).filter(id => classIds.has(id))),
+      assignedClassIds: unique((s.assignedClassIds || []).filter(id => classIds.has(id))),
       tripleBlockHours: s.tripleBlockHours || 0,
       pinnedTeacherByClassroom: Object.fromEntries(
         Object.entries(s.pinnedTeacherByClassroom || {}).filter(([cid]) => classIds.has(cid))
-      )
+      ),
     }));
   };
 
   const importData = (jsonData: string) => {
     const imported = JSON.parse(jsonData);
     if (!imported.data || !imported.data.teachers || !imported.data.classrooms || !imported.data.subjects) {
-      throw new Error("GeÃ§ersiz dosya formatÄ±. LÃ¼tfen uygulamadan dÄ±ÅŸa aktarÄ±lan bir JSON dosyasÄ± kullanÄ±n.");
+      throw new Error('Geçersiz dosya formatı. Lütfen uygulamadan dışa aktarılmış bir JSON dosyası kullanın.');
     }
 
     // --- MIGRATION LOGIC for multi-teacher pinning ---
@@ -114,22 +121,22 @@ export const useTimetableData = () => {
     // The `imported` object from `JSON.parse` is of type `any`, so TypeScript infers the most
     // generic type `({id: string})` for the arrays, causing assignment errors.
     const teachers = dedupeById<Teacher>(imported.data.teachers);
-    const classrooms= dedupeById<Classroom>(imported.data.classrooms);
-    const locations = dedupeById<Location>(imported.data.locations||[]);
-    const fixed = dedupeById<FixedAssignment>(imported.data.fixedAssignments||[]);
-    const groups = dedupeById<LessonGroup>(imported.data.lessonGroups||[]);
-    const duties = dedupeById<Duty>(imported.data.duties||[]);
+    const classrooms = dedupeById<Classroom>(imported.data.classrooms);
+    const locations = dedupeById<Location>(imported.data.locations || []);
+    const fixed = dedupeById<FixedAssignment>(imported.data.fixedAssignments || []);
+    const groups = dedupeById<LessonGroup>(imported.data.lessonGroups || []);
+    const duties = dedupeById<Duty>(imported.data.duties || []);
     const subjects0 = dedupeById<Subject>(imported.data.subjects);
-    const subjects  = sanitizeSubjects(subjects0, classrooms);
-    
-    const newTimetableData: TimetableData = { 
-        teachers, 
-        classrooms, 
-        subjects, 
-        locations, 
-        fixedAssignments: fixed, 
-        lessonGroups: groups, 
-        duties 
+    const subjects = sanitizeSubjects(subjects0, classrooms);
+
+    const newTimetableData: TimetableData = {
+      teachers,
+      classrooms,
+      subjects,
+      locations,
+      fixedAssignments: fixed,
+      lessonGroups: groups,
+      duties,
     };
 
     setData(newTimetableData);
@@ -139,30 +146,37 @@ export const useTimetableData = () => {
     setData(createSimpleInitialData());
   };
 
-  const addTeacher = (teacher: Omit<Teacher, 'id'>) => addOrUpdateItem('teachers', { ...teacher, id: `t${Date.now()}` });
+  const addTeacher = (teacher: Omit<Teacher, 'id'>) =>
+    addOrUpdateItem('teachers', { ...teacher, id: `t${Date.now()}` });
   const updateTeacher = (teacher: Teacher) => addOrUpdateItem('teachers', teacher);
   const removeTeacher = (id: string) => removeItem('teachers', id);
 
-  const addClassroom = (classroom: Omit<Classroom, 'id'>) => addOrUpdateItem('classrooms', { ...classroom, id: `c${Date.now()}` });
+  const addClassroom = (classroom: Omit<Classroom, 'id'>) =>
+    addOrUpdateItem('classrooms', { ...classroom, id: `c${Date.now()}` });
   const updateClassroom = (classroom: Classroom) => addOrUpdateItem('classrooms', classroom);
   const removeClassroom = (id: string) => removeItem('classrooms', id);
 
-  const addSubject = (subject: Omit<Subject, 'id'>) => addOrUpdateItem('subjects', { ...subject, id: `s${Date.now()}` });
+  const addSubject = (subject: Omit<Subject, 'id'>) =>
+    addOrUpdateItem('subjects', { ...subject, id: `s${Date.now()}` });
   const updateSubject = (subject: Subject) => addOrUpdateItem('subjects', subject);
   const removeSubject = (id: string) => removeItem('subjects', id);
-  
-  const addLocation = (location: Omit<Location, 'id'>) => addOrUpdateItem('locations', { ...location, id: `l${Date.now()}` });
+
+  const addLocation = (location: Omit<Location, 'id'>) =>
+    addOrUpdateItem('locations', { ...location, id: `l${Date.now()}` });
   const updateLocation = (location: Location) => addOrUpdateItem('locations', location);
   const removeLocation = (id: string) => removeItem('locations', id);
-  
-  const addFixedAssignment = (assignment: Omit<FixedAssignment, 'id'>) => addOrUpdateItem('fixedAssignments', { ...assignment, id: `fa${Date.now()}` });
+
+  const addFixedAssignment = (assignment: Omit<FixedAssignment, 'id'>) =>
+    addOrUpdateItem('fixedAssignments', { ...assignment, id: `fa${Date.now()}` });
   const removeFixedAssignment = (id: string) => removeItem('fixedAssignments', id);
 
-  const addLessonGroup = (group: Omit<LessonGroup, 'id'>) => addOrUpdateItem('lessonGroups', { ...group, id: `lg${Date.now()}` });
+  const addLessonGroup = (group: Omit<LessonGroup, 'id'>) =>
+    addOrUpdateItem('lessonGroups', { ...group, id: `lg${Date.now()}` });
   const updateLessonGroup = (group: LessonGroup) => addOrUpdateItem('lessonGroups', group);
   const removeLessonGroup = (id: string) => removeItem('lessonGroups', id);
 
-  const addDuty = (duty: Omit<Duty, 'id'>) => addOrUpdateItem('duties', { ...duty, id: `d${Date.now()}` });
+  const addDuty = (duty: Omit<Duty, 'id'>) =>
+    addOrUpdateItem('duties', { ...duty, id: `d${Date.now()}` });
   const updateDuty = (duty: Duty) => addOrUpdateItem('duties', duty);
   const removeDuty = (id: string) => removeItem('duties', id);
 
@@ -192,5 +206,3 @@ export const useTimetableData = () => {
     clearData,
   };
 };
-
-
