@@ -142,6 +142,7 @@ def _db_attach_school(user_id: int, school_id: int, role: str = 'admin') -> None
 
 
 def _db_get_school_memberships(user_id: int) -> List[Dict[str, Any]]:
+    _ensure_teacher_link_table()
     rows = _db_query(
         '''SELECT su.school_id AS id,
                   su.role,
@@ -244,6 +245,22 @@ def _db_get_subscription(user_id: int) -> Optional[Dict[str, Any]]:
     return rec
 
 
+def _ensure_teacher_link_table() -> None:
+    if not USE_DB:
+        return
+    _db_execute(
+        '''CREATE TABLE IF NOT EXISTS teacher_user_links (
+             id SERIAL PRIMARY KEY,
+             school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+             teacher_id TEXT NOT NULL,
+             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+             UNIQUE (school_id, teacher_id),
+             UNIQUE (school_id, user_id)
+           )'''
+    )
+
+
 def _db_insert_teacher_school(teacher_id: str, school_id: int) -> None:
     _db_execute(
         '''INSERT INTO teacher_schools (teacher_id, school_id)
@@ -254,6 +271,7 @@ def _db_insert_teacher_school(teacher_id: str, school_id: int) -> None:
 
 
 def _db_upsert_teacher_link(school_id: int, teacher_id: str, user_id: int) -> Dict[str, Any]:
+    _ensure_teacher_link_table()
     rec = _db_execute(
         '''INSERT INTO teacher_user_links (school_id, teacher_id, user_id)
            VALUES (%s, %s, %s)
@@ -269,6 +287,7 @@ def _db_upsert_teacher_link(school_id: int, teacher_id: str, user_id: int) -> Di
 
 
 def _db_get_teacher_links(user_id: int) -> List[Dict[str, Any]]:
+    _ensure_teacher_link_table()
     rows = _db_query(
         '''SELECT school_id, teacher_id FROM teacher_user_links WHERE user_id = %s''',
         (user_id,),
