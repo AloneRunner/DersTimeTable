@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTimetableData } from './hooks/useTimetableData';
 import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats, Assignment, SubstitutionAssignment, PublishedScheduleRecord } from './types';
 import { SchoolLevel, ClassGroup, ViewType } from './types';
@@ -32,7 +32,7 @@ import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
-import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
@@ -415,6 +415,8 @@ const App: React.FC = () => {
     const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(null);
     const [activeSchoolId, setActiveSchoolId] = useState<number | null>(null);
     const isRemoteMode = Boolean(sessionToken && activeSchoolId);
+    const [teacherLinksMap, setTeacherLinksMap] = useState<Record<string, TeacherLinkRecord>>({});
+    const [teacherLinksStatus, setTeacherLinksStatus] = useState<'idle' | 'loading' | 'error'>('idle');
     const [catalogStatus, setCatalogStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
     const [catalogError, setCatalogError] = useState<string | null>(null);
     const [catalogSyncStatus, setCatalogSyncStatus] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -427,6 +429,21 @@ const App: React.FC = () => {
     const syncingCatalogRef = useRef(false);
     const dataRef = useRef<TimetableData>(data);
     const schoolHoursRef = useRef<SchoolHours>(schoolHours);
+    const isAdminSession = useMemo(() => {
+        const role = (sessionInfo?.user?.role || '').toLowerCase();
+        return ['admin', 'owner', 'manager', 'super_admin'].includes(role);
+    }, [sessionInfo?.user?.role]);
+
+    const refreshTeacherLinks = useCallback(async (token: string, schoolId: number) => {
+        const items = await fetchTeacherLinksApi(token, schoolId);
+        const map: Record<string, TeacherLinkRecord> = {};
+        items.forEach(item => {
+            if (item.teacher_id) {
+                map[item.teacher_id] = item;
+            }
+        });
+        setTeacherLinksMap(map);
+    }, []);
 
     useEffect(() => {
         setSchoolHoursDraft(schoolHoursToDraft(schoolHours));
@@ -439,6 +456,31 @@ const App: React.FC = () => {
     useEffect(() => {
         schoolHoursRef.current = schoolHours;
     }, [schoolHours]);
+
+    useEffect(() => {
+        if (!isAdminSession || !sessionToken || !activeSchoolId) {
+            setTeacherLinksMap({});
+            setTeacherLinksStatus('idle');
+            return;
+        }
+        let cancelled = false;
+        setTeacherLinksStatus('loading');
+        refreshTeacherLinks(sessionToken, activeSchoolId)
+            .then(() => {
+                if (!cancelled) {
+                    setTeacherLinksStatus('idle');
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    console.error('teacher-links-load-failed', err);
+                    setTeacherLinksStatus('error');
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [isAdminSession, sessionToken, activeSchoolId, refreshTeacherLinks]);
 
     useEffect(() => () => {
         if (pendingSyncRef.current) {
@@ -581,6 +623,7 @@ const App: React.FC = () => {
             return linkTeacherCodeInfo.expiresAt;
         }
     }, [linkTeacherCodeInfo]);
+    const currentTeacherLink = linkTeacherState ? teacherLinksMap[linkTeacherState.teacherId] : undefined;
 
     const persistSessionToken = useCallback((token: string | null) => {
         if (token) {
@@ -855,12 +898,13 @@ const App: React.FC = () => {
     }, [data.teachers, updateTeacher, maxDailyHours]);
 
     const handleOpenLinkTeacherModal = useCallback((teacher: Teacher) => {
+        const existingLink = teacherLinksMap[teacher.id];
         setLinkTeacherState({ teacherId: teacher.id, teacherName: teacher.name });
-        setLinkTeacherEmail('');
-        setLinkTeacherName(teacher.name || '');
-        setLinkTeacherStatus(null);
+        setLinkTeacherEmail(existingLink?.email ?? '');
+        setLinkTeacherName(existingLink?.name || teacher.name || '');
+        setLinkTeacherStatus(existingLink ? 'Bu öğretmen şu anda uygulamaya bağlı.' : null);
         setLinkTeacherCodeInfo(null);
-    }, []);
+    }, [teacherLinksMap]);
 
     const closeLinkTeacherModal = useCallback(() => {
         setLinkTeacherState(null);
@@ -897,6 +941,7 @@ const App: React.FC = () => {
                 email,
                 name: linkTeacherName.trim() || undefined,
             });
+            await refreshTeacherLinks(sessionToken, activeSchoolId);
             setLinkTeacherStatus('Bağlantı kaydedildi. Öğretmen uygulamaya giriş yapabilir.');
             setLinkTeacherCodeInfo(null);
             try {
@@ -912,8 +957,43 @@ const App: React.FC = () => {
         } finally {
             setIsLinkingTeacher(false);
         }
-    }, [linkTeacherState, linkTeacherEmail, linkTeacherName, sessionToken, activeSchoolId]);
+    }, [linkTeacherState, linkTeacherEmail, linkTeacherName, sessionToken, activeSchoolId, refreshTeacherLinks]);
 
+    const handleUnlinkTeacher = useCallback(async () => {
+        if (!linkTeacherState) {
+            setLinkTeacherStatus('Önce öğretmeni seçin.');
+            return;
+        }
+        if (!sessionToken) {
+            setLinkTeacherStatus('Önce yönetici olarak oturum açmalısınız.');
+            return;
+        }
+        if (!activeSchoolId) {
+            setLinkTeacherStatus('Önce bağlı olduğunuz okulu seçin.');
+            return;
+        }
+        const existingLink = teacherLinksMap[linkTeacherState.teacherId];
+        if (!existingLink) {
+            setLinkTeacherStatus('Bu öğretmen zaten bağlantısız.');
+            return;
+        }
+        setIsLinkingTeacher(true);
+        try {
+            await unlinkTeacherApi(sessionToken, {
+                schoolId: activeSchoolId,
+                teacherId: linkTeacherState.teacherId,
+            });
+            await refreshTeacherLinks(sessionToken, activeSchoolId);
+            setLinkTeacherEmail('');
+            setLinkTeacherStatus('Bağlantı kaldırıldı.');
+            setLinkTeacherCodeInfo(null);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Bağlantı kaldırma başarısız';
+            setLinkTeacherStatus(message);
+        } finally {
+            setIsLinkingTeacher(false);
+        }
+    }, [linkTeacherState, teacherLinksMap, sessionToken, activeSchoolId, refreshTeacherLinks]);
     const handleGenerateTeacherCode = useCallback(async () => {
         if (!linkTeacherState) {
             setLinkTeacherStatus('Önce öğretmeni seçin.');
@@ -3198,16 +3278,24 @@ case 'duties':
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-medium text-slate-600" htmlFor="link-teacher-name">Ad (isteğe bağlı)</label>
+                            <label className="text-xs font-medium text-slate-600" htmlFor="link-teacher-name">Ad (istege bagli)</label>
                             <input
                                 id="link-teacher-name"
                                 type="text"
                                 value={linkTeacherName}
                                 onChange={(event) => setLinkTeacherName(event.target.value)}
                                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                placeholder="Öğretmen adı"
+                                placeholder="Ogretmen adi"
                             />
                         </div>
+                        {teacherLinksStatus === 'loading' && (
+                            <p className="text-xs text-slate-500">Baglanti durumu yukleniyor...</p>
+                        )}
+                        {currentTeacherLink && (
+                            <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                                <span className="font-medium text-slate-700">{currentTeacherLink.email}</span> adresi ile baglantili.
+                            </div>
+                        )}
                         {linkTeacherStatus && (
                             <p className="text-xs text-slate-600">{linkTeacherStatus}</p>
                         )}
@@ -3234,21 +3322,33 @@ case 'duties':
                                 </p>
                             )}
                         </div>
-                        <div className="flex items-center justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={closeLinkTeacherModal}
-                                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
-                            >
-                                İptal
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={isLinkingTeacher}
-                                className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 disabled:cursor-wait disabled:opacity-60"
-                            >
-                                {isLinkingTeacher ? 'Bağlanıyor...' : 'Bağlantıyı Kaydet'}
-                            </button>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            {currentTeacherLink && (
+                                <button
+                                    type="button"
+                                    onClick={handleUnlinkTeacher}
+                                    disabled={isLinkingTeacher}
+                                    className="rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
+                                >
+                                    Baglantiyi Kaldir
+                                </button>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={closeLinkTeacherModal}
+                                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+                                >
+                                    Iptal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isLinkingTeacher}
+                                    className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 disabled:cursor-wait disabled:opacity-60"
+                                >
+                                    {isLinkingTeacher ? 'Baglaniyor...' : 'Baglantiyi Kaydet'}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 )}
@@ -3338,6 +3438,7 @@ case 'duties':
     );
 };
 export default App;
+
 
 
 

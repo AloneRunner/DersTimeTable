@@ -548,3 +548,22 @@ def get_teacher_links_for_user(user_id: int) -> List[Dict[str, Any]]:
         if rec.get('user_id') == user_id:
             result.append(dict(rec))
     return result
+
+
+def get_teacher_links_for_school(school_id: int) -> List[Dict[str, Any]]:
+    result = []
+    for rec in list_teacher_user_links():
+        if rec.get('school_id') == school_id:
+            result.append(dict(rec))
+    return result
+
+
+def delete_teacher_user_link(school_id: int, teacher_id: str) -> bool:
+    obj = _read()
+    links = obj.setdefault('teacher_user_links', [])
+    filtered = [rec for rec in links if not (rec.get('school_id') == school_id and rec.get('teacher_id') == teacher_id)]
+    if len(filtered) == len(links):
+        return False
+    obj['teacher_user_links'] = filtered
+    _write(obj)
+    return True

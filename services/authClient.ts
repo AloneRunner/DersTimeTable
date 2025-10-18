@@ -97,6 +97,15 @@ export type TeacherSessionSnapshot = {
 
 const TEACHER_SESSION_KEY = 'ozarik.teacher.session';
 
+export type TeacherLinkRecord = {
+  school_id: number;
+  teacher_id: string;
+  user_id?: number | null;
+  email: string;
+  name?: string | null;
+  linked_at?: string | null;
+};
+
 async function parseJson(resp: Response) {
   const text = await resp.text();
   try {
@@ -237,4 +246,42 @@ export function extractTeacherMembership(session: SessionInfo): TeacherSessionSn
       role: teacherMembership.role,
     },
   };
+}
+
+export async function fetchTeacherLinks(
+  token: string,
+  schoolId: number,
+): Promise<TeacherLinkRecord[]> {
+  const response = await fetch(`${API_BASE}/api/auth/teacher-links?school_id=${encodeURIComponent(schoolId)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || 'Öğretmen bağlantıları yüklenemedi');
+  }
+  const body = await response.json();
+  return Array.isArray(body?.items) ? (body.items as TeacherLinkRecord[]) : [];
+}
+
+export async function unlinkTeacher(
+  token: string,
+  payload: { schoolId: number; teacherId: string },
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/auth/teacher-links`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      school_id: payload.schoolId,
+      teacher_id: payload.teacherId,
+    }),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || 'Öğretmen bağlantısı kaldırılamadı');
+  }
 }

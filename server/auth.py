@@ -67,6 +67,24 @@ class LinkTeacherPayload(BaseModel):
     name: Optional[str] = None
 
 
+class TeacherLinkRecord(BaseModel):
+    school_id: int
+    teacher_id: str
+    email: EmailStr
+    name: Optional[str] = None
+    user_id: int
+    linked_at: Optional[datetime] = None
+
+
+class TeacherLinkListResponse(BaseModel):
+    items: List[TeacherLinkRecord]
+
+
+class UnlinkTeacherPayload(BaseModel):
+    school_id: int
+    teacher_id: str
+
+
 def _generate_code(length: int = 6) -> str:
     digits = string.digits
     return ''.join(secrets.choice(digits) for _ in range(length))
@@ -301,6 +319,43 @@ def _db_get_teacher_links(user_id: int) -> List[Dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def _db_list_teacher_links_for_school(school_id: int) -> List[Dict[str, Any]]:
+    _ensure_teacher_link_table()
+    rows = _db_query(
+        '''SELECT tul.school_id,
+                  tul.teacher_id,
+                  tul.user_id,
+                  tul.created_at,
+                  u.email,
+                  u.name
+           FROM teacher_user_links tul
+           JOIN users u ON u.id = tul.user_id
+           WHERE tul.school_id = %s
+           ORDER BY COALESCE(u.name, ''), tul.teacher_id''',
+        (school_id,),
+    )
+    return [dict(row) for row in rows]
+
+
+def _db_delete_teacher_link(school_id: int, teacher_id: str) -> bool:
+    _ensure_teacher_link_table()
+    rec = _db_execute(
+        '''DELETE FROM teacher_user_links
+           WHERE school_id = %s AND teacher_id = %s
+           RETURNING id''',
+        (school_id, teacher_id),
+        returning=True,
+    )
+    return bool(rec)
+
+
+def _db_delete_teacher_school(teacher_id: str, school_id: int) -> None:
+    _db_execute(
+        'DELETE FROM teacher_schools WHERE teacher_id = %s AND school_id = %s',
+        (teacher_id, school_id),
+    )
+
+
 # -- JSON storage helpers ----------------------------------------------------
 
 
@@ -381,6 +436,31 @@ def _storage_get_teacher_links(user_id: int) -> List[Dict[str, Any]]:
     return db.get_teacher_links_for_user(user_id)  # type: ignore[attr-defined]
 
 
+def _storage_list_teacher_links_for_school(school_id: int) -> List[Dict[str, Any]]:
+    records = db.get_teacher_links_for_school(school_id)  # type: ignore[attr-defined]
+    result: List[Dict[str, Any]] = []
+    for rec in records:
+        user_id = rec.get('user_id')
+        user = db.get_user_by_id(user_id) if user_id is not None else None  # type: ignore[attr-defined]
+        result.append({
+            'school_id': rec.get('school_id'),
+            'teacher_id': rec.get('teacher_id'),
+            'user_id': user_id,
+            'email': user.get('email') if user else None,
+            'name': user.get('name') if user else None,
+            'created_at': rec.get('created_at'),
+        })
+    return result
+
+
+def _storage_delete_teacher_link(school_id: int, teacher_id: str) -> bool:
+    return db.delete_teacher_user_link(school_id, teacher_id)  # type: ignore[attr-defined]
+
+
+def _storage_delete_teacher_school(teacher_id: str, school_id: int) -> None:
+    db.remove_teacher_school(teacher_id, school_id)  # type: ignore[attr-defined]
+
+
 # -- Common helpers ----------------------------------------------------------
 
 
@@ -416,6 +496,21 @@ def _upsert_teacher_link(school_id: int, teacher_id: str, user_id: int) -> Dict[
 
 def _get_teacher_links(user_id: int) -> List[Dict[str, Any]]:
     return _db_get_teacher_links(user_id) if USE_DB else _storage_get_teacher_links(user_id)
+
+
+def _list_teacher_links_for_school(school_id: int) -> List[Dict[str, Any]]:
+    return _db_list_teacher_links_for_school(school_id) if USE_DB else _storage_list_teacher_links_for_school(school_id)
+
+
+def _delete_teacher_link_record(school_id: int, teacher_id: str) -> bool:
+    return _db_delete_teacher_link(school_id, teacher_id) if USE_DB else _storage_delete_teacher_link(school_id, teacher_id)
+
+
+def _delete_teacher_school_record(teacher_id: str, school_id: int) -> None:
+    if USE_DB:
+        _db_delete_teacher_school(teacher_id, school_id)
+    else:  # pragma: no cover
+        _storage_delete_teacher_school(teacher_id, school_id)
 
 
 def get_teacher_links_for_user(user_id: int) -> List[Dict[str, Any]]:
@@ -558,6 +653,61 @@ def link_teacher(payload: LinkTeacherPayload, request: Request) -> Dict[str, Any
         },
         'link': link_record,
     }
+
+
+@router.get('/teacher-links', response_model=TeacherLinkListResponse)
+def list_teacher_links(request: Request, school_id: int) -> TeacherLinkListResponse:
+    user, memberships, _ = get_session_context(request)
+    allowed = any(
+        m.get('id') == school_id and (m.get('role') in ('admin', 'owner', 'manager', 'super_admin'))
+        for m in memberships
+    )
+    if not allowed:
+        raise HTTPException(status_code=403, detail='not-authorized')
+
+    records = _list_teacher_links_for_school(school_id)
+    items: List[TeacherLinkRecord] = []
+    for rec in records:
+        user_id = rec.get('user_id')
+        email = rec.get('email')
+        name = rec.get('name')
+        if user_id and (email is None or name is None):
+            linked_user = _get_user(user_id)
+            if linked_user:
+                email = email or linked_user.get('email')
+                name = name or linked_user.get('name')
+        if not email:
+            # skip malformed records
+            continue
+        items.append(
+            TeacherLinkRecord(
+                school_id=rec.get('school_id'),
+                teacher_id=rec.get('teacher_id'),
+                user_id=user_id,
+                email=email,
+                name=name,
+                linked_at=rec.get('created_at'),
+            )
+        )
+    return TeacherLinkListResponse(items=items)
+
+
+@router.delete('/teacher-links')
+def unlink_teacher(payload: UnlinkTeacherPayload, request: Request) -> Dict[str, Any]:
+    user, memberships, _ = get_session_context(request)
+    allowed = any(
+        m.get('id') == payload.school_id and (m.get('role') in ('admin', 'owner', 'manager', 'super_admin'))
+        for m in memberships
+    )
+    if not allowed:
+        raise HTTPException(status_code=403, detail='not-authorized')
+
+    removed = _delete_teacher_link_record(payload.school_id, payload.teacher_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail='teacher-link-not-found')
+
+    _delete_teacher_school_record(payload.teacher_id, payload.school_id)
+    return {'ok': True}
 
 
 @router.post('/verify', response_model=SessionResponse)
