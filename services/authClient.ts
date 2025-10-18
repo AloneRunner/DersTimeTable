@@ -23,10 +23,8 @@ function resolveBaseUrl(): string {
   if (envBase && typeof envBase === 'string' && envBase.trim().length > 0) {
     return envBase.replace(/\/$/, '');
   }
-  if (isNativeCapacitor()) {
-    return DEFAULT_PROD_BASE;
-  }
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+  const runningInNative = isNativeCapacitor();
+  if (!runningInNative && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
     return 'http://localhost:8000';
   }
   return DEFAULT_PROD_BASE;
