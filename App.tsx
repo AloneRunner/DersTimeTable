@@ -7,7 +7,6 @@ import { TimetableView } from './components/TimetableView';
 import { AutocompleteInput } from './components/AutocompleteInput';
 import { subjectSuggestions } from './data/suggestions';
 import { PlusIcon, TrashIcon, PencilIcon, DownloadIcon, PrintIcon, UploadIcon, SaveIcon, WarningIcon } from './components/icons';
-import { QrTools } from './components/QrTools';
 import { useDataValidation } from './hooks/useDataValidation';
 import { useLoadCalculation } from './hooks/useLoadCalculation';
 import type { TeacherLoad } from './hooks/useLoadCalculation';
@@ -26,8 +25,6 @@ import TeacherLoadAnalysis from './components/TeacherLoadAnalysis';
 import { assignRandomRestDays } from './utils/assignRandomRestDays';
 import TeacherActualLoadPanel from './components/TeacherActualLoadPanel';
 import TeacherAvailabilityHeatmap from './components/analysis/TeacherAvailabilityHeatmap';
-import MobileDataEntry from './components/mobile/MobileDataEntry';
-import TeacherMobileView from './components/mobile/TeacherMobileView';
 import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
@@ -1372,16 +1369,13 @@ const App: React.FC = () => {
         } catch {}
     }, [cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit, cpDailyMaxOn, cpDailyMaxVal]);
     const [showAnalyzer, setShowAnalyzer] = useState<boolean>(false);
-    const [isQrOpen, setIsQrOpen] = useState<boolean>(false);
     const [defaultMaxConsec, setDefaultMaxConsec] = useState<number | undefined>(3);
     const [showTeacherLoadSummary, setShowTeacherLoadSummary] = useState<boolean>(false);
     const [showTeacherActualLoad, setShowTeacherActualLoad] = useState<boolean>(false);
     const [showHeatmapPanel, setShowHeatmapPanel] = useState<boolean>(false);
     const [showDutyWarnings, setShowDutyWarnings] = useState<boolean>(false);
     const [showDutyCoverage, setShowDutyCoverage] = useState<boolean>(false);
-    const [isMobileEntryOpen, setIsMobileEntryOpen] = useState<boolean>(false);
     const [isTeacherAppOpen, setIsTeacherAppOpen] = useState<boolean>(false);
-    const [isTeacherMobileOpen, setIsTeacherMobileOpen] = useState<boolean>(false);
 
 
     // Load saved settings
@@ -3370,69 +3364,26 @@ case 'duties':
               </div>
             </Modal>
 
-            {/* QR floating button (bottom-right) */}
-            <button
-                onClick={() => setIsQrOpen(true)}
-                className="no-print fixed bottom-4 right-4 p-3 rounded-full shadow-lg bg-sky-600 text-white hover:bg-sky-700"
-                title="QR Araçları"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                  <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm6-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm12 0h-2v2h2v-2zm-4 0h2v2h-2v-2zm4 4h-2v2h-2v2h4v-4zm2 0h2v-2h-2v2zm0 2h2v2h-2v-2z" />
-                </svg>
-            </button>
-
-                {/* Mobile data entry floating button (visible on small screens) */}
-                <button
-                    onClick={() => setIsMobileEntryOpen(true)}
-                    className="md:hidden fixed bottom-20 right-4 p-3 rounded-full shadow-lg bg-emerald-600 text-white hover:bg-emerald-700"
-                    title="Mobil Veri Girişi"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                      <path d="M12 2a2 2 0 00-2 2v16a2 2 0 004 0V4a2 2 0 00-2-2z" />
-                    </svg>
-                </button>
-
-            {/* Teacher app launcher for mobile */}
             <button
                 onClick={() => setIsTeacherAppOpen(true)}
-                className="md:hidden fixed bottom-32 right-4 p-3 rounded-full shadow-lg bg-indigo-600 text-white hover:bg-indigo-700"
-                title="Öğretmen uygulaması"
+                className="fixed bottom-4 right-4 flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700"
+                title="Ogretmen Panelini Ac"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                     <path d="M12 12a5 5 0 100-10 5 5 0 000 10zM2 20a10 10 0 0120 0H2z" />
                 </svg>
+                <span>Ogretmen Paneli</span>
             </button>
 
-                <MobileDataEntry
-                    isOpen={isMobileEntryOpen}
-                    onClose={() => setIsMobileEntryOpen(false)}
-                    addTeacher={addTeacher}
-                    addClassroom={addClassroom}
-                    data={data}
-                    maxDailyHours={maxDailyHours}
-                />
-
-                <TeacherMobileView
-                    isOpen={isTeacherMobileOpen}
-                    onClose={() => setIsTeacherMobileOpen(false)}
-                    data={data}
-                    updateTeacher={updateTeacher}
-                />
-
-                <TeacherApp
-                    publishedData={publishedSchedule?.data ?? null}
-                    publishedSchedule={publishedSchedule?.schedule ?? null}
-                    assignments={substitutionAssignments}
-                    maxDailyHours={maxDailyHours}
-                    isOpen={isTeacherAppOpen}
-                    onClose={() => setIsTeacherAppOpen(false)}
-                    publishedAt={publishedSchedule?.publishedAt}
-                />
-
-            {/* QR Tools Modal */}
-            <Modal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} title="QR Araçları">
-                <QrTools data={data} schedule={schedule} onImportText={handleQrImportText} />
-            </Modal>
+            <TeacherApp
+                publishedData={publishedSchedule?.data ?? null}
+                publishedSchedule={publishedSchedule?.schedule ?? null}
+                assignments={substitutionAssignments}
+                maxDailyHours={maxDailyHours}
+                isOpen={isTeacherAppOpen}
+                onClose={() => setIsTeacherAppOpen(false)}
+                publishedAt={publishedSchedule?.publishedAt}
+            />
 
         </div>
     );
