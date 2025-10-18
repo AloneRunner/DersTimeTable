@@ -52,6 +52,19 @@ try {
 
 const WEB_PORTAL_URL = 'https://ozariktable.netlify.app';
 
+const createDefaultSchoolHours = (): SchoolHours => ({
+    [SchoolLevel.Middle]: [8, 8, 8, 8, 8],
+    [SchoolLevel.High]: [8, 8, 8, 8, 8],
+});
+
+type SchoolHoursDraft = Record<SchoolLevel, string[]>;
+
+const schoolHoursToDraft = (hours: SchoolHours): SchoolHoursDraft => ({
+    [SchoolLevel.Middle]: hours[SchoolLevel.Middle].map(hour => hour.toString()),
+    [SchoolLevel.High]: hours[SchoolLevel.High].map(hour => hour.toString()),
+});
+
+const clampSchoolHour = (value: number) => Math.max(4, Math.min(16, value));
  // --- Modal Component --- (moved to components/Modal)
 
 // Teacher load analysis UI is provided by the extracted `TeacherLoadAnalysis` component in components/TeacherLoadAnalysis.tsx
@@ -365,10 +378,8 @@ const App: React.FC = () => {
     const [viewMode, setViewMode] = useState<ViewMode>('single');
     const [pdfScope, setPdfScope] = useState<'selected' | 'classes' | 'teachers'>('selected');
     const [selectedHeaderId, setSelectedHeaderId] = useState<string>('');
-    const [schoolHours, setSchoolHours] = useState<SchoolHours>({
-        [SchoolLevel.Middle]: [8, 8, 8, 8, 8],
-        [SchoolLevel.High]: [8, 8, 8, 8, 8],
-    });
+    const [schoolHours, setSchoolHours] = useState<SchoolHours>(() => createDefaultSchoolHours());
+    const [schoolHoursDraft, setSchoolHoursDraft] = useState<SchoolHoursDraft>(() => schoolHoursToDraft(createDefaultSchoolHours()));
     const [modalState, setModalState] = useState<ModalState>({ type: null, item: null });
     const [sessionToken, setSessionToken] = useState<string | null>(() => {
         if (typeof window === 'undefined') return null;
@@ -402,6 +413,10 @@ const App: React.FC = () => {
     const [isGeneratingTeacherCode, setIsGeneratingTeacherCode] = useState<boolean>(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scheduleFileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        setSchoolHoursDraft(schoolHoursToDraft(schoolHours));
+    }, [schoolHours]);
 
     useEffect(() => {
         if (!webPortalStatus) return;
@@ -783,15 +798,63 @@ const App: React.FC = () => {
     }, [linkTeacherState, linkTeacherEmail, linkTeacherName, activeSchoolId]);
 
     const handleSchoolHoursChange = (level: SchoolLevel, dayIndex: number, value: string) => {
-        const newHours = parseInt(value) || 4;
-        const clampedValue = Math.max(4, Math.min(16, newHours));
+        const trimmed = value.trim();
+        let draftValue = value;
+        let numericValue: number | null = null;
 
-        setSchoolHours(prev => {
-            const newLevelHours = [...prev[level]];
-            newLevelHours[dayIndex] = clampedValue;
+        if (trimmed !== '') {
+            const parsed = parseInt(trimmed, 10);
+            if (!Number.isNaN(parsed)) {
+                if (parsed > 16) {
+                    numericValue = 16;
+                    draftValue = '16';
+                } else if (parsed >= 4) {
+                    numericValue = parsed;
+                }
+            }
+        }
+
+        setSchoolHoursDraft(prev => {
+            const updatedLevel = [...prev[level]];
+            updatedLevel[dayIndex] = draftValue;
             return {
                 ...prev,
-                [level]: newLevelHours
+                [level]: updatedLevel,
+            };
+        });
+
+        if (numericValue !== null) {
+            setSchoolHours(prev => {
+                const updatedLevel = [...prev[level]];
+                updatedLevel[dayIndex] = numericValue as number;
+                return {
+                    ...prev,
+                    [level]: updatedLevel,
+                };
+            });
+        }
+    };
+
+    const handleSchoolHoursBlur = (level: SchoolLevel, dayIndex: number) => {
+        const draftValue = schoolHoursDraft[level]?.[dayIndex] ?? '';
+        const parsed = parseInt(draftValue.trim(), 10);
+        const finalValue = Number.isNaN(parsed) ? schoolHours[level][dayIndex] : clampSchoolHour(parsed);
+
+        setSchoolHours(prev => {
+            const updatedLevel = [...prev[level]];
+            updatedLevel[dayIndex] = finalValue;
+            return {
+                ...prev,
+                [level]: updatedLevel,
+            };
+        });
+
+        setSchoolHoursDraft(prev => {
+            const updatedLevel = [...prev[level]];
+            updatedLevel[dayIndex] = finalValue.toString();
+            return {
+                ...prev,
+                [level]: updatedLevel,
             };
         });
     };
@@ -2473,9 +2536,11 @@ case 'duties':
                                         <input
                                             key={dayIndex}
                                             type="number"
+                                            inputMode="numeric"
                                             title={`${level} - ${day}`}
-                                            value={schoolHours[level][dayIndex]}
+                                            value={schoolHoursDraft[level]?.[dayIndex] ?? ''}
                                             onChange={(e) => handleSchoolHoursChange(level, dayIndex, e.target.value)}
+                                            onBlur={() => handleSchoolHoursBlur(level, dayIndex)}
                                             min="4"
                                             max="16"
                                             className="w-12 rounded-md border-slate-300 text-center text-sm p-1"
