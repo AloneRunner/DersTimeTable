@@ -105,6 +105,7 @@ app.add_middleware(
         "http://localhost:3000",
         "capacitor://localhost",
         "http://localhost",
+        "https://localhost",
     ],
     allow_credentials=True,
     allow_methods=["*"],
