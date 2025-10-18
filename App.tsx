@@ -2699,6 +2699,32 @@ case 'duties':
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">Ozarik DersTimeTable</h1>
                 <p className="text-slate-500 mt-1">Haftalık ders programınızı saniyeler içinde oluşturun.</p>
+                <div className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <a
+                        href="https://sites.google.com/view/derstimetable"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-slate-700 underline"
+                    >
+                        Gizlilik Politikası
+                    </a>
+                    <span className="text-slate-300">|</span>
+                    <a
+                        href="https://sites.google.com/view/derstimetable/data-deletion"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-slate-700 underline"
+                    >
+                        Veri Silme Talebi
+                    </a>
+                    <span className="text-slate-300">|</span>
+                    <a
+                        href="mailto:kaanozarik@gmail.com"
+                        className="hover:text-slate-700 underline"
+                    >
+                        Destek: kaanozarik@gmail.com
+                    </a>
+                </div>
                 {activeSessionUser && (
                     <div
                         className={`mt-1 text-slate-500 ${isSmallScreen ? 'flex flex-col gap-1 text-sm' : 'flex items-center text-xs'}`}
