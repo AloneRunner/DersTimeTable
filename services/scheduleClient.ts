@@ -63,6 +63,14 @@ export async function fetchPublishedSchedule(
       Authorization: `Bearer ${token}`,
     },
   });
+  if (response.status === 401) {
+    const txt = await response.text();
+    const parsed = parseJson(txt);
+    const detail = parsed.detail ?? 'Oturumunuzun suresi doldu. Lutfen tekrar giris yapin.';
+    const error = new Error(typeof detail === 'string' ? detail : 'Oturum dogrulanamadi');
+    (error as any).code = 'unauthorized';
+    throw error;
+  }
   if (response.status === 404) {
     throw Object.assign(new Error('schedule-not-found'), { code: 'schedule-not-found' });
   }

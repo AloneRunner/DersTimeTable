@@ -83,6 +83,20 @@ export type SessionInfo = {
   } | null;
 };
 
+export type TeacherSessionSnapshot = {
+  token: string;
+  expiresAt?: string;
+  user: SessionInfo['user'];
+  school: {
+    id: number;
+    name?: string | null;
+    teacherId: string;
+    role?: string;
+  };
+};
+
+const TEACHER_SESSION_KEY = 'ozarik.teacher.session';
+
 async function parseJson(resp: Response) {
   const text = await resp.text();
   try {
@@ -169,4 +183,58 @@ export async function linkTeacher(
     throw new Error(typeof detail === 'string' ? detail : 'Öğretmen bağlantısı kurulamadı');
   }
   return response.json();
+}
+
+export function loadTeacherSession(): TeacherSessionSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(TEACHER_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TeacherSessionSnapshot;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    if (!parsed.token || typeof parsed.token !== 'string') {
+      return null;
+    }
+    if (!parsed.school || typeof parsed.school.id !== 'number' || !parsed.school.teacherId) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function persistTeacherSession(snapshot: TeacherSessionSnapshot | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (snapshot) {
+      window.localStorage.setItem(TEACHER_SESSION_KEY, JSON.stringify(snapshot));
+    } else {
+      window.localStorage.removeItem(TEACHER_SESSION_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function extractTeacherMembership(session: SessionInfo): TeacherSessionSnapshot | null {
+  const token = session.session_token;
+  if (!token) return null;
+  const teacherMembership = session.schools.find(
+    (school) => (school.role ?? '').toLowerCase() === 'teacher' && school.teacher_id,
+  );
+  if (!teacherMembership) return null;
+  return {
+    token,
+    expiresAt: session.expires_at ?? undefined,
+    user: session.user,
+    school: {
+      id: Number(teacherMembership.id),
+      name: teacherMembership.name,
+      teacherId: teacherMembership.teacher_id!,
+      role: teacherMembership.role,
+    },
+  };
 }

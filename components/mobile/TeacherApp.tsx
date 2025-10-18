@@ -1,7 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Schedule, TimetableData, SubstitutionAssignment, Duty } from '../../types';
+import {
+  verifyBridgeCode,
+  extractTeacherMembership,
+  loadTeacherSession,
+  persistTeacherSession,
+  type TeacherSessionSnapshot,
+} from '../../services/authClient';
+import { fetchTeacherSchedule, type TeacherScheduleResponse } from '../../services/scheduleClient';
 
-const DAY_LABELS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+const DAY_LABELS = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma'];
 const FIRST_LESSON_HOUR = 8;
 const LESSON_DURATION_HOURS = 1;
 const STORAGE_KEY = 'teacher-app:last-teacher';
@@ -57,60 +65,100 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
   onClose,
   publishedAt,
 }) => {
-  const teacherOptions = useMemo(
-    () => (publishedData ? publishedData.teachers.map(t => ({ id: t.id, name: t.name })) : []),
-    [publishedData]
-  );
-
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     return window.localStorage.getItem(STORAGE_KEY) ?? '';
   });
+  const [teacherSession, setTeacherSession] = useState<TeacherSessionSnapshot | null>(() => loadTeacherSession());
+  const [teacherSchedule, setTeacherSchedule] = useState<TeacherScheduleResponse | null>(null);
+  const [codeInput, setCodeInput] = useState<string>('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [isFetchingSchedule, setIsFetchingSchedule] = useState<boolean>(false);
+  const lastFetchedTokenRef = useRef<string | null>(null);
 
-  const currentSlot = useMemo(() => getCurrentSlot(maxDailyHours), [maxDailyHours]);
+  const isPreviewMode = Boolean(publishedData && publishedSchedule);
 
-  const hasPublication = Boolean(
-    publishedData &&
-      publishedSchedule &&
-      Object.keys(publishedSchedule).length > 0
+  const liveTeacherData = useMemo(
+    () =>
+      teacherSchedule
+        ? {
+            teacherId: teacherSchedule.teacher_id,
+            teacherName: teacherSchedule.teacher_name ?? '',
+            data: teacherSchedule.data,
+            schedule: teacherSchedule.schedule,
+            publishedAt: teacherSchedule.published_at,
+            maxDailyHours: teacherSchedule.max_daily_hours,
+          }
+        : null,
+    [teacherSchedule],
   );
 
+  const effectiveData = liveTeacherData ? liveTeacherData.data : publishedData;
+  const effectiveSchedule = liveTeacherData ? liveTeacherData.schedule : publishedSchedule;
+  const effectiveAssignments = liveTeacherData ? [] : assignments;
+  const effectiveMaxDailyHours = liveTeacherData ? liveTeacherData.maxDailyHours : maxDailyHours;
+  const effectivePublishedAt = liveTeacherData ? liveTeacherData.publishedAt : publishedAt;
+
+  const teacherOptions = useMemo(() => {
+    if (liveTeacherData) {
+      return [
+        {
+          id: liveTeacherData.teacherId,
+          name: liveTeacherData.teacherName || 'Programim',
+        },
+      ];
+    }
+    return effectiveData ? effectiveData.teachers.map((teacher) => ({ id: teacher.id, name: teacher.name })) : [];
+  }, [effectiveData, liveTeacherData]);
+
   useEffect(() => {
+    if (liveTeacherData) {
+      setSelectedTeacherId(liveTeacherData.teacherId);
+      return;
+    }
     if (teacherOptions.length === 0) {
       setSelectedTeacherId('');
       return;
     }
-
-    if (selectedTeacherId && teacherOptions.some(option => option.id === selectedTeacherId)) {
-      return;
+    if (!selectedTeacherId || !teacherOptions.some((option) => option.id === selectedTeacherId)) {
+      setSelectedTeacherId(teacherOptions[0].id);
     }
-
-    setSelectedTeacherId(teacherOptions[0].id);
-  }, [teacherOptions, selectedTeacherId]);
+  }, [teacherOptions, selectedTeacherId, liveTeacherData]);
 
   useEffect(() => {
-    if (!selectedTeacherId || typeof window === 'undefined') return;
+    if (liveTeacherData) return;
+    if (typeof window === 'undefined') return;
+    if (!selectedTeacherId) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
     window.localStorage.setItem(STORAGE_KEY, selectedTeacherId);
-  }, [selectedTeacherId]);
+  }, [selectedTeacherId, liveTeacherData]);
 
   const subjectMap = useMemo(
-    () => new Map((publishedData?.subjects ?? []).map(subject => [subject.id, subject.name])),
-    [publishedData]
+    () => new Map((effectiveData?.subjects ?? []).map((subject) => [subject.id, subject.name])),
+    [effectiveData?.subjects],
   );
 
   const classroomMap = useMemo(
-    () => new Map((publishedData?.classrooms ?? []).map(cls => [cls.id, cls.name])),
-    [publishedData]
+    () => new Map((effectiveData?.classrooms ?? []).map((cls) => [cls.id, cls.name])),
+    [effectiveData?.classrooms],
+  );
+
+  const hasPublication = Boolean(
+    effectiveData && effectiveSchedule && Object.keys(effectiveSchedule).length > 0 && selectedTeacherId,
   );
 
   const lessonsByDay = useMemo(() => {
     const base: Record<number, LessonEntry[]> = {};
-    if (!hasPublication || !publishedSchedule || !selectedTeacherId) {
+    if (!hasPublication || !effectiveSchedule || !selectedTeacherId) {
       return base;
     }
 
-    Object.entries(publishedSchedule).forEach(([classroomId, days]) => {
-      const classroomName = classroomMap.get(classroomId) ?? 'Sınıf';
+    Object.entries(effectiveSchedule).forEach(([classroomId, days]) => {
+      const classroomName = classroomMap.get(classroomId) ?? 'Sinif';
       days.forEach((day, dayIndex) => {
         day?.forEach((assignment, hourIndex) => {
           if (!assignment || !assignment.teacherIds.includes(selectedTeacherId)) return;
@@ -127,9 +175,9 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
       });
     });
 
-    assignments
-      .filter(assignment => assignment.substituteTeacherId === selectedTeacherId)
-      .forEach(assignment => {
+    effectiveAssignments
+      .filter((assignment) => assignment.substituteTeacherId === selectedTeacherId)
+      .forEach((assignment) => {
         const entry: LessonEntry = {
           dayIndex: assignment.dayIndex,
           hourIndex: assignment.hourIndex,
@@ -146,35 +194,35 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
       Object.entries(base).map(([key, list]) => [
         Number(key),
         list.sort((a, b) => a.hourIndex - b.hourIndex),
-      ])
+      ]),
     );
-  }, [assignments, classroomMap, hasPublication, publishedSchedule, selectedTeacherId, subjectMap]);
+  }, [classroomMap, effectiveAssignments, effectiveSchedule, hasPublication, selectedTeacherId, subjectMap]);
 
   const dutyMap = useMemo(() => {
     const map = new Map<string, Duty>();
-    if (!publishedData?.duties || !selectedTeacherId) return map;
-    publishedData.duties
-      .filter(duty => duty.teacherId === selectedTeacherId)
-      .forEach(duty => {
+    if (!effectiveData?.duties || !selectedTeacherId) return map;
+    effectiveData.duties
+      .filter((duty) => duty.teacherId === selectedTeacherId)
+      .forEach((duty) => {
         map.set(`${duty.dayIndex}-${duty.hourIndex}`, duty);
       });
     return map;
-  }, [publishedData, selectedTeacherId]);
+  }, [effectiveData?.duties, selectedTeacherId]);
+
+  const currentSlot = useMemo(() => getCurrentSlot(effectiveMaxDailyHours), [effectiveMaxDailyHours]);
 
   const weekMatrix = useMemo(() => {
     return DAY_LABELS.map((_, dayIndex) => {
       const dayLessons = lessonsByDay[dayIndex] ?? [];
       const lessonMap = new Map<string, LessonEntry>();
-      dayLessons.forEach(lesson => {
+      dayLessons.forEach((lesson) => {
         lessonMap.set(`${dayIndex}-${lesson.hourIndex}`, lesson);
       });
 
-      return Array.from({ length: maxDailyHours }, (_, hourIndex): SlotCell => {
+      return Array.from({ length: effectiveMaxDailyHours }, (_, hourIndex): SlotCell => {
         const key = `${dayIndex}-${hourIndex}`;
         const isCurrent = Boolean(
-          currentSlot &&
-          currentSlot.dayIndex === dayIndex &&
-          currentSlot.hourIndex === hourIndex
+          currentSlot && currentSlot.dayIndex === dayIndex && currentSlot.hourIndex === hourIndex,
         );
 
         const lesson = lessonMap.get(key);
@@ -211,19 +259,104 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
         };
       });
     });
-  }, [currentSlot, dutyMap, lessonsByDay, maxDailyHours]);
+  }, [currentSlot, dutyMap, effectiveMaxDailyHours, lessonsByDay]);
+
+  const clearTeacherSession = useCallback(() => {
+    persistTeacherSession(null);
+    setTeacherSession(null);
+    setTeacherSchedule(null);
+    setScheduleError(null);
+    lastFetchedTokenRef.current = null;
+  }, []);
+
+  const loadTeacherScheduleData = useCallback(
+    async (snapshot: TeacherSessionSnapshot) => {
+      setIsFetchingSchedule(true);
+      setScheduleError(null);
+      try {
+        const response = await fetchTeacherSchedule(snapshot.token, { schoolId: snapshot.school.id });
+        setTeacherSchedule(response);
+      } catch (err: any) {
+        const message = err instanceof Error ? err.message : 'Program yuklenemedi.';
+        if (err?.code === 'unauthorized') {
+          clearTeacherSession();
+          setLoginError('Oturumunuzun suresi doldu. Lutfen yeni kod girin.');
+        } else {
+          setScheduleError(message);
+        }
+      } finally {
+        setIsFetchingSchedule(false);
+      }
+    },
+    [clearTeacherSession],
+  );
+
+  const handleVerifyCode = useCallback(async () => {
+    const code = codeInput.trim();
+    if (!code) {
+      setLoginError('Kod girin.');
+      return;
+    }
+    setIsVerifying(true);
+    setLoginError(null);
+    try {
+      const session = await verifyBridgeCode({ code });
+      const snapshot = extractTeacherMembership(session);
+      if (!snapshot) {
+        throw new Error('Bu kod icin bagli ogretmen bulunamadi. Idareci ile iletisime gecin.');
+      }
+      persistTeacherSession(snapshot);
+      setTeacherSession(snapshot);
+      setTeacherSchedule(null);
+      setScheduleError(null);
+      lastFetchedTokenRef.current = snapshot.token;
+      setCodeInput('');
+      await loadTeacherScheduleData(snapshot);
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : 'Kod dogrulanamadi.';
+      setLoginError(message);
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [codeInput, loadTeacherScheduleData]);
+
+  const handleLogout = useCallback(() => {
+    clearTeacherSession();
+    setCodeInput('');
+    setLoginError(null);
+  }, [clearTeacherSession]);
+
+  const handleRetrySchedule = useCallback(() => {
+    if (!teacherSession) return;
+    loadTeacherScheduleData(teacherSession);
+  }, [loadTeacherScheduleData, teacherSession]);
+
+  useEffect(() => {
+    if (isPreviewMode) return;
+    if (!teacherSession) {
+      setTeacherSchedule(null);
+      return;
+    }
+    if (lastFetchedTokenRef.current === teacherSession.token && teacherSchedule) {
+      return;
+    }
+    lastFetchedTokenRef.current = teacherSession.token;
+    loadTeacherScheduleData(teacherSession);
+  }, [isPreviewMode, loadTeacherScheduleData, teacherSchedule, teacherSession]);
 
   if (!isOpen) {
     return null;
   }
 
-  const publishedAtText = publishedAt ? (() => {
-    try {
-      return new Date(publishedAt).toLocaleString('tr-TR');
-    } catch {
-      return publishedAt;
-    }
-  })() : null;
+  const publishedAtText = effectivePublishedAt
+    ? (() => {
+        try {
+          return new Date(effectivePublishedAt).toLocaleString('tr-TR');
+        } catch {
+          return effectivePublishedAt;
+        }
+      })()
+    : null;
 
   const slotClassNames = (slot: SlotCell) => {
     const base = 'rounded-md border px-2 py-2 text-[11px] leading-tight transition';
@@ -241,110 +374,196 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
 
   const legendItems = [
     { label: 'Ders', className: 'border-slate-200 bg-white' },
-    { label: 'Boş', className: 'border-slate-200 bg-slate-50' },
-    { label: 'Nöbet', className: 'border-indigo-300 bg-indigo-50' },
-    { label: 'Nöbette ders', className: 'border-amber-300 bg-amber-50' },
-    { label: 'Şu anki ders', className: 'border-sky-400 bg-sky-50' },
+    { label: 'Bos', className: 'border-slate-200 bg-slate-50' },
+    { label: 'Nobet', className: 'border-indigo-300 bg-indigo-50' },
+    { label: 'Nobette ders', className: 'border-amber-300 bg-amber-50' },
+    { label: 'Simdiki ders', className: 'border-sky-400 bg-sky-50' },
   ];
+
+  const showSchedule = hasPublication && (isPreviewMode || (!!teacherSession && !!teacherSchedule));
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-100">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-screen-lg items-center justify-between px-4 py-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Öğretmen Paneli</h2>
-            <p className="text-xs text-slate-500">Haftalık ders programını, nöbet görevlerini ve boş saatlerini gör.</p>
+            <h2 className="text-lg font-semibold text-slate-900">Ogretmen Paneli</h2>
+            <p className="text-xs text-slate-500">Haftalik ders programini, nobet gorevlerini ve bos saatlerini izle.</p>
+            {!isPreviewMode && teacherSession && (
+              <p className="mt-1 text-[11px] text-slate-500">
+                {teacherSession.user.name || teacherSession.user.email} ·{' '}
+                {teacherSession.school.name || `Okul #${teacherSession.school.id}`}
+              </p>
+            )}
             {publishedAtText && (
-              <p className="mt-1 text-[11px] text-slate-400">Son paylaşım: {publishedAtText}</p>
+              <p className="mt-1 text-[11px] text-slate-400">Son paylasim: {publishedAtText}</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-slate-200 p-2 text-slate-500 hover:bg-slate-100"
-            aria-label="Kapat"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {!isPreviewMode && teacherSession && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+              >
+                Cikis
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-slate-200 p-2 text-slate-500 hover:bg-slate-100"
+              aria-label="Kapat"
+            >
+              ×
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="flex-1 overflow-hidden">
         <div className="mx-auto flex h-full w-full max-w-screen-lg flex-col overflow-hidden px-4 pb-6">
-          <div className="space-y-4 overflow-y-auto">
-            {teacherOptions.length > 0 ? (
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-600" htmlFor="teacher-select">Öğretmen seç</label>
-                <select
-                  id="teacher-select"
-                  value={selectedTeacherId}
-                  onChange={(event) => setSelectedTeacherId(event.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {teacherOptions.map(option => (
-                    <option key={option.id} value={option.id}>{option.name}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                Bu okul için kayıtlı öğretmen bulunamadı. İdarecinin öğretmenleri tanımlaması gerekiyor.
+          <div className="space-y-4 overflow-y-auto py-4">
+            {!isPreviewMode && !teacherSession && (
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 shadow">
+                <h3 className="text-base font-semibold text-slate-900">Kodu girerek oturum ac</h3>
+                <p className="mt-2 text-xs text-slate-500">
+                  Idarecinin paylastigi 6 haneli kodu gir. Kod 10 dakika icinde kullanilmalidir.
+                </p>
+                <div className="mt-4 flex flex-col gap-3">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={codeInput}
+                    onChange={(event) => setCodeInput(event.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleVerifyCode();
+                      }
+                    }}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.3em] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="123456"
+                  />
+                  {loginError && <p className="text-xs text-red-600">{loginError}</p>}
+                  <button
+                    type="button"
+                    onClick={handleVerifyCode}
+                    disabled={isVerifying || codeInput.trim().length !== 6}
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {isVerifying ? 'Dogrulaniyor...' : 'Kodu dogrula'}
+                  </button>
+                </div>
+                <p className="mt-3 text-[11px] text-slate-400">
+                  Kodunuz yoksa idareci panelinden "Uygulamaya bagla" secenegi ile yeni kod isteyin.
+                </p>
               </div>
             )}
 
-            <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
-              {legendItems.map(item => (
-                <span key={item.label} className="inline-flex items-center gap-1">
-                  <span className={`inline-block h-3 w-3 rounded border ${item.className}`} />
-                  {item.label}
-                </span>
-              ))}
-            </div>
-
-            {!hasPublication ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                İdare henüz ders programı yayınlamadı. Program paylaşıldığında burada göreceksin.
-              </div>
-            ) : selectedTeacherId ? (
-              <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-5">
-                {DAY_LABELS.map((dayName, dayIndex) => (
-                  <div key={dayName} className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
-                      {dayName}
-                    </div>
-                    <div className="flex flex-col gap-2 px-3 py-3">
-                      {weekMatrix[dayIndex]?.map(slot => (
-                        <div key={`${slot.dayIndex}-${slot.hourIndex}`} className={slotClassNames(slot)}>
-                          <div className="flex items-center justify-between text-[10px] font-semibold uppercase text-slate-500">
-                            <span>{slot.hourIndex + 1}. saat</span>
-                            {slot.isCurrent && <span className="text-sky-600">Şimdi</span>}
-                          </div>
-                          <div className="mt-1 text-[12px] font-semibold text-slate-900">
-                            {slot.type === 'free' ? 'Boş' : slot.subjectName}
-                          </div>
-                          {slot.classroomName && (
-                            <div className="text-[11px] text-slate-600">{slot.classroomName}</div>
-                          )}
-                          {slot.type === 'duty' && (
-                            <div className="text-[11px] text-indigo-700">
-                              Nöbet {slot.subjectName ? `• ${slot.subjectName}` : ''}
-                            </div>
-                          )}
-                          {slot.type === 'cover' && (
-                            <div className="text-[11px] text-amber-800">
-                              {slot.absentTeacherName} yerine derse gireceksin{slot.dutyName ? ` • ${slot.dutyName}` : ''}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+            {!isPreviewMode && teacherSession && !teacherSchedule && (
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 shadow">
+                {isFetchingSchedule ? (
+                  <p>Program yukleniyor, lutfen bekleyin...</p>
+                ) : scheduleError ? (
+                  <div className="space-y-3">
+                    <p className="text-red-600">{scheduleError}</p>
+                    <button
+                      type="button"
+                      onClick={handleRetrySchedule}
+                      className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                    >
+                      Tekrar dene
+                    </button>
                   </div>
-                ))}
+                ) : (
+                  <p>Program bilgisi bulunamadi. Lutfen daha sonra tekrar deneyin.</p>
+                )}
               </div>
+            )}
+
+            {showSchedule ? (
+              <>
+                <div className="space-y-2">
+                  {teacherOptions.length > 1 && (
+                    <>
+                      <label className="text-xs font-medium text-slate-600" htmlFor="teacher-select">
+                        Ogretmen sec
+                      </label>
+                      <select
+                        id="teacher-select"
+                        value={selectedTeacherId}
+                        onChange={(event) => setSelectedTeacherId(event.target.value)}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {teacherOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  {teacherOptions.length === 1 && (
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 shadow-sm">
+                      {teacherOptions[0].name}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
+                  {legendItems.map((item) => (
+                    <span key={item.label} className="inline-flex items-center gap-1">
+                      <span className={`inline-block h-3 w-3 rounded border ${item.className}`} />
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-5">
+                  {DAY_LABELS.map((dayName, dayIndex) => (
+                    <div key={dayName} className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
+                      <div className="border-b border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+                        {dayName}
+                      </div>
+                      <div className="flex flex-col gap-2 px-3 py-3">
+                        {weekMatrix[dayIndex]?.map((slot) => (
+                          <div key={`${slot.dayIndex}-${slot.hourIndex}`} className={slotClassNames(slot)}>
+                            <div className="flex items-center justify-between text-[10px] font-semibold uppercase text-slate-500">
+                              <span>{slot.hourIndex + 1}. saat</span>
+                              {slot.isCurrent && <span className="text-sky-600">Simdi</span>}
+                            </div>
+                            <div className="mt-1 text-[12px] font-semibold text-slate-900">
+                              {slot.type === 'free' ? 'Bos' : slot.subjectName}
+                            </div>
+                            {slot.classroomName && (
+                              <div className="text-[11px] text-slate-600">{slot.classroomName}</div>
+                            )}
+                            {slot.type === 'duty' && (
+                              <div className="text-[11px] text-indigo-700">Nobet {slot.subjectName ?? ''}</div>
+                            )}
+                            {slot.type === 'cover' && (
+                              <div className="text-[11px] text-amber-800">
+                                {slot.absentTeacherName
+                                  ? `${slot.absentTeacherName} yerine derse gireceksin`
+                                  : 'Vekil ders'}
+                                {slot.dutyName ? ` · ${slot.dutyName}` : ''}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                Programı görmek için yukarıdan öğretmen seç.
-              </div>
+              isPreviewMode && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                  Yayimlanmis ders programi bulunmuyor. Idareci panelinden program paylasildiginda burada gosterilecek.
+                </div>
+              )
             )}
           </div>
         </div>
@@ -354,3 +573,4 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
 };
 
 export default TeacherApp;
+

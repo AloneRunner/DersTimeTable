@@ -272,6 +272,10 @@ def update_login_token(token: str, **changes) -> Optional[Dict[str, Any]]:
     return None
 
 
+def update_login_token_expiry(token: str, expires_at: datetime) -> Optional[Dict[str, Any]]:
+    return update_login_token(token, expires_at=expires_at.isoformat())
+
+
 def purge_expired_login_tokens():
     obj = _read()
     tokens = obj.setdefault('login_tokens', [])

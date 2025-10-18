@@ -27,6 +27,8 @@ router = APIRouter(prefix='/api/auth', tags=['auth'])
 
 CODE_PURPOSE = 'web_bridge_code'
 SESSION_PURPOSE = 'web_session'
+DEFAULT_SESSION_LIFETIME = timedelta(hours=12)
+TEACHER_SESSION_LIFETIME = timedelta(days=90)
 
 
 class RequestCodePayload(BaseModel):
@@ -204,6 +206,10 @@ def _db_mark_token_consumed(token: str) -> None:
     _db_execute('UPDATE login_tokens SET consumed = TRUE WHERE token = %s', (token,))
 
 
+def _db_update_token_expiry(token: str, expires_at: datetime) -> None:
+    _db_execute('UPDATE login_tokens SET expires_at = %s WHERE token = %s', (expires_at, token))
+
+
 def _db_find_session(token: str) -> Optional[Dict[str, Any]]:
     rows = _db_query(
         '''SELECT id, user_id, token, purpose, expires_at, metadata, consumed
@@ -344,6 +350,10 @@ def _storage_mark_consumed(token: str) -> None:
     db.mark_login_token_consumed(token)  # type: ignore[attr-defined]
 
 
+def _storage_update_token_expiry(token: str, expires_at: datetime) -> None:
+    db.update_login_token_expiry(token, expires_at)  # type: ignore[attr-defined]
+
+
 def _storage_find_session(token: str) -> Optional[Dict[str, Any]]:
     return db.find_login_token(token, SESSION_PURPOSE)  # type: ignore[attr-defined]
 
@@ -439,6 +449,13 @@ def _mark_token_consumed(token: str) -> None:
         _db_mark_token_consumed(token)
     else:  # pragma: no cover
         _storage_mark_consumed(token)
+
+
+def _update_token_expiry(token: str, expires_at: datetime) -> None:
+    if USE_DB:
+        _db_update_token_expiry(token, expires_at)
+    else:  # pragma: no cover
+        _storage_update_token_expiry(token, expires_at)
 
 
 def _find_session(token: str) -> Optional[Dict[str, Any]]:
@@ -558,11 +575,22 @@ def verify_code(payload: VerifyPayload) -> SessionResponse:
     if record is None:
         raise HTTPException(status_code=404, detail='code-not-found')
 
+    user = _get_user(record['user_id'])
+    if not user:
+        raise HTTPException(status_code=404, detail='user-not-found')
+
+    memberships = _get_school_memberships(user['id'])
+    teacher_roles = {'teacher'}
+    is_teacher = (user.get('role') or '').lower() in teacher_roles or any(
+        (m.get('role') or '').lower() in teacher_roles for m in memberships
+    )
+    session_lifetime = TEACHER_SESSION_LIFETIME if is_teacher else DEFAULT_SESSION_LIFETIME
+
     # If this is a one-time code, consume it and issue a session
     if record.get('purpose') == CODE_PURPOSE:
         _mark_token_consumed(record['token'])
         session_token = _generate_token()
-        expires_at = _now() + timedelta(hours=12)
+        expires_at = _now() + session_lifetime
         _insert_login_token(
             record['user_id'],
             token=session_token,
@@ -574,12 +602,10 @@ def verify_code(payload: VerifyPayload) -> SessionResponse:
     else:
         session_token = record['token']
         expires_at = record.get('expires_at')
-
-    user = _get_user(record['user_id'])
-    if not user:
-        raise HTTPException(status_code=404, detail='user-not-found')
-
-    memberships = _get_school_memberships(user['id'])
+        if is_teacher and (expires_at is None or expires_at < _now() + timedelta(days=1)):
+            new_expiry = _now() + session_lifetime
+            _update_token_expiry(session_token, new_expiry)
+            expires_at = new_expiry
 
     return _session_payload(user, memberships, session_token=session_token, expires_at=expires_at)
 
