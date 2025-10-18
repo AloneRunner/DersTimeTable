@@ -1596,7 +1596,6 @@ const App: React.FC = () => {
             setSolverStats(null);
             setError(null);
             alert('QR içeriği başarıyla içe aktarıldı.');
-            setIsQrOpen(false);
         } catch (e: any) {
             setError(e?.message || 'QR içeriği çözümlenemedi.');
         }

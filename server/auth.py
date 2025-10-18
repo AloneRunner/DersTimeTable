@@ -3,11 +3,13 @@ from __future__ import annotations
 import os
 import secrets
 import string
+
+import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 import psycopg  # type: ignore
 from psycopg import errors as psycopg_errors  # type: ignore
@@ -84,6 +86,11 @@ class UnlinkTeacherPayload(BaseModel):
     school_id: int
     teacher_id: str
 
+class PasswordLoginPayload(BaseModel):
+    email: EmailStr
+    password: str
+    school_id: Optional[int] = None
+
 
 def _generate_code(length: int = 6) -> str:
     digits = string.digits
@@ -138,6 +145,12 @@ def _db_upsert_user(email: str, name: Optional[str], *, default_role: str = 'adm
         raise HTTPException(status_code=500, detail='user-create-failed')
     return dict(created)
 
+def _db_update_user_password(user_id: int, password_hash: str) -> None:
+    _db_execute('UPDATE users SET password_hash = %s WHERE id = %s', (password_hash, user_id))
+
+def _db_find_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    rows = _db_query('SELECT id, email, name, role, password_hash FROM users WHERE email = %s', (email.lower(),))
+    return dict(rows[0]) if rows else None
 
 def _db_attach_school(user_id: int, school_id: int, role: str = 'admin') -> None:
     try:
@@ -782,3 +795,7 @@ def get_session_context(request: Request) -> tuple[Dict[str, Any], List[Dict[str
     memberships = _get_school_memberships(user['id'])
 
     return user, memberships, record
+
+
+
+
