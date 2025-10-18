@@ -412,6 +412,9 @@ const App: React.FC = () => {
     const [isLinkingTeacher, setIsLinkingTeacher] = useState<boolean>(false);
     const [linkTeacherCodeInfo, setLinkTeacherCodeInfo] = useState<{ code: string; expiresAt: string } | null>(null);
     const [isGeneratingTeacherCode, setIsGeneratingTeacherCode] = useState<boolean>(false);
+    const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(null);
+    const [activeSchoolId, setActiveSchoolId] = useState<number | null>(null);
+    const isRemoteMode = Boolean(sessionToken && activeSchoolId);
     const [catalogStatus, setCatalogStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
     const [catalogError, setCatalogError] = useState<string | null>(null);
     const [catalogSyncStatus, setCatalogSyncStatus] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -628,10 +631,6 @@ const App: React.FC = () => {
             // ignore persistence errors
         }
     }, [substitutionAssignments]);
-
-    const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(null);
-    const [activeSchoolId, setActiveSchoolId] = useState<number | null>(null);
-    const isRemoteMode = Boolean(sessionToken && activeSchoolId);
     const [isPublishing, setIsPublishing] = useState<boolean>(false);
 
     const handleAssignSubstitution = useCallback((assignment: SubstitutionAssignment) => {
