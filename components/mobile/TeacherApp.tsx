@@ -201,13 +201,24 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
   const dutyMap = useMemo(() => {
     const map = new Map<string, Duty>();
     if (!effectiveData?.duties || !selectedTeacherId) return map;
+
     effectiveData.duties
       .filter((duty) => duty.teacherId === selectedTeacherId)
       .forEach((duty) => {
-        map.set(`${duty.dayIndex}-${duty.hourIndex}`, duty);
+        if (typeof duty.hourIndex !== 'number' || duty.hourIndex < 0) {
+          // hourIndex -1 veya eksik ise tüm gün boyunca geçerli say
+          for (let hourIndex = 0; hourIndex < effectiveMaxDailyHours; hourIndex += 1) {
+            const key = `${duty.dayIndex}-${hourIndex}`;
+            if (!map.has(key)) {
+              map.set(key, { ...duty, hourIndex });
+            }
+          }
+        } else {
+          map.set(`${duty.dayIndex}-${duty.hourIndex}`, duty);
+        }
       });
     return map;
-  }, [effectiveData?.duties, selectedTeacherId]);
+  }, [effectiveData?.duties, selectedTeacherId, effectiveMaxDailyHours]);
 
   const currentSlot = useMemo(() => getCurrentSlot(effectiveMaxDailyHours), [effectiveMaxDailyHours]);
 
@@ -573,4 +584,3 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
 };
 
 export default TeacherApp;
-
