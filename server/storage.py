@@ -17,6 +17,14 @@ DEFAULT_STATE: Dict[str, Any] = {
     'login_tokens': [],
     'subscriptions': [],
     'published_schedules': [],
+    'school_teachers': [],
+    'school_classrooms': [],
+    'school_locations': [],
+    'school_subjects': [],
+    'school_fixed_assignments': [],
+    'school_lesson_groups': [],
+    'school_duties': [],
+    'school_settings': [],
 }
 
 
@@ -291,6 +299,182 @@ def purge_expired_login_tokens():
         _write(obj)
 
 
+# --- School catalog helpers -------------------------------------------------
+
+def _list_school_entities(table_key: str, school_id: int) -> List[Dict[str, Any]]:
+    items = _read().get(table_key, [])
+    return [dict(item) for item in items if int(item.get('school_id', 0)) == int(school_id)]
+
+
+def _upsert_school_entity(table_key: str, key_field: str, school_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+    obj = _read()
+    items = obj.setdefault(table_key, [])
+    identifier = payload.get(key_field)
+    if identifier is None:
+        raise ValueError(f'{key_field} is required for {table_key}')
+    now = datetime.now(timezone.utc).isoformat()
+    for item in items:
+        if int(item.get('school_id', 0)) == int(school_id) and item.get(key_field) == identifier:
+            item.update(payload)
+            item['school_id'] = school_id
+            item['updated_at'] = now
+            _write(obj)
+            return dict(item)
+    new_item = dict(payload)
+    new_item['id'] = _next_id(items)
+    new_item['school_id'] = school_id
+    new_item['created_at'] = now
+    new_item['updated_at'] = now
+    items.append(new_item)
+    _write(obj)
+    return dict(new_item)
+
+
+def _delete_school_entity(table_key: str, key_field: str, school_id: int, identifier: str) -> bool:
+    obj = _read()
+    items = obj.setdefault(table_key, [])
+    filtered = [
+        item for item in items
+        if not (int(item.get('school_id', 0)) == int(school_id) and item.get(key_field) == identifier)
+    ]
+    if len(filtered) == len(items):
+        return False
+    obj[table_key] = filtered
+    _write(obj)
+    return True
+
+
+def list_school_teachers(school_id: int) -> List[Dict[str, Any]]:
+    return _list_school_entities('school_teachers', school_id)
+
+
+def upsert_school_teacher(record: Dict[str, Any]) -> Dict[str, Any]:
+    school_id = record.get('school_id')
+    if school_id is None:
+        raise ValueError('school_id is required')
+    return _upsert_school_entity('school_teachers', 'teacher_key', school_id, record)
+
+
+def delete_school_teacher(school_id: int, teacher_key: str) -> bool:
+    return _delete_school_entity('school_teachers', 'teacher_key', school_id, teacher_key)
+
+
+def list_school_classrooms(school_id: int) -> List[Dict[str, Any]]:
+    return _list_school_entities('school_classrooms', school_id)
+
+
+def upsert_school_classroom(record: Dict[str, Any]) -> Dict[str, Any]:
+    school_id = record.get('school_id')
+    if school_id is None:
+        raise ValueError('school_id is required')
+    return _upsert_school_entity('school_classrooms', 'classroom_key', school_id, record)
+
+
+def delete_school_classroom(school_id: int, classroom_key: str) -> bool:
+    return _delete_school_entity('school_classrooms', 'classroom_key', school_id, classroom_key)
+
+
+def list_school_locations(school_id: int) -> List[Dict[str, Any]]:
+    return _list_school_entities('school_locations', school_id)
+
+
+def upsert_school_location(record: Dict[str, Any]) -> Dict[str, Any]:
+    school_id = record.get('school_id')
+    if school_id is None:
+        raise ValueError('school_id is required')
+    return _upsert_school_entity('school_locations', 'location_key', school_id, record)
+
+
+def delete_school_location(school_id: int, location_key: str) -> bool:
+    return _delete_school_entity('school_locations', 'location_key', school_id, location_key)
+
+
+def list_school_subjects(school_id: int) -> List[Dict[str, Any]]:
+    return _list_school_entities('school_subjects', school_id)
+
+
+def upsert_school_subject(record: Dict[str, Any]) -> Dict[str, Any]:
+    school_id = record.get('school_id')
+    if school_id is None:
+        raise ValueError('school_id is required')
+    return _upsert_school_entity('school_subjects', 'subject_key', school_id, record)
+
+
+def delete_school_subject(school_id: int, subject_key: str) -> bool:
+    return _delete_school_entity('school_subjects', 'subject_key', school_id, subject_key)
+
+
+def list_school_fixed_assignments(school_id: int) -> List[Dict[str, Any]]:
+    return _list_school_entities('school_fixed_assignments', school_id)
+
+
+def upsert_school_fixed_assignment(record: Dict[str, Any]) -> Dict[str, Any]:
+    school_id = record.get('school_id')
+    if school_id is None:
+        raise ValueError('school_id is required')
+    return _upsert_school_entity('school_fixed_assignments', 'assignment_key', school_id, record)
+
+
+def delete_school_fixed_assignment(school_id: int, assignment_key: str) -> bool:
+    return _delete_school_entity('school_fixed_assignments', 'assignment_key', school_id, assignment_key)
+
+
+def list_school_lesson_groups(school_id: int) -> List[Dict[str, Any]]:
+    return _list_school_entities('school_lesson_groups', school_id)
+
+
+def upsert_school_lesson_group(record: Dict[str, Any]) -> Dict[str, Any]:
+    school_id = record.get('school_id')
+    if school_id is None:
+        raise ValueError('school_id is required')
+    return _upsert_school_entity('school_lesson_groups', 'lesson_group_key', school_id, record)
+
+
+def delete_school_lesson_group(school_id: int, lesson_group_key: str) -> bool:
+    return _delete_school_entity('school_lesson_groups', 'lesson_group_key', school_id, lesson_group_key)
+
+
+def list_school_duties(school_id: int) -> List[Dict[str, Any]]:
+    return _list_school_entities('school_duties', school_id)
+
+
+def upsert_school_duty(record: Dict[str, Any]) -> Dict[str, Any]:
+    school_id = record.get('school_id')
+    if school_id is None:
+        raise ValueError('school_id is required')
+    return _upsert_school_entity('school_duties', 'duty_key', school_id, record)
+
+
+def delete_school_duty(school_id: int, duty_key: str) -> bool:
+    return _delete_school_entity('school_duties', 'duty_key', school_id, duty_key)
+
+
+def get_school_settings(school_id: int) -> Optional[Dict[str, Any]]:
+    records = _read().get('school_settings', [])
+    for rec in records:
+        if int(rec.get('school_id', 0)) == int(school_id):
+            return dict(rec)
+    return None
+
+
+def upsert_school_settings(school_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+    obj = _read()
+    items = obj.setdefault('school_settings', [])
+    now = datetime.now(timezone.utc).isoformat()
+    for item in items:
+        if int(item.get('school_id', 0)) == int(school_id):
+            item.update(payload)
+            item['school_id'] = school_id
+            item['updated_at'] = now
+            _write(obj)
+            return dict(item)
+    new_item = dict(payload)
+    new_item['id'] = _next_id(items)
+    new_item['school_id'] = school_id
+    new_item['updated_at'] = now
+    items.append(new_item)
+    _write(obj)
+    return dict(new_item)
 # --- Subscriptions -----------------------------------------------------------
 
 

@@ -33,6 +33,7 @@ import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
 import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
+import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
@@ -368,7 +369,7 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
 
 // --- Main App Component ---
 const App: React.FC = () => {
-    const { data, addTeacher, updateTeacher, removeTeacher, addClassroom, updateClassroom, removeClassroom, addSubject, updateSubject, removeSubject, addLocation, updateLocation, removeLocation, addFixedAssignment, removeFixedAssignment, addLessonGroup, updateLessonGroup, removeLessonGroup, addDuty, updateDuty, removeDuty, importData, clearData } = useTimetableData();
+    const { data, addTeacher, updateTeacher, removeTeacher, addClassroom, updateClassroom, removeClassroom, addSubject, updateSubject, removeSubject, addLocation, updateLocation, removeLocation, addFixedAssignment, removeFixedAssignment, addLessonGroup, updateLessonGroup, removeLessonGroup, addDuty, updateDuty, removeDuty, importData, clearData, replaceData } = useTimetableData();
     const [schedule, setSchedule] = useState<Schedule | null>(null);
     const [solverStats, setSolverStats] = useState<SolverStats | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -411,12 +412,158 @@ const App: React.FC = () => {
     const [isLinkingTeacher, setIsLinkingTeacher] = useState<boolean>(false);
     const [linkTeacherCodeInfo, setLinkTeacherCodeInfo] = useState<{ code: string; expiresAt: string } | null>(null);
     const [isGeneratingTeacherCode, setIsGeneratingTeacherCode] = useState<boolean>(false);
+    const [catalogStatus, setCatalogStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+    const [catalogError, setCatalogError] = useState<string | null>(null);
+    const [catalogSyncStatus, setCatalogSyncStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+    const [catalogSyncError, setCatalogSyncError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scheduleFileInputRef = useRef<HTMLInputElement>(null);
+    const skipSyncCounterRef = useRef<number>(0);
+    const pendingSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const dirtyCatalogRef = useRef(false);
+    const syncingCatalogRef = useRef(false);
+    const dataRef = useRef<TimetableData>(data);
+    const schoolHoursRef = useRef<SchoolHours>(schoolHours);
 
     useEffect(() => {
         setSchoolHoursDraft(schoolHoursToDraft(schoolHours));
     }, [schoolHours]);
+
+    useEffect(() => {
+        dataRef.current = data;
+    }, [data]);
+
+    useEffect(() => {
+        schoolHoursRef.current = schoolHours;
+    }, [schoolHours]);
+
+    useEffect(() => () => {
+        if (pendingSyncRef.current) {
+            clearTimeout(pendingSyncRef.current);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isRemoteMode) {
+            if (pendingSyncRef.current) {
+                clearTimeout(pendingSyncRef.current);
+                pendingSyncRef.current = null;
+            }
+            dirtyCatalogRef.current = false;
+            syncingCatalogRef.current = false;
+            skipSyncCounterRef.current = 0;
+            return;
+        }
+    }, [isRemoteMode]);
+
+    const performCatalogSync = useCallback(async () => {
+        if (!isRemoteMode || !sessionToken || !activeSchoolId) {
+            return;
+        }
+        if (syncingCatalogRef.current) {
+            return;
+        }
+        syncingCatalogRef.current = true;
+        setCatalogSyncStatus('saving');
+        setCatalogSyncError(null);
+        try {
+            await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
+            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
+            setCatalogSyncStatus('idle');
+        } catch (err: any) {
+            const message = err instanceof Error ? err.message : 'Bulut kaydi basarisiz';
+            setCatalogSyncStatus('error');
+            setCatalogSyncError(message);
+            dirtyCatalogRef.current = true;
+        } finally {
+            syncingCatalogRef.current = false;
+        }
+    }, [isRemoteMode, sessionToken, activeSchoolId]);
+
+    const scheduleCatalogSync = useCallback(() => {
+        if (!isRemoteMode || !sessionToken || !activeSchoolId) {
+            return;
+        }
+        dirtyCatalogRef.current = true;
+        if (pendingSyncRef.current) {
+            return;
+        }
+        pendingSyncRef.current = setTimeout(() => {
+            pendingSyncRef.current = null;
+            if (!dirtyCatalogRef.current) {
+                return;
+            }
+            dirtyCatalogRef.current = false;
+            performCatalogSync();
+        }, 1000);
+    }, [isRemoteMode, sessionToken, activeSchoolId, performCatalogSync]);
+
+    useEffect(() => {
+        if (!isRemoteMode) {
+            return;
+        }
+        if (!sessionToken || !activeSchoolId) {
+            return;
+        }
+        if (skipSyncCounterRef.current > 0) {
+            skipSyncCounterRef.current = Math.max(0, skipSyncCounterRef.current - 1);
+            return;
+        }
+        scheduleCatalogSync();
+    }, [data, isRemoteMode, scheduleCatalogSync]);
+
+    useEffect(() => {
+        if (!isRemoteMode) {
+            return;
+        }
+        if (skipSyncCounterRef.current > 0) {
+            skipSyncCounterRef.current = Math.max(0, skipSyncCounterRef.current - 1);
+            return;
+        }
+        scheduleCatalogSync();
+    }, [schoolHours, isRemoteMode, scheduleCatalogSync]);
+
+    useEffect(() => {
+        if (!isRemoteMode) {
+            setCatalogStatus('idle');
+            setCatalogError(null);
+            setCatalogSyncStatus('idle');
+            setCatalogSyncError(null);
+            return;
+        }
+        if (!sessionToken || !activeSchoolId) {
+            setCatalogStatus('idle');
+            return;
+        }
+        let cancelled = false;
+        setCatalogStatus('loading');
+        setCatalogError(null);
+        (async () => {
+            try {
+                const result = await fetchCatalogApi(sessionToken, activeSchoolId);
+                if (cancelled) return;
+                if (pendingSyncRef.current) {
+                    clearTimeout(pendingSyncRef.current);
+                    pendingSyncRef.current = null;
+                }
+                dirtyCatalogRef.current = false;
+                skipSyncCounterRef.current += 2;
+                replaceData(result.data);
+                setSchoolHours(result.schoolHours);
+                setCatalogStatus('ready');
+                setCatalogSyncStatus('idle');
+                setCatalogSyncError(null);
+            } catch (err: any) {
+                if (cancelled) return;
+                const message = err instanceof Error ? err.message : 'Bulut verileri yuklenemedi';
+                setCatalogStatus('error');
+                setCatalogError(message);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isRemoteMode, sessionToken, activeSchoolId, replaceData]);
 
     useEffect(() => {
         if (!webPortalStatus) return;
@@ -484,6 +631,7 @@ const App: React.FC = () => {
 
     const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(null);
     const [activeSchoolId, setActiveSchoolId] = useState<number | null>(null);
+    const isRemoteMode = Boolean(sessionToken && activeSchoolId);
     const [isPublishing, setIsPublishing] = useState<boolean>(false);
 
     const handleAssignSubstitution = useCallback((assignment: SubstitutionAssignment) => {
@@ -2495,6 +2643,35 @@ case 'duties':
                             Cikis
                         </button>
                     </div>
+                )}
+                {isRemoteMode && (
+                    <>
+                        {catalogStatus === 'loading' && (
+                            <div className={`mt-2 text-xs ${isSmallScreen ? 'text-slate-600' : 'text-slate-500'}`}>
+                                Bulut verileri yukleniyor...
+                            </div>
+                        )}
+                        {catalogStatus === 'error' && catalogError && (
+                            <div className="mt-2 text-xs text-red-600">
+                                {catalogError}
+                            </div>
+                        )}
+                        {catalogStatus === 'ready' && catalogSyncStatus === 'saving' && (
+                            <div className={`mt-2 text-xs ${isSmallScreen ? 'text-slate-600' : 'text-slate-500'}`}>
+                                Degisiklikler buluta kaydediliyor...
+                            </div>
+                        )}
+                        {catalogStatus === 'ready' && catalogSyncStatus === 'error' && catalogSyncError && (
+                            <div className="mt-2 text-xs text-red-600">
+                                {catalogSyncError}
+                            </div>
+                        )}
+                        {catalogStatus === 'ready' && catalogSyncStatus === 'idle' && !catalogSyncError && (
+                            <div className={`mt-2 text-xs ${isSmallScreen ? 'text-slate-600' : 'text-slate-500'}`}>
+                                Bulut ile senkron durumda.
+                            </div>
+                        )}
+                    </>
                 )}
                 {schoolOptions.length > 0 && (
                     <div

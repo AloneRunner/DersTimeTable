@@ -7,6 +7,7 @@ from solver_cpsat import solve_cp_sat
 from schools import router as schools_router
 from subscriptions import router as subs_router
 from auth import router as auth_router, get_session_context, get_teacher_links_for_user
+from catalog_router import catalog_router
 from storage import upsert_published_schedule, get_published_schedule as storage_get_published_schedule
 
 
@@ -108,6 +109,7 @@ app.add_middleware(
 app.include_router(schools_router)
 app.include_router(subs_router)
 app.include_router(auth_router)
+app.include_router(catalog_router)
 
 
 @app.get("/health")

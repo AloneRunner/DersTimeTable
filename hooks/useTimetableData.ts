@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type {
   TimetableData,
   Teacher,
@@ -53,11 +53,9 @@ export const useTimetableData = () => {
 
   const addOrUpdateItem = <T extends { id: string }>(itemType: keyof TimetableData, item: T) => {
     setData(prevData => {
-      // FIX: Cast to 'unknown' first to resolve the overly strict TypeScript error.
-      // This is safe because the calling functions ensure the itemType and item's type match.
       const items = prevData[itemType] as unknown as T[];
       const existingIndex = items.findIndex(i => i.id === item.id);
-      let newItems;
+      let newItems: T[];
       if (existingIndex > -1) {
         newItems = [...items];
         newItems[existingIndex] = item;
@@ -180,6 +178,10 @@ export const useTimetableData = () => {
   const updateDuty = (duty: Duty) => addOrUpdateItem('duties', duty);
   const removeDuty = (id: string) => removeItem('duties', id);
 
+  const replaceData = useCallback((nextData: TimetableData) => {
+    setData(nextData);
+  }, []);
+
   return {
     data,
     addTeacher,
@@ -204,5 +206,6 @@ export const useTimetableData = () => {
     removeDuty,
     importData,
     clearData,
+    replaceData,
   };
 };
