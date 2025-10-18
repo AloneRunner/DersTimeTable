@@ -720,7 +720,7 @@ def delete_lesson_group(school_id: int, lesson_group_id: str) -> bool:
 # --- Duties ------------------------------------------------------------------
 
 
-def list_duties(school_id: int) -> List<DutyRecord]:
+def list_duties(school_id: int) -> List[DutyRecord]:
     if USE_DB:
         rows = _db_query(
             """SELECT *
