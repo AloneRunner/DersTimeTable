@@ -99,7 +99,13 @@ class SolveRequest(BaseModel):
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ozariktable.netlify.app", "http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "https://ozariktable.netlify.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "capacitor://localhost",
+        "http://localhost",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
