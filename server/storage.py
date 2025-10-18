@@ -567,3 +567,4 @@ def delete_teacher_user_link(school_id: int, teacher_id: str) -> bool:
     obj['teacher_user_links'] = filtered
     _write(obj)
     return True
+
