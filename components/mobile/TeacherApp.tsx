@@ -100,8 +100,61 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
   const effectiveData = liveTeacherData ? liveTeacherData.data : publishedData;
   const effectiveSchedule = liveTeacherData ? liveTeacherData.schedule : publishedSchedule;
   const effectiveAssignments = liveTeacherData ? [] : assignments;
-  const effectiveMaxDailyHours = liveTeacherData ? liveTeacherData.maxDailyHours : maxDailyHours;
   const effectivePublishedAt = liveTeacherData ? liveTeacherData.publishedAt : publishedAt;
+
+  const effectiveMaxDailyHours = useMemo(() => {
+    if (liveTeacherData) {
+      return liveTeacherData.maxDailyHours;
+    }
+
+    let maxHourIndex = 0;
+
+    if (effectiveSchedule && selectedTeacherId) {
+      Object.values(effectiveSchedule).forEach((days) => {
+        days?.forEach((day) => {
+          day?.forEach((assignment, hourIndex) => {
+            if (!assignment) return;
+            if (!assignment.teacherIds || !assignment.teacherIds.includes(selectedTeacherId)) return;
+            if (hourIndex + 1 > maxHourIndex) {
+              maxHourIndex = hourIndex + 1;
+            }
+          });
+        });
+      });
+    }
+
+    if (!liveTeacherData && selectedTeacherId) {
+      effectiveAssignments
+        .filter((assignment) => assignment.substituteTeacherId === selectedTeacherId)
+        .forEach((assignment) => {
+          if (typeof assignment.hourIndex === 'number') {
+            const candidate = assignment.hourIndex + 1;
+            if (candidate > maxHourIndex) {
+              maxHourIndex = candidate;
+            }
+          }
+        });
+    }
+
+    if (maxHourIndex === 0 && effectiveData && selectedTeacherId) {
+      const teacher = effectiveData.teachers?.find((t) => t.id === selectedTeacherId);
+      if (teacher?.availability?.length) {
+        const availabilityMax = teacher.availability.reduce(
+          (acc, row) => Math.max(acc, row?.length ?? 0),
+          0,
+        );
+        if (availabilityMax > maxHourIndex) {
+          maxHourIndex = availabilityMax;
+        }
+      }
+    }
+
+    if (maxHourIndex > 0) {
+      return Math.min(maxDailyHours, maxHourIndex);
+    }
+
+    return maxDailyHours;
+  }, [effectiveAssignments, effectiveData, effectiveSchedule, liveTeacherData, maxDailyHours, selectedTeacherId]);
 
   const teacherOptions = useMemo(() => {
     if (liveTeacherData) {
