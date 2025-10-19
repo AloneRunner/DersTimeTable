@@ -29,7 +29,7 @@ import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
-import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
@@ -407,8 +407,10 @@ const App: React.FC = () => {
     const [linkTeacherName, setLinkTeacherName] = useState<string>('');
     const [linkTeacherStatus, setLinkTeacherStatus] = useState<string | null>(null);
     const [isLinkingTeacher, setIsLinkingTeacher] = useState<boolean>(false);
-    const [linkTeacherCodeInfo, setLinkTeacherCodeInfo] = useState<{ code: string; expiresAt: string } | null>(null);
-    const [isGeneratingTeacherCode, setIsGeneratingTeacherCode] = useState<boolean>(false);
+    const [linkTeacherPassword, setLinkTeacherPassword] = useState<string | null>(null);
+    const [customTeacherPassword, setCustomTeacherPassword] = useState<string>('');
+    const [isResettingTeacherPassword, setIsResettingTeacherPassword] = useState<boolean>(false);
+    const [showTeacherPassword, setShowTeacherPassword] = useState<boolean>(false);
     const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(null);
     const [activeSchoolId, setActiveSchoolId] = useState<number | null>(null);
     const isRemoteMode = Boolean(sessionToken && activeSchoolId);
@@ -612,14 +614,6 @@ const App: React.FC = () => {
         const timeout = setTimeout(() => setWebPortalStatus(''), 4000);
         return () => clearTimeout(timeout);
     }, [webPortalStatus]);
-    const linkTeacherCodeExpiryText = useMemo(() => {
-        if (!linkTeacherCodeInfo?.expiresAt) return null;
-        try {
-            return new Date(linkTeacherCodeInfo.expiresAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-        } catch {
-            return linkTeacherCodeInfo.expiresAt;
-        }
-    }, [linkTeacherCodeInfo]);
     const currentTeacherLink = linkTeacherState ? teacherLinksMap[linkTeacherState.teacherId] : undefined;
 
     const persistSessionToken = useCallback((token: string | null) => {
@@ -899,8 +893,10 @@ const App: React.FC = () => {
         setLinkTeacherState({ teacherId: teacher.id, teacherName: teacher.name });
         setLinkTeacherEmail(existingLink?.email ?? '');
         setLinkTeacherName(existingLink?.name || teacher.name || '');
-        setLinkTeacherStatus(existingLink ? 'Bu öğretmen şu anda uygulamaya bağlı.' : null);
-        setLinkTeacherCodeInfo(null);
+        setLinkTeacherStatus(existingLink ? 'Bu ogretmen su anda uygulamaya bagli.' : null);
+        setLinkTeacherPassword(null);
+        setCustomTeacherPassword('');
+        setShowTeacherPassword(false);
     }, [teacherLinksMap]);
 
     const closeLinkTeacherModal = useCallback(() => {
@@ -909,8 +905,10 @@ const App: React.FC = () => {
         setLinkTeacherName('');
         setLinkTeacherStatus(null);
         setIsLinkingTeacher(false);
-        setLinkTeacherCodeInfo(null);
-        setIsGeneratingTeacherCode(false);
+        setLinkTeacherPassword(null);
+        setCustomTeacherPassword('');
+        setShowTeacherPassword(false);
+        setIsResettingTeacherPassword(false);
     }, []);
 
     const handleLinkTeacherSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
@@ -918,15 +916,15 @@ const App: React.FC = () => {
         if (!linkTeacherState) return;
         const email = linkTeacherEmail.trim().toLowerCase();
         if (!email) {
-            setLinkTeacherStatus('Öğretmen e-postası gerekli');
+            setLinkTeacherStatus('Ogretmen e-postasi gerekli');
             return;
         }
         if (!sessionToken) {
-            setLinkTeacherStatus('Önce yönetici olarak oturum açmalısınız.');
+            setLinkTeacherStatus('Once yonetici olarak oturum acmalisiniz.');
             return;
         }
         if (!activeSchoolId) {
-            setLinkTeacherStatus('Önce bağlı olduğunuz okulu seçin.');
+            setLinkTeacherStatus('Once bagli oldugunuz okulu secin.');
             return;
         }
         setIsLinkingTeacher(true);
@@ -939,8 +937,10 @@ const App: React.FC = () => {
                 name: linkTeacherName.trim() || undefined,
             });
             await refreshTeacherLinks(sessionToken, activeSchoolId);
-            setLinkTeacherStatus('Bağlantı kaydedildi. Öğretmen uygulamaya giriş yapabilir.');
-            setLinkTeacherCodeInfo(null);
+            setLinkTeacherStatus('Ogretmen kaydedildi. Yeni sifre olusturabilirsiniz.');
+            setLinkTeacherPassword(null);
+            setCustomTeacherPassword('');
+            setShowTeacherPassword(false);
             try {
                 const info = await fetchSessionInfo(sessionToken);
                 setSessionInfo(info);
@@ -950,7 +950,7 @@ const App: React.FC = () => {
                 console.error('refresh session failed', refreshErr);
             }
         } catch (err: any) {
-            setLinkTeacherStatus(err instanceof Error ? err.message : 'Öğretmen bağlantısı kurulamadı');
+            setLinkTeacherStatus(err instanceof Error ? err.message : 'Ogretmen baglantisi kurulamadı');
         } finally {
             setIsLinkingTeacher(false);
         }
@@ -958,20 +958,20 @@ const App: React.FC = () => {
 
     const handleUnlinkTeacher = useCallback(async () => {
         if (!linkTeacherState) {
-            setLinkTeacherStatus('Önce öğretmeni seçin.');
+            setLinkTeacherStatus('Once ogretmeni secin.');
             return;
         }
         if (!sessionToken) {
-            setLinkTeacherStatus('Önce yönetici olarak oturum açmalısınız.');
+            setLinkTeacherStatus('Once yonetici olarak oturum acmalisiniz.');
             return;
         }
         if (!activeSchoolId) {
-            setLinkTeacherStatus('Önce bağlı olduğunuz okulu seçin.');
+            setLinkTeacherStatus('Once bagli oldugunuz okulu secin.');
             return;
         }
         const existingLink = teacherLinksMap[linkTeacherState.teacherId];
         if (!existingLink) {
-            setLinkTeacherStatus('Bu öğretmen zaten bağlantısız.');
+            setLinkTeacherStatus('Bu ogretmen zaten baglantisiz.');
             return;
         }
         setIsLinkingTeacher(true);
@@ -982,44 +982,96 @@ const App: React.FC = () => {
             });
             await refreshTeacherLinks(sessionToken, activeSchoolId);
             setLinkTeacherEmail('');
-            setLinkTeacherStatus('Bağlantı kaldırıldı.');
-            setLinkTeacherCodeInfo(null);
+            setLinkTeacherStatus('Baglanti kaldirildi.');
+            setLinkTeacherPassword(null);
+            setCustomTeacherPassword('');
+            setShowTeacherPassword(false);
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Bağlantı kaldırma başarısız';
+            const message = err instanceof Error ? err.message : 'Baglanti kaldirma basarisiz';
             setLinkTeacherStatus(message);
         } finally {
             setIsLinkingTeacher(false);
         }
     }, [linkTeacherState, teacherLinksMap, sessionToken, activeSchoolId, refreshTeacherLinks]);
-    const handleGenerateTeacherCode = useCallback(async () => {
+
+    const handleGenerateTeacherPassword = useCallback(async () => {
         if (!linkTeacherState) {
-            setLinkTeacherStatus('Önce öğretmeni seçin.');
+            setLinkTeacherStatus('Once ogretmeni secin.');
             return;
         }
-        const email = linkTeacherEmail.trim().toLowerCase();
-        if (!email) {
-            setLinkTeacherStatus('Kod oluşturmak için öğretmen e-postasını girin.');
+        if (!sessionToken) {
+            setLinkTeacherStatus('Once yonetici olarak oturum acmalisiniz.');
             return;
         }
         if (!activeSchoolId) {
-            setLinkTeacherStatus('Önce bağlı olduğunuz okulu seçin.');
+            setLinkTeacherStatus('Once bagli oldugunuz okulu secin.');
             return;
         }
-        setIsGeneratingTeacherCode(true);
+        setIsResettingTeacherPassword(true);
         setLinkTeacherStatus(null);
         try {
-            const response = await requestBridgeCode({
-                email,
-                name: linkTeacherName.trim() || undefined,
+            const response = await resetTeacherPassword(sessionToken, {
                 schoolId: activeSchoolId,
+                teacherId: linkTeacherState.teacherId,
             });
-            setLinkTeacherCodeInfo({ code: response.code, expiresAt: response.expires_at });
+            await refreshTeacherLinks(sessionToken, activeSchoolId);
+            setLinkTeacherPassword(response.password);
+            setCustomTeacherPassword('');
+            setShowTeacherPassword(true);
+            setLinkTeacherStatus('Yeni sifre olusturuldu. Ogretmenle paylasmayi unutmayin.');
         } catch (err: any) {
-            setLinkTeacherStatus(err instanceof Error ? err.message : 'Kod oluşturma başarısız');
+            setLinkTeacherStatus(err instanceof Error ? err.message : 'Sifre olusturma basarisiz');
         } finally {
-            setIsGeneratingTeacherCode(false);
+            setIsResettingTeacherPassword(false);
         }
-    }, [linkTeacherState, linkTeacherEmail, linkTeacherName, activeSchoolId]);
+    }, [linkTeacherState, sessionToken, activeSchoolId, refreshTeacherLinks]);
+
+    const handleSetTeacherPassword = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!linkTeacherState) {
+            setLinkTeacherStatus('Once ogretmeni secin.');
+            return;
+        }
+        if (!sessionToken) {
+            setLinkTeacherStatus('Once yonetici olarak oturum acmalisiniz.');
+            return;
+        }
+        if (!activeSchoolId) {
+            setLinkTeacherStatus('Once bagli oldugunuz okulu secin.');
+            return;
+        }
+        const password = customTeacherPassword.trim();
+        if (password.length < 4) {
+            setLinkTeacherStatus('Sifre en az 4 haneli olmali.');
+            return;
+        }
+        if (password.length > 32) {
+            setLinkTeacherStatus('Sifre en fazla 32 haneli olabilir.');
+            return;
+        }
+        if (!/^\d+$/.test(password)) {
+            setLinkTeacherStatus('Sifre sadece rakamlardan olusmalidir.');
+            return;
+        }
+        setIsResettingTeacherPassword(true);
+        setLinkTeacherStatus(null);
+        try {
+            const response = await resetTeacherPassword(sessionToken, {
+                schoolId: activeSchoolId,
+                teacherId: linkTeacherState.teacherId,
+                password,
+            });
+            await refreshTeacherLinks(sessionToken, activeSchoolId);
+            setLinkTeacherPassword(response.password);
+            setCustomTeacherPassword('');
+            setShowTeacherPassword(true);
+            setLinkTeacherStatus('Sifre guncellendi.');
+        } catch (err: any) {
+            setLinkTeacherStatus(err instanceof Error ? err.message : 'Sifre guncellenemedi');
+        } finally {
+            setIsResettingTeacherPassword(false);
+        }
+    }, [linkTeacherState, customTeacherPassword, sessionToken, activeSchoolId, refreshTeacherLinks]);
 
     const handleSchoolHoursChange = (level: SchoolLevel, dayIndex: number, value: string) => {
         const trimmed = value.trim();
@@ -3318,28 +3370,72 @@ case 'duties':
                         {linkTeacherStatus && (
                             <p className="text-xs text-slate-600">{linkTeacherStatus}</p>
                         )}
-                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 space-y-2 text-xs text-slate-600">
-                            <p>Bu öğretmeni mobil uygulamaya almak için aşağıdaki kodu üretip öğretmenle paylaşın. Kod 10 dakika geçerlidir.</p>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={handleGenerateTeacherCode}
-                                    disabled={isGeneratingTeacherCode || !linkTeacherState}
-                                    className="rounded-md border border-indigo-300 bg-white px-3 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
-                                >
-                                    {isGeneratingTeacherCode ? 'Kod oluşturuluyor…' : 'Kod oluştur'}
-                                </button>
-                                {linkTeacherCodeInfo && (
-                                    <span className="font-mono text-base tracking-[0.3em] text-slate-900">
-                                        {linkTeacherCodeInfo.code}
-                                    </span>
-                                )}
-                            </div>
-                            {linkTeacherCodeInfo && (
-                                <p className="text-[11px] text-slate-500">
-                                    Bu kod {linkTeacherCodeExpiryText || '10 dakika içinde'} sona erer.
-                                </p>
+                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 space-y-3 text-xs text-slate-600">
+                            <p>Bu ogretmeni uygulamaya almak icin e-postayi kaydedin ve asagidaki sifre aracini kullanin. Sifre en az 4 haneli ve sadece rakamlardan olusmalidir.</p>
+                            {linkTeacherPassword && (
+                                <div className="rounded-lg bg-slate-900 px-3 py-3 text-white">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-mono text-xl tracking-[0.3em]">
+                                            {showTeacherPassword ? linkTeacherPassword : '****'}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowTeacherPassword((prev) => !prev)}
+                                                className="rounded border border-white/40 px-2 py-1 text-[11px] font-medium hover:bg-white/10"
+                                            >
+                                                {showTeacherPassword ? 'Gizle' : 'Goster'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (linkTeacherPassword && navigator?.clipboard) {
+                                                        navigator.clipboard
+                                                            .writeText(linkTeacherPassword)
+                                                            .then(() => setLinkTeacherStatus('Sifre panoya kopyalandi.'))
+                                                            .catch(() => setLinkTeacherStatus('Panoya kopyalanamadi.'));
+                                                    }
+                                                }}
+                                                className="rounded border border-white/40 px-2 py-1 text-[11px] font-medium hover:bg-white/10"
+                                            >
+                                                Kopyala
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className="mt-2 text-[11px] text-slate-200">Bu sifreyi ogretmenle paylasin. Sifre bu ekran kapandiginda yeniden gosterilmez.</p>
+                                </div>
                             )}
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-slate-600" htmlFor="teacher-password-input">Manuel sifre belirle</label>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <input
+                                        id="teacher-password-input"
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="\\d*"
+                                        value={customTeacherPassword}
+                                        onChange={(event) => setCustomTeacherPassword(event.target.value.replace(/\D/g, ''))}
+                                        className="w-full min-w-[120px] flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                        placeholder="4+ haneli sifre"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleSetTeacherPassword}
+                                        disabled={isResettingTeacherPassword}
+                                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60"
+                                    >
+                                        {isResettingTeacherPassword ? 'Kaydediliyor...' : 'Sifreyi Kaydet'}
+                                    </button>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleGenerateTeacherPassword}
+                                disabled={isResettingTeacherPassword}
+                                className="w-full rounded-md border border-indigo-300 bg-white px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                {isResettingTeacherPassword ? 'Sifre uretiliyor...' : 'Rastgele sifre olustur'}
+                            </button>
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             {currentTeacherLink && (

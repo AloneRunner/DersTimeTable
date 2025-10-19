@@ -158,6 +158,18 @@ def upsert_user(email: str, name: Optional[str] = None, role: str = 'admin') -> 
     return rec
 
 
+def update_user_password(user_id: int, password_hash: str) -> None:
+    obj = _read()
+    users = obj.setdefault('users', [])
+    for user in users:
+        if user.get('id') == user_id:
+            user['password_hash'] = password_hash
+            user['password_updated_at'] = datetime.now(timezone.utc).isoformat()
+            _write(obj)
+            return
+    raise KeyError(f'user {user_id} not found')
+
+
 def list_school_users() -> List[Dict[str, Any]]:
     return _read().get('school_users', [])
 
@@ -517,6 +529,18 @@ def get_published_schedule(school_id: int) -> Optional[Dict[str, Any]]:
     return None
 def list_teacher_user_links() -> List[Dict[str, Any]]:
     return _read().get('teacher_user_links', [])
+
+
+def get_teacher_user_link(school_id: int, teacher_id: str) -> Optional[Dict[str, Any]]:
+    for rec in list_teacher_user_links():
+        if rec.get('school_id') == school_id and rec.get('teacher_id') == teacher_id:
+            result = dict(rec)
+            user = get_user_by_id(result.get('user_id'))
+            if user:
+                result.setdefault('email', user.get('email'))
+                result.setdefault('name', user.get('name'))
+            return result
+    return None
 
 
 def upsert_teacher_user_link(school_id: int, teacher_id: str, user_id: int) -> Dict[str, Any]:

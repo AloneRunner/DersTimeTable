@@ -104,6 +104,35 @@ export type TeacherLinkRecord = {
   linked_at?: string | null;
 };
 
+export type PasswordLoginRequest = {
+  email: string;
+  password: string;
+  schoolId?: number | null;
+};
+
+export type ResetTeacherPasswordRequest = {
+  schoolId: number;
+  teacherId: string;
+  password?: string;
+};
+
+export type ResetTeacherPasswordResponse = {
+  ok: boolean;
+  password: string;
+  teacher: {
+    school_id: number;
+    teacher_id: string;
+    user_id: number;
+    email?: string | null;
+    name?: string | null;
+  };
+  reset_by: {
+    id: number | null;
+    email?: string | null;
+    name?: string | null;
+  };
+};
+
 async function parseJson(resp: Response) {
   const text = await resp.text();
   try {
@@ -165,6 +194,24 @@ export async function fetchSessionInfo(token: string): Promise<SessionInfo> {
 
 export function getApiBaseUrl(): string {
   return API_BASE;
+}
+
+export async function loginWithPassword(payload: PasswordLoginRequest): Promise<SessionInfo> {
+  const response = await fetch(`${API_BASE}/api/auth/login-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: payload.email,
+      password: payload.password,
+      school_id: payload.schoolId ?? undefined,
+    }),
+  });
+  if (!response.ok) {
+    const data = await parseJson(response).catch(() => ({}));
+    const detail = (data as any)?.detail ?? response.statusText;
+    throw new Error(typeof detail === 'string' ? detail : 'Oturum açma başarısız');
+  }
+  return (await response.json()) as SessionInfo;
 }
 
 export async function linkTeacher(
@@ -283,3 +330,28 @@ export async function unlinkTeacher(
     throw new Error(text || 'Öğretmen bağlantısı kaldırılamadı');
   }
 }
+
+export async function resetTeacherPassword(
+  token: string,
+  payload: ResetTeacherPasswordRequest,
+): Promise<ResetTeacherPasswordResponse> {
+  const response = await fetch(`${API_BASE}/api/auth/teacher-password/reset`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      school_id: payload.schoolId,
+      teacher_id: payload.teacherId,
+      password: payload.password,
+    }),
+  });
+  if (!response.ok) {
+    const data = await parseJson(response).catch(() => ({}));
+    const detail = (data as any)?.detail ?? response.statusText;
+    throw new Error(typeof detail === 'string' ? detail : 'Şifre güncellenemedi');
+  }
+  return (await response.json()) as ResetTeacherPasswordResponse;
+}
+

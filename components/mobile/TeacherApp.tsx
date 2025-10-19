@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Schedule, TimetableData, SubstitutionAssignment, Duty } from '../../types';
 import {
-  verifyBridgeCode,
+  loginWithPassword,
   extractTeacherMembership,
   loadTeacherSession,
   persistTeacherSession,
@@ -71,7 +71,9 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
   });
   const [teacherSession, setTeacherSession] = useState<TeacherSessionSnapshot | null>(() => loadTeacherSession());
   const [teacherSchedule, setTeacherSchedule] = useState<TeacherScheduleResponse | null>(null);
-  const [codeInput, setCodeInput] = useState<string>('');
+  const [loginEmail, setLoginEmail] = useState<string>('');
+  const [loginPassword, setLoginPassword] = useState<string>('');
+  const [showLoginPassword, setShowLoginPassword] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
@@ -291,7 +293,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
         const message = err instanceof Error ? err.message : 'Program yuklenemedi.';
         if (err?.code === 'unauthorized') {
           clearTeacherSession();
-          setLoginError('Oturumunuzun suresi doldu. Lutfen yeni kod girin.');
+          setLoginError('Oturumunuzun suresi doldu. Lutfen tekrar giris yapin.');
         } else {
           setScheduleError(message);
         }
@@ -302,38 +304,42 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
     [clearTeacherSession],
   );
 
-  const handleVerifyCode = useCallback(async () => {
-    const code = codeInput.trim();
-    if (!code) {
-      setLoginError('Kod girin.');
+  const handleTeacherLogin = useCallback(async () => {
+    const email = loginEmail.trim().toLowerCase();
+    const password = loginPassword.trim();
+    if (!email || !password) {
+      setLoginError('E-posta ve sifre girin.');
       return;
     }
     setIsVerifying(true);
     setLoginError(null);
     try {
-      const session = await verifyBridgeCode({ code });
+      const session = await loginWithPassword({ email, password });
       const snapshot = extractTeacherMembership(session);
       if (!snapshot) {
-        throw new Error('Bu kod icin bagli ogretmen bulunamadi. Idareci ile iletisime gecin.');
+        throw new Error('Bu hesap icin ogretmen yetkisi bulunamadi.');
       }
       persistTeacherSession(snapshot);
       setTeacherSession(snapshot);
       setTeacherSchedule(null);
       setScheduleError(null);
       lastFetchedTokenRef.current = snapshot.token;
-      setCodeInput('');
+      setLoginEmail('');
+      setLoginPassword('');
       await loadTeacherScheduleData(snapshot);
     } catch (err: any) {
-      const message = err instanceof Error ? err.message : 'Kod dogrulanamadi.';
+      const message = err instanceof Error ? err.message : 'Giris basarisiz. Bilgileri kontrol edin.';
       setLoginError(message);
     } finally {
       setIsVerifying(false);
     }
-  }, [codeInput, loadTeacherScheduleData]);
+  }, [loginEmail, loginPassword, loadTeacherScheduleData]);
 
   const handleLogout = useCallback(() => {
     clearTeacherSession();
-    setCodeInput('');
+    setLoginEmail('');
+    setLoginPassword('');
+    setShowLoginPassword(false);
     setLoginError(null);
   }, [clearTeacherSession]);
 
@@ -437,38 +443,60 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
           <div className="space-y-4 overflow-y-auto py-4">
             {!isPreviewMode && !teacherSession && (
               <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 shadow">
-                <h3 className="text-base font-semibold text-slate-900">Kodu girerek oturum ac</h3>
+                <h3 className="text-base font-semibold text-slate-900">Oturum ac</h3>
                 <p className="mt-2 text-xs text-slate-500">
-                  Idarecinin paylastigi 6 haneli kodu gir. Kod 10 dakika icinde kullanilmalidir.
+                  Idarecinin paylastigi e-posta ve sifre ile giris yap.
                 </p>
                 <div className="mt-4 flex flex-col gap-3">
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={codeInput}
-                    onChange={(event) => setCodeInput(event.target.value.replace(/\D/g, ''))}
+                    type="email"
+                    value={loginEmail}
+                    onChange={(event) => setLoginEmail(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         event.preventDefault();
-                        handleVerifyCode();
+                        handleTeacherLogin();
                       }
                     }}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.3em] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="123456"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="ogretmen@example.com"
+                    autoComplete="email"
                   />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value.replace(/\s+/g, ''))}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleTeacherLogin();
+                        }
+                      }}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Sifre"
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((prev) => !prev)}
+                      className="rounded border border-slate-300 px-3 py-2 text-xs text-slate-600 hover:bg-slate-100"
+                    >
+                      {showLoginPassword ? 'Gizle' : 'Goster'}
+                    </button>
+                  </div>
                   {loginError && <p className="text-xs text-red-600">{loginError}</p>}
                   <button
                     type="button"
-                    onClick={handleVerifyCode}
-                    disabled={isVerifying || codeInput.trim().length !== 6}
+                    onClick={handleTeacherLogin}
+                    disabled={isVerifying}
                     className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-60"
                   >
-                    {isVerifying ? 'Dogrulaniyor...' : 'Kodu dogrula'}
+                    {isVerifying ? 'Giris yapiliyor...' : 'Giris yap'}
                   </button>
                 </div>
                 <p className="mt-3 text-[11px] text-slate-400">
-                  Kodunuz yoksa idareci panelinden "Uygulamaya bagla" secenegi ile yeni kod isteyin.
+                  Sifreniz yoksa idareci panelinden yeni sifre isteyin.
                 </p>
               </div>
             )}

@@ -31,6 +31,8 @@ CODE_PURPOSE = 'web_bridge_code'
 SESSION_PURPOSE = 'web_session'
 DEFAULT_SESSION_LIFETIME = timedelta(hours=12)
 TEACHER_SESSION_LIFETIME = timedelta(days=90)
+PASSWORD_MIN_LENGTH = 4
+PASSWORD_MAX_LENGTH = 32
 
 
 class RequestCodePayload(BaseModel):
@@ -92,6 +94,12 @@ class PasswordLoginPayload(BaseModel):
     school_id: Optional[int] = None
 
 
+class ResetTeacherPasswordPayload(BaseModel):
+    school_id: int
+    teacher_id: str
+    password: Optional[str] = Field(default=None, min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+
+
 def _generate_code(length: int = 6) -> str:
     digits = string.digits
     return ''.join(secrets.choice(digits) for _ in range(length))
@@ -106,6 +114,33 @@ def _now() -> datetime:
 
 
 # -- Database helpers --------------------------------------------------------
+
+
+def _hash_password(raw_password: str) -> str:
+    return bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
+def _verify_password(raw_password: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(raw_password.encode('utf-8'), hashed.encode('utf-8'))
+    except Exception:  # pragma: no cover - bcrypt errors treated as invalid password
+        return False
+
+
+def _generate_numeric_password(length: int = 4) -> str:
+    length = max(PASSWORD_MIN_LENGTH, min(length, PASSWORD_MAX_LENGTH))
+    return ''.join(secrets.choice(string.digits) for _ in range(length))
+
+
+def _is_teacher_role(role: Optional[str]) -> bool:
+    return (role or '').lower() == 'teacher'
+
+
+def _validate_teacher_password(raw: str) -> None:
+    if len(raw) < PASSWORD_MIN_LENGTH or len(raw) > PASSWORD_MAX_LENGTH:
+        raise HTTPException(status_code=422, detail='password-length-invalid')
+    if not raw.isdigit():
+        raise HTTPException(status_code=422, detail='password-must-be-numeric')
 
 
 def _db_execute(query: str, params: tuple = (), *, returning: bool = False) -> Optional[Dict[str, Any]]:
@@ -151,6 +186,24 @@ def _db_update_user_password(user_id: int, password_hash: str) -> None:
 def _db_find_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     rows = _db_query('SELECT id, email, name, role, password_hash FROM users WHERE email = %s', (email.lower(),))
     return dict(rows[0]) if rows else None
+
+def _db_get_teacher_link_record(school_id: int, teacher_id: str) -> Optional[Dict[str, Any]]:
+    _ensure_teacher_link_table()
+    rows = _db_query(
+        '''SELECT tul.school_id,
+                  tul.teacher_id,
+                  tul.user_id,
+                  tul.created_at,
+                  u.email,
+                  u.name
+           FROM teacher_user_links tul
+           JOIN users u ON u.id = tul.user_id
+           WHERE tul.school_id = %s AND tul.teacher_id = %s
+           LIMIT 1''',
+        (school_id, teacher_id),
+    )
+    return dict(rows[0]) if rows else None
+
 
 def _db_attach_school(user_id: int, school_id: int, role: str = 'admin') -> None:
     try:
@@ -377,6 +430,14 @@ def _storage_upsert_user(email: str, name: Optional[str], *, default_role: str =
     return {k: user[k] for k in ('id', 'email', 'name', 'role') if k in user}
 
 
+def _storage_update_user_password(user_id: int, password_hash: str) -> None:
+    db.update_user_password(user_id, password_hash)  # type: ignore[attr-defined]
+
+
+def _storage_get_teacher_link_record(school_id: int, teacher_id: str) -> Optional[Dict[str, Any]]:
+    return db.get_teacher_user_link(school_id, teacher_id)  # type: ignore[attr-defined]
+
+
 def _storage_attach_school(user_id: int, school_id: int, role: str = 'admin') -> None:
     db.add_school_user(user_id, school_id, role)  # type: ignore[attr-defined]
 
@@ -481,6 +542,10 @@ def _upsert_user(email: str, name: Optional[str], *, default_role: str = 'admin'
     return _db_upsert_user(email, name, default_role=default_role) if USE_DB else _storage_upsert_user(email, name, default_role=default_role)
 
 
+def _find_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    return _db_find_user_by_email(email) if USE_DB else db.get_user_by_email(email)  # type: ignore[attr-defined]
+
+
 def _attach_school(user_id: int, school_id: Optional[int], role: str = 'admin') -> None:
     if school_id is None:
         return
@@ -517,6 +582,19 @@ def _list_teacher_links_for_school(school_id: int) -> List[Dict[str, Any]]:
 
 def _delete_teacher_link_record(school_id: int, teacher_id: str) -> bool:
     return _db_delete_teacher_link(school_id, teacher_id) if USE_DB else _storage_delete_teacher_link(school_id, teacher_id)
+
+
+def _set_user_password(user_id: int, raw_password: str) -> str:
+    hashed = _hash_password(raw_password)
+    if USE_DB:
+        _db_update_user_password(user_id, hashed)
+    else:
+        _storage_update_user_password(user_id, hashed)
+    return hashed
+
+
+def _get_teacher_link_record(school_id: int, teacher_id: str) -> Optional[Dict[str, Any]]:
+    return _db_get_teacher_link_record(school_id, teacher_id) if USE_DB else _storage_get_teacher_link_record(school_id, teacher_id)
 
 
 def _delete_teacher_school_record(teacher_id: str, school_id: int) -> None:
@@ -605,6 +683,36 @@ def _session_payload(user: Dict[str, Any], school_memberships: List[Dict[str, An
 # -- Routes ------------------------------------------------------------------
 
 
+@router.post('/login-password', response_model=SessionResponse)
+def login_with_password(payload: PasswordLoginPayload) -> SessionResponse:
+    user = _find_user_by_email(payload.email)
+    if not user or not user.get('password_hash'):
+        raise HTTPException(status_code=401, detail='invalid-credentials')
+    if not _verify_password(payload.password, user['password_hash']):
+        raise HTTPException(status_code=401, detail='invalid-credentials')
+    memberships = _get_school_memberships(user['id'])
+    if not memberships:
+        raise HTTPException(status_code=403, detail='no-school-memberships')
+    if payload.school_id is not None:
+        allowed = any(int(m.get('id', 0)) == int(payload.school_id) for m in memberships)
+        if not allowed:
+            raise HTTPException(status_code=403, detail='not-member-of-school')
+    is_teacher = _is_teacher_role(user.get('role')) or any(_is_teacher_role(m.get('role')) for m in memberships)
+    session_lifetime = TEACHER_SESSION_LIFETIME if is_teacher else DEFAULT_SESSION_LIFETIME
+    session_token = _generate_token()
+    expires_at = _now() + session_lifetime
+    _insert_login_token(
+        user['id'],
+        token=session_token,
+        code=None,
+        purpose=SESSION_PURPOSE,
+        expires_at=expires_at,
+        metadata={'login_method': 'password'},
+    )
+    user.pop('password_hash', None)
+    return _session_payload(user, memberships, session_token=session_token, expires_at=expires_at)
+
+
 @router.post('/request-code', response_model=RequestCodeResponse)
 def request_code(payload: RequestCodePayload) -> RequestCodeResponse:
     user = _upsert_user(payload.email, payload.name)
@@ -665,6 +773,49 @@ def link_teacher(payload: LinkTeacherPayload, request: Request) -> Dict[str, Any
             'name': requester.get('name'),
         },
         'link': link_record,
+    }
+
+
+@router.post('/teacher-password/reset')
+def reset_teacher_password(payload: ResetTeacherPasswordPayload, request: Request) -> Dict[str, Any]:
+    requester, memberships, _ = get_session_context(request)
+    allowed = any(
+        m.get('id') == payload.school_id and (m.get('role') in ('admin', 'owner', 'manager', 'super_admin'))
+        for m in memberships
+    )
+    if not allowed:
+        raise HTTPException(status_code=403, detail='not-authorized')
+
+    record = _get_teacher_link_record(payload.school_id, payload.teacher_id)
+    if not record:
+        raise HTTPException(status_code=404, detail='teacher-link-not-found')
+    user_id = record.get('user_id')
+    if not user_id:
+        raise HTTPException(status_code=400, detail='teacher-user-missing')
+
+    if payload.password is None:
+        raw_password = _generate_numeric_password(PASSWORD_MIN_LENGTH)
+    else:
+        raw_password = payload.password.strip()
+        _validate_teacher_password(raw_password)
+
+    _set_user_password(int(user_id), raw_password)
+
+    return {
+        'ok': True,
+        'password': raw_password,
+        'teacher': {
+            'school_id': payload.school_id,
+            'teacher_id': payload.teacher_id,
+            'user_id': user_id,
+            'email': record.get('email'),
+            'name': record.get('name'),
+        },
+        'reset_by': {
+            'id': requester.get('id'),
+            'email': requester.get('email'),
+            'name': requester.get('name'),
+        },
     }
 
 
