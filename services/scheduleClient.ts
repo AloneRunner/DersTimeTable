@@ -1,4 +1,4 @@
-ï»¿import type { Schedule, TimetableData } from '../types';
+import type { Schedule, TimetableData, SubstitutionAssignment } from '../types';
 import { getApiBaseUrl } from './authClient';
 
 const API_BASE = getApiBaseUrl();
@@ -8,6 +8,7 @@ type PublishedScheduleResponse = {
   schedule: Schedule;
   data: TimetableData;
   published_at: string;
+  substitution_assignments?: SubstitutionAssignment[];
   published_by?: {
     user_id?: number;
     name?: string | null;
@@ -19,13 +20,18 @@ function parseJson(text: string) {
   try {
     return text ? JSON.parse(text) : {};
   } catch {
-    throw new Error('Sunucu yanÄ±tÄ± JSON formatÄ±nda deÄŸil.');
+    throw new Error('Sunucu yanýtý JSON formatýnda deðil.');
   }
 }
 
 export async function publishSchedule(
   token: string,
-  payload: { schoolId: number; schedule: Schedule; data: TimetableData },
+  payload: {
+    schoolId: number;
+    schedule: Schedule;
+    data: TimetableData;
+    substitutionAssignments?: SubstitutionAssignment[];
+  },
 ): Promise<PublishedScheduleResponse> {
   const response = await fetch(`${API_BASE}/api/schedules/publish`, {
     method: 'POST',
@@ -37,6 +43,7 @@ export async function publishSchedule(
       school_id: payload.schoolId,
       schedule: payload.schedule,
       data: payload.data,
+      substitution_assignments: payload.substitutionAssignments ?? [],
     }),
   });
   if (!response.ok) {
@@ -48,7 +55,7 @@ export async function publishSchedule(
     } catch {
       // ignore
     }
-    throw new Error(typeof detail === 'string' ? detail : 'Program paylaÅŸÄ±mÄ± baÅŸarÄ±sÄ±z');
+    throw new Error(typeof detail === 'string' ? detail : 'Program paylaþýmý baþarýsýz');
   }
   const body = await response.json();
   return body.record as PublishedScheduleResponse;
@@ -78,7 +85,7 @@ export async function fetchPublishedSchedule(
     const txt = await response.text();
     const parsed = parseJson(txt);
     const detail = parsed.detail ?? response.statusText;
-    throw new Error(typeof detail === 'string' ? detail : 'Program okunamadÄ±');
+    throw new Error(typeof detail === 'string' ? detail : 'Program okunamadý');
   }
   return (await response.json()) as PublishedScheduleResponse;
 }
@@ -91,6 +98,7 @@ export type TeacherScheduleResponse = {
   schedule: Schedule;
   published_at: string;
   max_daily_hours: number;
+  substitution_assignments?: SubstitutionAssignment[];
 };
 
 export async function fetchTeacherSchedule(
@@ -106,14 +114,15 @@ export async function fetchTeacherSchedule(
   if (response.status === 404) {
     const txt = await response.text();
     const parsed = parseJson(txt);
-    const detail = parsed.detail ?? 'Ã–ÄŸretmen baÄŸlantÄ±sÄ± bulunamadÄ±';
+    const detail = parsed.detail ?? 'Öðretmen baðlantýsý bulunamadý';
     throw Object.assign(new Error(detail), { code: parsed.detail });
   }
   if (!response.ok) {
     const txt = await response.text();
     const parsed = parseJson(txt);
     const detail = parsed.detail ?? response.statusText;
-    throw new Error(typeof detail === 'string' ? detail : 'Ã–ÄŸretmen programÄ± yÃ¼klenemedi');
+    throw new Error(typeof detail === 'string' ? detail : 'Öðretmen programý yüklenemedi');
   }
   return (await response.json()) as TeacherScheduleResponse;
 }
+

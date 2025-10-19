@@ -99,7 +99,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
 
   const effectiveData = liveTeacherData ? liveTeacherData.data : publishedData;
   const effectiveSchedule = liveTeacherData ? liveTeacherData.schedule : publishedSchedule;
-  const effectiveAssignments = liveTeacherData ? [] : assignments;
+  const effectiveAssignments = liveTeacherData ? liveTeacherData.assignments : assignments;
   const effectivePublishedAt = liveTeacherData ? liveTeacherData.publishedAt : publishedAt;
 
   const effectiveMaxDailyHours = useMemo(() => {
@@ -388,6 +388,11 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
     }
   }, [loginEmail, loginPassword, loadTeacherScheduleData]);
 
+  const handleRefresh = useCallback(() => {
+    if (!teacherSession || isPreviewMode) return;
+    loadTeacherScheduleData(teacherSession);
+  }, [isPreviewMode, loadTeacherScheduleData, teacherSession]);
+
   const handleLogout = useCallback(() => {
     clearTeacherSession();
     setLoginEmail('');
@@ -400,6 +405,14 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
     if (!teacherSession) return;
     loadTeacherScheduleData(teacherSession);
   }, [loadTeacherScheduleData, teacherSession]);
+
+  useEffect(() => {
+    if (isPreviewMode || !teacherSession) return;
+    const intervalId = window.setInterval(() => {
+      loadTeacherScheduleData(teacherSession);
+    }, 60000);
+    return () => window.clearInterval(intervalId);
+  }, [isPreviewMode, teacherSession, loadTeacherScheduleData]);
 
   useEffect(() => {
     if (isPreviewMode) return;
@@ -471,13 +484,22 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
           </div>
           <div className="flex items-center gap-2">
             {!isPreviewMode && teacherSession && (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
-              >
-                Cikis
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                >
+                  Yenile
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                >
+                  Cikis
+                </button>
+              </>
             )}
             <button
               type="button"

@@ -688,7 +688,9 @@ const App: React.FC = () => {
                 data: response.data,
                 publishedAt: response.published_at,
                 publishedBy: response.published_by ?? null,
+                substitutionAssignments: (response.substitution_assignments ?? []),
             });
+            setSubstitutionAssignments(response.substitution_assignments ?? []);
         } catch (err: any) {
             if (err?.code === 'schedule-not-found') {
                 setPublishedSchedule(null);
@@ -716,7 +718,8 @@ const App: React.FC = () => {
             const record = await publishScheduleApi(sessionToken, {
                 schoolId: activeSchoolId,
                 schedule: schedule as Schedule,
-                data: data,
+                data,
+                substitutionAssignments: substitutionAssignments,
             });
             setPublishedSchedule({
                 schoolId: record.school_id,
@@ -724,7 +727,9 @@ const App: React.FC = () => {
                 data: record.data,
                 publishedAt: record.published_at,
                 publishedBy: record.published_by ?? null,
+                substitutionAssignments: (record.substitution_assignments ?? []),
             });
+            setSubstitutionAssignments(record.substitution_assignments ?? substitutionAssignments);
             setWebPortalStatus('Program öğretmenlerle paylaşıldı.');
         } catch (err) {
             console.error('publish-schedule-failed', err);
@@ -734,7 +739,7 @@ const App: React.FC = () => {
         } finally {
             setIsPublishing(false);
         }
-    }, [schedule, data, activeSchoolId, sessionToken]);
+    }, [schedule, data, activeSchoolId, sessionToken, substitutionAssignments]);
 
     useEffect(() => {
         const schools = sessionInfo?.schools;

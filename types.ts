@@ -190,6 +190,7 @@ export interface PublishedScheduleRecord {
   schedule: Schedule;
   data: TimetableData;
   publishedAt: string;
+  substitutionAssignments?: SubstitutionAssignment[];
   publishedBy?: {
     user_id?: number;
     name?: string | null;

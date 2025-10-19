@@ -143,6 +143,7 @@ class PublishSchedulePayload(BaseModel):
     school_id: int
     schedule: Dict[str, Any]
     data: TimetableData
+    substitution_assignments: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class PublishedScheduleRecord(BaseModel):
@@ -150,6 +151,7 @@ class PublishedScheduleRecord(BaseModel):
     schedule: Dict[str, Any]
     data: Dict[str, Any]
     published_at: datetime
+    substitution_assignments: List[Dict[str, Any]] = Field(default_factory=list)
     published_by: Optional[Dict[str, Any]] = None
 
 
@@ -161,6 +163,7 @@ class TeacherScheduleResponse(BaseModel):
     schedule: Dict[str, Any]
     published_at: datetime
     max_daily_hours: int
+    substitution_assignments: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 @app.post("/api/schedules/publish")
@@ -176,6 +179,7 @@ def api_publish_schedule(payload: PublishSchedulePayload, request: Request) -> D
         'schedule': payload.schedule,
         'data': payload.data.model_dump(),
         'published_at': published_at,
+        'substitution_assignments': payload.substitution_assignments or [],
         'published_by': {
             'user_id': user.get('id'),
             'name': user.get('name'),
@@ -199,6 +203,7 @@ def api_get_published_schedule(request: Request, school_id: Optional[int] = None
     record = storage_get_published_schedule(target_school_id)
     if not record:
         raise HTTPException(status_code=404, detail="schedule-not-found")
+    record.setdefault("substitution_assignments", [])
     return record
 
 
@@ -240,6 +245,8 @@ def api_teacher_schedule(request: Request, school_id: Optional[int] = None) -> D
 
     data = record.get('data') or {}
     schedule = record.get('schedule') or {}
+    all_substitutions = record.get('substitution_assignments') or []
+    teacher_substitutions = [item for item in all_substitutions if item.get('substituteTeacherId') == teacher_id]
 
     teacher_entry = None
     for teacher in data.get('teachers', []):
@@ -248,10 +255,30 @@ def api_teacher_schedule(request: Request, school_id: Optional[int] = None) -> D
             break
 
     max_daily_hours = 0
-    if teacher_entry and teacher_entry.get('availability'):
+
+    for class_schedule in schedule.values():
+        if not isinstance(class_schedule, list):
+            continue
+        for day in class_schedule:
+            if not isinstance(day, list):
+                continue
+            for hour_index, assignment in enumerate(day):
+                if not assignment:
+                    continue
+                teacher_ids = assignment.get('teacherIds') or []
+                if teacher_id in teacher_ids:
+                    max_daily_hours = max(max_daily_hours, hour_index + 1)
+
+    for substitution in teacher_substitutions:
+        hour_index = substitution.get('hourIndex')
+        if isinstance(hour_index, int):
+            max_daily_hours = max(max_daily_hours, hour_index + 1)
+
+    if max_daily_hours == 0 and teacher_entry and teacher_entry.get('availability'):
         for day in teacher_entry['availability']:
             if isinstance(day, list):
                 max_daily_hours = max(max_daily_hours, len(day))
+
     if max_daily_hours == 0:
         for class_schedule in schedule.values():
             if not isinstance(class_schedule, list):
@@ -259,6 +286,7 @@ def api_teacher_schedule(request: Request, school_id: Optional[int] = None) -> D
             for day in class_schedule:
                 if isinstance(day, list):
                     max_daily_hours = max(max_daily_hours, len(day))
+
     if max_daily_hours == 0:
         max_daily_hours = 12
 
@@ -270,6 +298,7 @@ def api_teacher_schedule(request: Request, school_id: Optional[int] = None) -> D
         'schedule': schedule,
         'published_at': record.get('published_at'),
         'max_daily_hours': max_daily_hours,
+        'substitution_assignments': teacher_substitutions,
     }
 
 
