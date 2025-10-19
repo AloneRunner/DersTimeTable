@@ -92,6 +92,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
             schedule: teacherSchedule.schedule,
             publishedAt: teacherSchedule.published_at,
             maxDailyHours: teacherSchedule.max_daily_hours,
+            assignments: teacherSchedule.substitution_assignments ?? [],
           }
         : null,
     [teacherSchedule],
@@ -99,7 +100,7 @@ const TeacherApp: React.FC<TeacherAppProps> = ({
 
   const effectiveData = liveTeacherData ? liveTeacherData.data : publishedData;
   const effectiveSchedule = liveTeacherData ? liveTeacherData.schedule : publishedSchedule;
-  const effectiveAssignments = liveTeacherData ? liveTeacherData.assignments : assignments;
+  const effectiveAssignments = liveTeacherData ? liveTeacherData.assignments : assignments ?? [];
   const effectivePublishedAt = liveTeacherData ? liveTeacherData.publishedAt : publishedAt;
 
   const effectiveMaxDailyHours = useMemo(() => {

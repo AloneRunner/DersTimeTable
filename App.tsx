@@ -2754,7 +2754,14 @@ case 'duties':
             <header className="mb-8 no-print">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
             <div>
-                <h1 className="text-3xl font-bold text-slate-900">Ozarik DersTimeTable</h1>
+                <div className="flex items-center gap-3">
+                    <img
+                        src="/assets/logo.png"
+                        alt="Ozarik DersTimeTable"
+                        className="h-10 w-auto rounded-md shadow-sm"
+                    />
+                    <h1 className="text-3xl font-bold text-slate-900">Ozarik DersTimeTable</h1>
+                </div>
                 <p className="text-slate-500 mt-1">Haftalık ders programınızı saniyeler içinde oluşturun.</p>
                 <div className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <a
