@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -43,7 +44,7 @@ def fetch_entitlement(app_user_id: str, entitlement_id: Optional[str] = None) ->
     try:
         with urllib.request.urlopen(request, timeout=10) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
+    except (urllib.error.URLError, urllib.error.HTTPError, socket.timeout, TimeoutError, json.JSONDecodeError):
         return None
 
     subscriber = payload.get("subscriber")
