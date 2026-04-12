@@ -29,7 +29,7 @@ import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
-import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, loginWithPassword, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
@@ -49,6 +49,7 @@ try {
 } catch {}
 
 const WEB_PORTAL_URL = 'https://ozariktable.netlify.app';
+const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
 
 const createDefaultSchoolHours = (): SchoolHours => ({
     [SchoolLevel.Middle]: [8, 8, 8, 8, 8],
@@ -392,10 +393,14 @@ const App: React.FC = () => {
     const [sessionError, setSessionError] = useState<string | null>(null);
     const [codeInput, setCodeInput] = useState<string>('');
     const [verifyLoading, setVerifyLoading] = useState<boolean>(false);
-    const [webLoginEmail, setWebLoginEmail] = useState<string>('');
-    const [webLoginPassword, setWebLoginPassword] = useState<string>('');
-    const [showWebLoginPassword, setShowWebLoginPassword] = useState<boolean>(false);
-    const [passwordLoginLoading, setPasswordLoginLoading] = useState<boolean>(false);
+    const [guestWebMode, setGuestWebMode] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            return window.localStorage.getItem(GUEST_WEB_MODE_KEY) === '1';
+        } catch {
+            return false;
+        }
+    });
     const [bridgeEmail, setBridgeEmail] = useState<string>('');
     const [bridgeName, setBridgeName] = useState<string>('');
     const [bridgeSchoolId, setBridgeSchoolId] = useState<string>('');
@@ -639,6 +644,20 @@ const App: React.FC = () => {
                     // pass
                 }
             }
+        }
+    }, []);
+
+    const persistGuestWebMode = useCallback((next: boolean) => {
+        setGuestWebMode(next);
+        if (typeof window === 'undefined') return;
+        try {
+            if (next) {
+                window.localStorage.setItem(GUEST_WEB_MODE_KEY, '1');
+            } else {
+                window.localStorage.removeItem(GUEST_WEB_MODE_KEY);
+            }
+        } catch {
+            // ignore persistence failures
         }
     }, []);
 
@@ -1236,6 +1255,7 @@ const App: React.FC = () => {
             if (info.session_token) {
                 persistSessionToken(info.session_token);
             }
+            persistGuestWebMode(false);
             setSessionInfo(info);
             setSessionStatus('ready');
             setCodeInput('');
@@ -1249,37 +1269,11 @@ const App: React.FC = () => {
         }
     }, [codeInput, persistSessionToken]);
 
-    const handlePasswordWebLogin = useCallback(async () => {
-        const email = webLoginEmail.trim().toLowerCase();
-        const password = webLoginPassword.trim();
-        if (!email || !password) {
-            setSessionError('E-posta ve sifre girin');
-            return;
-        }
-
-        setPasswordLoginLoading(true);
+    const handleContinueWithoutLogin = useCallback(() => {
         setSessionError(null);
-        try {
-            const info = await loginWithPassword({ email, password });
-            if (!info.session_token) {
-                throw new Error('Oturum olusturulamadi');
-            }
-            persistSessionToken(info.session_token);
-            setSessionInfo(info);
-            setSessionStatus('ready');
-            setCodeInput('');
-            setWebLoginEmail('');
-            setWebLoginPassword('');
-            setShowWebLoginPassword(false);
-            setBridgeCodeInfo(null);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Giris basarisiz';
-            setSessionError(message);
-            setSessionStatus('error');
-        } finally {
-            setPasswordLoginLoading(false);
-        }
-    }, [webLoginEmail, webLoginPassword, persistSessionToken]);
+        setSessionStatus('idle');
+        persistGuestWebMode(true);
+    }, [persistGuestWebMode]);
 
     const handleOpenWebPortal = useCallback(() => {
         if (typeof window !== 'undefined') {
@@ -2329,7 +2323,7 @@ case 'duties':
     }
     
     const sessionLoading = sessionStatus === 'loading';
-    const requiresWebAuth = !isSmallScreen && !sessionInfo && !sessionLoading;
+    const requiresWebAuth = !isSmallScreen && !sessionInfo && !sessionLoading && !guestWebMode;
     const activeSessionUser = sessionInfo?.user;
     const schoolOptions = sessionInfo?.schools ?? [];
     const bridgeCodeExpiryText = bridgeCodeInfo ? new Date(bridgeCodeInfo.expiresAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
@@ -2750,13 +2744,13 @@ case 'duties':
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75">
                 <div className="bg-white rounded-xl shadow-2xl px-6 py-6 w-full max-w-md space-y-5">
                     <div>
-                        <h2 className="text-xl font-semibold text-slate-900">Kod ile giriş yap</h2>
-                        <p className="text-sm text-slate-500 mt-1">Mobil uygulamada oluşturulan 6 haneli web erişim kodunu gir veya idareci e-postasi ile sifre kullan.</p>
+                        <h2 className="text-xl font-semibold text-slate-900">Web'e basla</h2>
+                        <p className="text-sm text-slate-500 mt-1">Programi hemen yerelde kullanabilir veya mobil uygulamada olusturulan 6 haneli kod ile bulut hesabina baglanabilirsin.</p>
                     </div>
                     <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
                         <div>
                             <h3 className="text-sm font-semibold text-slate-800">Kod ile hizli erisim</h3>
-                            <p className="mt-1 text-xs text-slate-500">Telefon uygulamasindan uretilen kodu kullan.</p>
+                            <p className="mt-1 text-xs text-slate-500">Telefon uygulamasindan uretilen kodu kullan. Bu secenek bulut esitleme ve ogretmen paylasimi icindir.</p>
                         </div>
                         <input
                             type="text"
@@ -2794,46 +2788,19 @@ case 'duties':
                         <span className="h-px flex-1 bg-slate-200"></span>
                     </div>
 
-                    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-800">Idareci girisi</h3>
-                            <p className="mt-1 text-xs text-slate-500">Programlari yonetmek icin e-posta ve sifre ile oturum ac.</p>
-                        </div>
-                        <input
-                            type="email"
-                            value={webLoginEmail}
-                            onChange={(e) => setWebLoginEmail(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handlePasswordWebLogin(); } }}
-                            placeholder="idare@example.com"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                            autoComplete="email"
-                        />
-                        <div className="flex items-center gap-2">
-                            <input
-                                type={showWebLoginPassword ? 'text' : 'password'}
-                                value={webLoginPassword}
-                                onChange={(e) => setWebLoginPassword(e.target.value.replace(/\s+/g, ''))}
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handlePasswordWebLogin(); } }}
-                                placeholder="Sifre"
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                autoComplete="current-password"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowWebLoginPassword((prev) => !prev)}
-                                className="rounded border border-slate-300 px-3 py-2 text-xs text-slate-600 hover:bg-slate-100"
-                            >
-                                {showWebLoginPassword ? 'Gizle' : 'Goster'}
-                            </button>
+                            <h3 className="text-sm font-semibold text-emerald-900">Sifresiz yerel kullanim</h3>
+                            <p className="mt-1 text-xs text-emerald-700">Hicbir bilgi girmeden programa gec. Veriler bu cihazda tutulur.</p>
                         </div>
                         <button
                             type="button"
-                            onClick={handlePasswordWebLogin}
-                            disabled={passwordLoginLoading || !webLoginEmail.trim() || !webLoginPassword.trim()}
-                            className="w-full rounded-lg bg-sky-600 px-4 py-2 text-white font-medium shadow hover:bg-sky-700 disabled:opacity-60"
+                            onClick={handleContinueWithoutLogin}
+                            className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-white font-medium shadow hover:bg-emerald-700"
                         >
-                            {passwordLoginLoading ? 'Giris yapiliyor...' : 'E-posta ile giris yap'}
+                            Giris yapmadan devam et
                         </button>
+                        <p className="text-xs text-emerald-700">Not: Buluta kaydetme, ogretmen baglama ve program paylasimi icin kodlu giris gerekir.</p>
                     </div>
                     {sessionError && (
                         <p className="text-sm text-red-600">{sessionError}</p>
@@ -2893,6 +2860,22 @@ case 'duties':
                             className={`text-red-600 ${isSmallScreen ? 'mt-1 inline-flex items-center text-sm font-medium' : 'ml-2 text-xs'}`}
                         >
                             Cikis
+                        </button>
+                    </div>
+                )}
+                {!activeSessionUser && guestWebMode && !isSmallScreen && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">Yerel mod</span>
+                        <span>Veriler sadece bu cihazda tutulur.</span>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                persistGuestWebMode(false);
+                                setSessionError(null);
+                            }}
+                            className="text-sky-600 underline underline-offset-2"
+                        >
+                            Bulut girisi ac
                         </button>
                     </div>
                 )}
