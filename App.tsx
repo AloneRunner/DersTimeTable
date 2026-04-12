@@ -29,7 +29,7 @@ import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf } from './services/pdfExporter';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
-import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, loginWithPassword, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
@@ -392,6 +392,10 @@ const App: React.FC = () => {
     const [sessionError, setSessionError] = useState<string | null>(null);
     const [codeInput, setCodeInput] = useState<string>('');
     const [verifyLoading, setVerifyLoading] = useState<boolean>(false);
+    const [webLoginEmail, setWebLoginEmail] = useState<string>('');
+    const [webLoginPassword, setWebLoginPassword] = useState<string>('');
+    const [showWebLoginPassword, setShowWebLoginPassword] = useState<boolean>(false);
+    const [passwordLoginLoading, setPasswordLoginLoading] = useState<boolean>(false);
     const [bridgeEmail, setBridgeEmail] = useState<string>('');
     const [bridgeName, setBridgeName] = useState<string>('');
     const [bridgeSchoolId, setBridgeSchoolId] = useState<string>('');
@@ -1244,6 +1248,38 @@ const App: React.FC = () => {
             setVerifyLoading(false);
         }
     }, [codeInput, persistSessionToken]);
+
+    const handlePasswordWebLogin = useCallback(async () => {
+        const email = webLoginEmail.trim().toLowerCase();
+        const password = webLoginPassword.trim();
+        if (!email || !password) {
+            setSessionError('E-posta ve sifre girin');
+            return;
+        }
+
+        setPasswordLoginLoading(true);
+        setSessionError(null);
+        try {
+            const info = await loginWithPassword({ email, password });
+            if (!info.session_token) {
+                throw new Error('Oturum olusturulamadi');
+            }
+            persistSessionToken(info.session_token);
+            setSessionInfo(info);
+            setSessionStatus('ready');
+            setCodeInput('');
+            setWebLoginEmail('');
+            setWebLoginPassword('');
+            setShowWebLoginPassword(false);
+            setBridgeCodeInfo(null);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Giris basarisiz';
+            setSessionError(message);
+            setSessionStatus('error');
+        } finally {
+            setPasswordLoginLoading(false);
+        }
+    }, [webLoginEmail, webLoginPassword, persistSessionToken]);
 
     const handleOpenWebPortal = useCallback(() => {
         if (typeof window !== 'undefined') {
@@ -2712,42 +2748,96 @@ case 'duties':
         )}
         {requiresWebAuth && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75">
-                <div className="bg-white rounded-xl shadow-2xl px-6 py-6 w-full max-w-md space-y-4">
+                <div className="bg-white rounded-xl shadow-2xl px-6 py-6 w-full max-w-md space-y-5">
                     <div>
                         <h2 className="text-xl font-semibold text-slate-900">Kod ile giriş yap</h2>
-                        <p className="text-sm text-slate-500 mt-1">Mobil uygulamada oluşturulan 6 haneli web erişim kodunu gir.</p>
+                        <p className="text-sm text-slate-500 mt-1">Mobil uygulamada oluşturulan 6 haneli web erişim kodunu gir veya idareci e-postasi ile sifre kullan.</p>
                     </div>
-                    <input
-                        type="text"
-                        inputMode="numeric"
-                        value={codeInput}
-                        onChange={(e) => setCodeInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleVerifyBridgeCode(); } }}
-                        placeholder="Örn: 123456"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        maxLength={6}
-                    />
+                    <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-800">Kod ile hizli erisim</h3>
+                            <p className="mt-1 text-xs text-slate-500">Telefon uygulamasindan uretilen kodu kullan.</p>
+                        </div>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            value={codeInput}
+                            onChange={(e) => setCodeInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleVerifyBridgeCode(); } }}
+                            placeholder="Orn: 123456"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            maxLength={6}
+                        />
+                        <div className="flex items-center justify-between gap-3">
+                            <button
+                                type="button"
+                                onClick={handleVerifyBridgeCode}
+                                disabled={verifyLoading || !codeInput.trim()}
+                                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white font-medium shadow hover:bg-blue-700 disabled:opacity-60"
+                            >
+                                {verifyLoading ? 'Dogrulaniyor...' : 'Kodu dogrula'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setCodeInput(''); setSessionError(null); }}
+                                className="px-3 py-2 text-sm text-slate-500 hover:text-slate-700"
+                            >
+                                Temizle
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-400">Mobil uygulamada "Web erisim kodu" bolumunden yeni kod olusturabilirsiniz.</p>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+                        <span className="h-px flex-1 bg-slate-200"></span>
+                        <span>veya</span>
+                        <span className="h-px flex-1 bg-slate-200"></span>
+                    </div>
+
+                    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-800">Idareci girisi</h3>
+                            <p className="mt-1 text-xs text-slate-500">Programlari yonetmek icin e-posta ve sifre ile oturum ac.</p>
+                        </div>
+                        <input
+                            type="email"
+                            value={webLoginEmail}
+                            onChange={(e) => setWebLoginEmail(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handlePasswordWebLogin(); } }}
+                            placeholder="idare@example.com"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            autoComplete="email"
+                        />
+                        <div className="flex items-center gap-2">
+                            <input
+                                type={showWebLoginPassword ? 'text' : 'password'}
+                                value={webLoginPassword}
+                                onChange={(e) => setWebLoginPassword(e.target.value.replace(/\s+/g, ''))}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handlePasswordWebLogin(); } }}
+                                placeholder="Sifre"
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                autoComplete="current-password"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowWebLoginPassword((prev) => !prev)}
+                                className="rounded border border-slate-300 px-3 py-2 text-xs text-slate-600 hover:bg-slate-100"
+                            >
+                                {showWebLoginPassword ? 'Gizle' : 'Goster'}
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handlePasswordWebLogin}
+                            disabled={passwordLoginLoading || !webLoginEmail.trim() || !webLoginPassword.trim()}
+                            className="w-full rounded-lg bg-sky-600 px-4 py-2 text-white font-medium shadow hover:bg-sky-700 disabled:opacity-60"
+                        >
+                            {passwordLoginLoading ? 'Giris yapiliyor...' : 'E-posta ile giris yap'}
+                        </button>
+                    </div>
                     {sessionError && (
                         <p className="text-sm text-red-600">{sessionError}</p>
                     )}
-                    <div className="flex items-center justify-between gap-3">
-                        <button
-                            type="button"
-                            onClick={handleVerifyBridgeCode}
-                            disabled={verifyLoading || !codeInput.trim()}
-                            className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white font-medium shadow hover:bg-blue-700 disabled:opacity-60"
-                        >
-                            {verifyLoading ? 'Doğrulanıyor...' : 'Kodu doğrula'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setCodeInput(''); setSessionError(null); }}
-                            className="px-3 py-2 text-sm text-slate-500 hover:text-slate-700"
-                        >
-                            Temizle
-                        </button>
-                    </div>
-                    <p className="text-xs text-slate-400">Mobil uygulamada "Web erişim kodu" bölümünden yeni kod oluşturabilirsiniz.</p>
                 </div>
             </div>
         )}
