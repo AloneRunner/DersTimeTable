@@ -48,7 +48,7 @@ try {
   }
 } catch {}
 
-const WEB_PORTAL_URL = 'https://ozariktable.netlify.app';
+const WEB_PORTAL_URL = 'https://idare.ozarik.org';
 const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
 
 const createDefaultSchoolHours = (): SchoolHours => ({
