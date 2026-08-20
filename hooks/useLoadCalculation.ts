@@ -25,7 +25,10 @@ export const useLoadCalculation = (data: TimetableData, schoolHours: SchoolHours
       });
     });
     data.teachers.forEach(t => {
-      const capacity = t.availability.flat().filter(Boolean).length;
+      const availableHours = t.availability.flat().filter(Boolean).length;
+      const capacity = typeof t.maxWeeklyHours === 'number'
+        ? Math.min(availableHours, t.maxWeeklyHours)
+        : availableHours;
       teacherLoads.set(t.id, { demand: 0, capacity });
     });
 

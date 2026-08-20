@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { Subject, TimetableData, Teacher } from '../../types';
 import { AutocompleteInput } from '../../components/AutocompleteInput';
 import { subjectSuggestions } from '../../data/suggestions';
+import { loadRememberedSubjectNames, rememberSubjectName } from '../../utils/subjectMemory';
 
 export const SubjectForm: React.FC<{
   item: Subject | null;
@@ -40,11 +41,32 @@ export const SubjectForm: React.FC<{
     );
   }, [subject.name, data.teachers]);
 
+  const availableSubjectSuggestions = useMemo(() => {
+    const allNames = [
+      ...subjectSuggestions,
+      ...data.subjects.map(existing => existing.name),
+      ...loadRememberedSubjectNames(),
+    ].filter(Boolean);
+    return Array.from(new Set(allNames)).sort((a, b) => a.localeCompare(b, 'tr'));
+  }, [data.subjects]);
+
   const allTeachersForPinning = useMemo(() => {
     const eligibleIds = new Set(eligibleTeachers.map((t) => t.id));
     const others = data.teachers.filter((t) => !eligibleIds.has(t.id));
     return { eligible: eligibleTeachers, others };
   }, [eligibleTeachers, data.teachers]);
+
+  const blockSummary = useMemo(() => {
+    const weekly = Number((subject as any).weeklyHours) || 0;
+    const doubleHours = Number((subject as any).blockHours) || 0;
+    const tripleHours = Number((subject as any).tripleBlockHours) || 0;
+    const singleHours = Math.max(0, weekly - doubleHours - tripleHours);
+    const parts = [];
+    if (doubleHours > 0) parts.push(`${doubleHours / 2} adet 2'li blok`);
+    if (tripleHours > 0) parts.push(`${tripleHours / 3} adet 3'lü blok`);
+    if (singleHours > 0) parts.push(`${singleHours} tek saat`);
+    return parts.length ? parts.join(' + ') : 'Henüz saat tanımlanmadı';
+  }, [subject]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target as HTMLInputElement;
@@ -114,6 +136,7 @@ export const SubjectForm: React.FC<{
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    rememberSubjectName(subject.name);
     onSave(subject);
   };
 
@@ -124,7 +147,7 @@ export const SubjectForm: React.FC<{
         <AutocompleteInput
           value={subject.name}
           onChange={handleNameChange}
-          suggestions={subjectSuggestions}
+          suggestions={availableSubjectSuggestions}
           placeholder="Ders adı yazın veya seçin"
           className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
           required
@@ -163,7 +186,7 @@ export const SubjectForm: React.FC<{
             step={2}
             className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
           />
-          <p className="text-xs text-slate-500 mt-1">Bu dersin 2'li blok kaç saat olacağı.</p>
+          <p className="text-xs text-slate-500 mt-1">Toplam kaç saatin ikişer saat yan yana olacağı. 2 = bir blok, 4 = iki blok.</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">3'lü Blok Saat</label>
@@ -177,8 +200,15 @@ export const SubjectForm: React.FC<{
             step={3}
             className="mt-1 block w-full rounded-md border-slate-300 shadow-sm"
           />
-          <p className="text-xs text-slate-500 mt-1">3'ün katı olmalı.</p>
+          <p className="text-xs text-slate-500 mt-1">Toplam kaç saatin üçer saat yan yana olacağı. 3 = bir blok, 6 = iki blok.</p>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900">
+        <p className="font-semibold">Bu tanımın yerleşimi: {blockSummary}</p>
+        <p className="mt-1">
+          Örnek: Haftalık 5, 2'li blok 2 ve 3'lü blok 3 seçilirse CP-SAT bir adet 2'li ve bir adet 3'lü blok yerleştirmek zorundadır; yer bulamazsa parçalamaz. Yerel Dengeli/Maks yöntemleri gerektiğinde bloğu esnetebilir ve bunu sonuç notunda bildirir.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

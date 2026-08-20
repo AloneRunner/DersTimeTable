@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 import os
 import psycopg
 from psycopg.rows import dict_row
+from auth import get_session_context
 
 router = APIRouter(prefix='/api')
 
@@ -46,11 +47,30 @@ def _db_execute(query: str, params: tuple = (), returning: bool = False):
             return cur.rowcount
 
 
+def _require_school_admin(request: Request, school_id: int) -> None:
+    _user, memberships, _record = get_session_context(request)
+    allowed = any(
+        int(item.get('id', 0)) == int(school_id)
+        and (item.get('role') or '').lower() in {'admin', 'owner', 'manager', 'super_admin'}
+        for item in memberships
+    )
+    if not allowed:
+        raise HTTPException(status_code=403, detail='not-authorized')
+
+
 @router.get('/schools')
-def get_schools():
+def get_schools(request: Request):
+    _user, memberships, _record = get_session_context(request)
+    school_ids = [int(item['id']) for item in memberships if item.get('id') is not None]
     if not USE_DB:
-        return db.list_schools()
-    rows = _db_query('SELECT id, name, slug, metadata, created_at FROM schools ORDER BY id')
+        allowed = set(school_ids)
+        return [item for item in db.list_schools() if int(item.get('id', 0)) in allowed]
+    if not school_ids:
+        return []
+    rows = _db_query(
+        'SELECT id, name, slug, metadata, created_at FROM schools WHERE id = ANY(%s) ORDER BY id',
+        (school_ids,),
+    )
     return rows
 
 
@@ -77,7 +97,8 @@ def create_school(payload: CreateSchool):
 
 
 @router.post('/schools/invite')
-def invite_teacher(payload: InviteRequest):
+def invite_teacher(payload: InviteRequest, request: Request):
+    _require_school_admin(request, payload.school_id)
     if not USE_DB:
         rec = db.add_teacher_school(payload.teacher_id, payload.school_id)
         return {'ok': True, 'assigned': rec}
@@ -96,7 +117,8 @@ def invite_teacher(payload: InviteRequest):
 
 
 @router.post('/schools/remove-teacher')
-def remove_teacher(payload: InviteRequest):
+def remove_teacher(payload: InviteRequest, request: Request):
+    _require_school_admin(request, payload.school_id)
     if not USE_DB:
         ok = db.remove_teacher_school(payload.teacher_id, payload.school_id)
         return {'ok': ok}

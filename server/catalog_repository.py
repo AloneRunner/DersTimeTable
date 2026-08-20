@@ -88,6 +88,7 @@ def _teacher_from_row(row: Dict[str, Any]) -> TeacherRecord:
         availability=_safe_json(row.get('availability')) or [],
         canTeachMiddleSchool=bool(row.get('can_teach_middle')),
         canTeachHighSchool=bool(row.get('can_teach_high')),
+        maxWeeklyHours=row.get('max_weekly_hours'),
         metadata=_safe_json(row.get('metadata')),
         isArchived=bool(row.get('is_archived', False)),
         createdAt=row.get('created_at'),
@@ -212,6 +213,7 @@ def list_teachers(school_id: int) -> List[TeacherRecord]:
             'availability': rec.get('availability'),
             'can_teach_middle': rec.get('can_teach_middle') if 'can_teach_middle' in rec else rec.get('canTeachMiddleSchool'),
             'can_teach_high': rec.get('can_teach_high') if 'can_teach_high' in rec else rec.get('canTeachHighSchool'),
+            'max_weekly_hours': rec.get('max_weekly_hours') if 'max_weekly_hours' in rec else rec.get('maxWeeklyHours'),
             'metadata': rec.get('metadata'),
             'is_archived': rec.get('is_archived', rec.get('isArchived', False)),
             'created_at': rec.get('created_at'),
@@ -225,15 +227,16 @@ def upsert_teacher(school_id: int, payload: TeacherPayload) -> TeacherRecord:
         row = _db_fetch_one(
             """INSERT INTO school_teachers (
                    school_id, teacher_key, name, branches, availability,
-                   can_teach_middle, can_teach_high, metadata, is_archived, updated_at
+                   can_teach_middle, can_teach_high, max_weekly_hours, metadata, is_archived, updated_at
                )
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
                ON CONFLICT (school_id, teacher_key) DO UPDATE
                SET name = EXCLUDED.name,
                    branches = EXCLUDED.branches,
                    availability = EXCLUDED.availability,
                    can_teach_middle = EXCLUDED.can_teach_middle,
                    can_teach_high = EXCLUDED.can_teach_high,
+                   max_weekly_hours = EXCLUDED.max_weekly_hours,
                    metadata = EXCLUDED.metadata,
                    is_archived = EXCLUDED.is_archived,
                    updated_at = now()
@@ -246,6 +249,7 @@ def upsert_teacher(school_id: int, payload: TeacherPayload) -> TeacherRecord:
                 Json(payload.availability or []),
                 payload.canTeachMiddleSchool,
                 payload.canTeachHighSchool,
+                payload.maxWeeklyHours,
                 Json(payload.metadata) if payload.metadata is not None else None,
                 payload.isArchived,
             ),
@@ -262,6 +266,7 @@ def upsert_teacher(school_id: int, payload: TeacherPayload) -> TeacherRecord:
         'availability': payload.availability,
         'can_teach_middle': payload.canTeachMiddleSchool,
         'can_teach_high': payload.canTeachHighSchool,
+        'max_weekly_hours': payload.maxWeeklyHours,
         'metadata': payload.metadata,
         'is_archived': payload.isArchived,
     }
@@ -886,7 +891,9 @@ def replace_school_catalog(
     duties: List[DutyPayload],
 ) -> None:
     if USE_DB:
-        with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
+        # Full catalog replacement is one transaction. If any insert fails,
+        # PostgreSQL rolls the deletes back and the previous catalog survives.
+        with psycopg.connect(DATABASE_URL) as conn:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM school_duties WHERE school_id = %s", (school_id,))
                 cur.execute("DELETE FROM school_lesson_groups WHERE school_id = %s", (school_id,))
@@ -896,20 +903,90 @@ def replace_school_catalog(
                 cur.execute("DELETE FROM school_classrooms WHERE school_id = %s", (school_id,))
                 cur.execute("DELETE FROM school_teachers WHERE school_id = %s", (school_id,))
 
-        for teacher in teachers:
-            upsert_teacher(school_id, teacher)
-        for classroom in classrooms:
-            upsert_classroom(school_id, classroom)
-        for location in locations:
-            upsert_location(school_id, location)
-        for subject in subjects:
-            upsert_subject(school_id, subject)
-        for assignment in fixed_assignments:
-            upsert_fixed_assignment(school_id, assignment)
-        for group in lesson_groups:
-            upsert_lesson_group(school_id, group)
-        for duty in duties:
-            upsert_duty(school_id, duty)
+                if teachers:
+                    cur.executemany(
+                        """INSERT INTO school_teachers (
+                               school_id, teacher_key, name, branches, availability,
+                               can_teach_middle, can_teach_high, max_weekly_hours,
+                               metadata, is_archived, updated_at
+                           ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())""",
+                        [(
+                            school_id, item.id, item.name, item.branches, Json(item.availability or []),
+                            item.canTeachMiddleSchool, item.canTeachHighSchool, item.maxWeeklyHours,
+                            Json(item.metadata) if item.metadata is not None else None, item.isArchived,
+                        ) for item in teachers],
+                    )
+                if classrooms:
+                    cur.executemany(
+                        """INSERT INTO school_classrooms (
+                               school_id, classroom_key, name, level, class_group,
+                               homeroom_teacher_key, session_type, metadata, is_archived, updated_at
+                           ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, now())""",
+                        [(
+                            school_id, item.id, item.name, item.level, item.group,
+                            item.homeroomTeacherId, item.sessionType,
+                            Json(item.metadata) if item.metadata is not None else None, item.isArchived,
+                        ) for item in classrooms],
+                    )
+                if locations:
+                    cur.executemany(
+                        """INSERT INTO school_locations (
+                               school_id, location_key, name, metadata, is_archived, updated_at
+                           ) VALUES (%s, %s, %s, %s, %s, now())""",
+                        [(
+                            school_id, item.id, item.name,
+                            Json(item.metadata) if item.metadata is not None else None, item.isArchived,
+                        ) for item in locations],
+                    )
+                if subjects:
+                    cur.executemany(
+                        """INSERT INTO school_subjects (
+                               school_id, subject_key, name, weekly_hours, block_hours,
+                               triple_block_hours, max_consec, location_key, required_teacher_count,
+                               assigned_class_keys, pinned_teacher_map, metadata, is_archived, updated_at
+                           ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())""",
+                        [(
+                            school_id, item.id, item.name, item.weeklyHours, item.blockHours,
+                            item.tripleBlockHours, item.maxConsec, item.locationId, item.requiredTeacherCount,
+                            item.assignedClassIds, Json(item.pinnedTeacherByClassroom or {}),
+                            Json(item.metadata) if item.metadata is not None else None, item.isArchived,
+                        ) for item in subjects],
+                    )
+                if fixed_assignments:
+                    cur.executemany(
+                        """INSERT INTO school_fixed_assignments (
+                               school_id, assignment_key, classroom_key, subject_key,
+                               day_index, hour_index, metadata, updated_at
+                           ) VALUES (%s, %s, %s, %s, %s, %s, %s, now())""",
+                        [(
+                            school_id, item.id, item.classroomId, item.subjectId,
+                            item.dayIndex, item.hourIndex,
+                            Json(item.metadata) if item.metadata is not None else None,
+                        ) for item in fixed_assignments],
+                    )
+                if lesson_groups:
+                    cur.executemany(
+                        """INSERT INTO school_lesson_groups (
+                               school_id, lesson_group_key, name, subject_key,
+                               classroom_keys, weekly_hours, is_block, metadata, updated_at
+                           ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, now())""",
+                        [(
+                            school_id, item.id, item.name, item.subjectId, item.classroomIds,
+                            item.weeklyHours, item.isBlock,
+                            Json(item.metadata) if item.metadata is not None else None,
+                        ) for item in lesson_groups],
+                    )
+                if duties:
+                    cur.executemany(
+                        """INSERT INTO school_duties (
+                               school_id, duty_key, teacher_key, name,
+                               day_index, hour_index, metadata, updated_at
+                           ) VALUES (%s, %s, %s, %s, %s, %s, %s, now())""",
+                        [(
+                            school_id, item.id, item.teacherId, item.name, item.dayIndex,
+                            item.hourIndex, Json(item.metadata) if item.metadata is not None else None,
+                        ) for item in duties],
+                    )
         return
 
     # storage fallback: clear and reinsert

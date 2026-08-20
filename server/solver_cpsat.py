@@ -66,6 +66,7 @@ def solve_cp_sat(
     y2: Dict[Tuple[str, str, str, int, int], Any] = {}
     y3: Dict[Tuple[str, str, str, int, int], Any] = {}
     x: Dict[Tuple[str, str, str, int, int], Any] = {}
+    combo_members: Dict[str, Tuple[str, ...]] = {}
     notes: List[str] = []
     prefs = preferences or {}
     allow_same_day_split = bool(prefs.get('allowSameDaySplit', False))
@@ -126,7 +127,8 @@ def solve_cp_sat(
 
             for teacher_tuple in teacher_combos:
                 # For multi-teacher, use a composite ID. For single, it's just the teacher's ID.
-                composite_tid = "-".join(sorted(teacher_tuple))
+                composite_tid = "||".join(sorted(teacher_tuple))
+                combo_members[composite_tid] = tuple(teacher_tuple)
 
                 for d in range(5):
                     allowed_len = school_hours['Ortaokul'][d] if c['level'] == 'Ortaokul' else school_hours['Lise'][d]
@@ -243,8 +245,7 @@ def solve_cp_sat(
                 vars_t = []
                 for (cc, ss, composite_tid, dd, hh), v in x.items():
                     if dd == d and hh == h:
-                        # Check if the teacher's ID is in the composite ID string
-                        if tid in composite_tid.split('-'):
+                        if tid in combo_members.get(composite_tid, ()):
                             vars_t.append(v)
                 if len(vars_t) > 1:
                     model.Add(sum(vars_t) <= 1)
@@ -265,11 +266,31 @@ def solve_cp_sat(
                 vars_day = []
                 for (cc, ss, composite_tid, dd, hh), v in x.items():
                     if dd == d:
-                        if tid in composite_tid.split('-'):
+                        if tid in combo_members.get(composite_tid, ()):
                             vars_day.append(v)
 
                 if vars_day:
                     model.Add(sum(vars_day) <= teacher_daily_max)
+
+    # Teacher-specific hard limit: maximum weekly lesson hours.
+    for teacher in teachers:
+        raw_limit = teacher.get('maxWeeklyHours')
+        if raw_limit is None:
+            continue
+        try:
+            weekly_limit = int(raw_limit)
+        except (TypeError, ValueError):
+            continue
+        if weekly_limit < 1:
+            continue
+        tid = teacher['id']
+        vars_week = [
+            var
+            for (_cid, _sid, composite_tid, _day, _hour), var in x.items()
+            if tid in combo_members.get(composite_tid, ())
+        ]
+        if vars_week:
+            model.Add(sum(vars_week) <= weekly_limit)
 
     # Fixed assignments: enforce that the slot is covered by the subject with exactly one teacher
     for fa in fixed:
@@ -387,7 +408,7 @@ def solve_cp_sat(
         for (cid, sid, composite_tid, d, h), var in x.items():
             if solver.BooleanValue(var):
                 s = subject_by_id[sid]
-                teacher_ids = composite_tid.split('-')
+                teacher_ids = list(combo_members.get(composite_tid, ()))
                 assign = {
                     'subjectId': sid,
                     'teacherIds': teacher_ids,
@@ -430,6 +451,6 @@ def solve_cp_sat(
     }
 
     return {
-        'schedule': schedule,
+        'schedule': schedule if status in (cp_model.OPTIMAL, cp_model.FEASIBLE) else None,
         'stats': stats,
     }

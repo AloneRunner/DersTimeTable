@@ -20,6 +20,7 @@ type CatalogTeacher = {
   availability?: boolean[][] | null;
   canTeachMiddleSchool?: boolean | null;
   canTeachHighSchool?: boolean | null;
+  maxWeeklyHours?: number | null;
 };
 
 type CatalogClassroom = {
@@ -109,6 +110,7 @@ const toTeacher = (raw: CatalogTeacher): Teacher => ({
     : DEFAULT_AVAILABILITY.map(day => [...day]),
   canTeachMiddleSchool: raw.canTeachMiddleSchool ?? true,
   canTeachHighSchool: raw.canTeachHighSchool ?? false,
+  maxWeeklyHours: raw.maxWeeklyHours ?? undefined,
 });
 
 const toClassroom = (raw: CatalogClassroom): Classroom => ({
@@ -177,6 +179,7 @@ const toCatalogTeacher = (teacher: Teacher): CatalogTeacher => ({
   availability: teacher.availability ?? DEFAULT_AVAILABILITY,
   canTeachMiddleSchool: teacher.canTeachMiddleSchool,
   canTeachHighSchool: teacher.canTeachHighSchool,
+  maxWeeklyHours: teacher.maxWeeklyHours ?? null,
 });
 
 const toCatalogClassroom = (classroom: Classroom): CatalogClassroom => ({

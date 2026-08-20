@@ -3,12 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
+import os
+from threading import BoundedSemaphore
 from solver_cpsat import solve_cp_sat
 from schools import router as schools_router
 from subscriptions import router as subs_router
 from auth import router as auth_router, get_session_context, get_teacher_links_for_user
 from catalog_router import catalog_router
-from storage import upsert_published_schedule, get_published_schedule as storage_get_published_schedule
+from published_schedule_repository import get_published_schedule, upsert_published_schedule
 
 
 class Teacher(BaseModel):
@@ -18,6 +20,7 @@ class Teacher(BaseModel):
     availability: List[List[bool]]
     canTeachMiddleSchool: bool
     canTeachHighSchool: bool
+    maxWeeklyHours: Optional[int] = Field(default=None, ge=1, le=80)
 
 
 class Classroom(BaseModel):
@@ -90,7 +93,7 @@ class SchoolHours(BaseModel):
 class SolveRequest(BaseModel):
     data: TimetableData
     schoolHours: SchoolHours
-    timeLimitSeconds: int = 60
+    timeLimitSeconds: int = Field(default=60, ge=5, le=180)
     defaults: dict | None = None
     preferences: dict | None = None
     stopAtFirst: bool | None = None
@@ -119,6 +122,12 @@ app.include_router(subs_router)
 app.include_router(auth_router)
 app.include_router(catalog_router)
 
+try:
+    _solver_concurrency = max(1, min(4, int(os.environ.get("SOLVER_MAX_CONCURRENCY", "2"))))
+except (TypeError, ValueError):
+    _solver_concurrency = 2
+_solver_slots = BoundedSemaphore(_solver_concurrency)
+
 
 @app.get("/health")
 def health():
@@ -127,17 +136,21 @@ def health():
 
 @app.post("/solve/cpsat")
 def solve_cpsat(req: SolveRequest) -> Any:
+    if not _solver_slots.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="solver-busy-try-again")
     defaults = req.defaults or {}
     prefs = req.preferences or {}
-    result = solve_cp_sat(
-        req.data.model_dump(),
-        req.schoolHours.model_dump(),
-        req.timeLimitSeconds,
-        default_max_consec=defaults.get('maxConsec'),
-        preferences=prefs,
-        stop_at_first=bool(req.stopAtFirst) if req.stopAtFirst is not None else False,
-    )
-    return result
+    try:
+        return solve_cp_sat(
+            req.data.model_dump(),
+            req.schoolHours.model_dump(),
+            req.timeLimitSeconds,
+            default_max_consec=defaults.get('maxConsec'),
+            preferences=prefs,
+            stop_at_first=bool(req.stopAtFirst) if req.stopAtFirst is not None else False,
+        )
+    finally:
+        _solver_slots.release()
 
 
 class PublishSchedulePayload(BaseModel):
@@ -201,7 +214,7 @@ def api_get_published_schedule(request: Request, school_id: Optional[int] = None
     if target_school_id not in allowed_school_ids:
         raise HTTPException(status_code=403, detail="not-member-of-school")
 
-    record = storage_get_published_schedule(target_school_id)
+    record = get_published_schedule(target_school_id)
     if not record:
         raise HTTPException(status_code=404, detail="schedule-not-found")
     record.setdefault("substitution_assignments", [])
@@ -240,7 +253,7 @@ def api_teacher_schedule(request: Request, school_id: Optional[int] = None) -> D
     if target_school_id is None or teacher_id is None:
         raise HTTPException(status_code=400, detail="invalid-teacher-link")
 
-    record = storage_get_published_schedule(target_school_id)
+    record = get_published_schedule(target_school_id)
     if not record:
         raise HTTPException(status_code=404, detail="schedule-not-found")
 

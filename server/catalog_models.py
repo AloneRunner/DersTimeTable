@@ -21,6 +21,7 @@ class TeacherPayload(BaseModel):
     availability: List[List[bool]] = Field(default_factory=list)
     canTeachMiddleSchool: bool = True
     canTeachHighSchool: bool = False
+    maxWeeklyHours: Optional[int] = Field(default=None, ge=1, le=80)
     metadata: Optional[Dict[str, Any]] = None
     isArchived: bool = False
 
@@ -141,4 +142,3 @@ class SchoolSettingsPayload(BaseModel):
 
 class SchoolSettingsRecord(SchoolSettingsPayload):
     updatedAt: Optional[datetime] = None
-

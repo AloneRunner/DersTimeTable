@@ -31,6 +31,8 @@ import { buildSchedulePdf } from './services/pdfExporter';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
 import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
+import { PreflightOverview } from './components/PreflightOverview';
+import { loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
@@ -367,8 +369,17 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
 
 // --- Main App Component ---
 const App: React.FC = () => {
-    const { data, addTeacher, updateTeacher, removeTeacher, addClassroom, updateClassroom, removeClassroom, addSubject, updateSubject, removeSubject, addLocation, updateLocation, removeLocation, addFixedAssignment, removeFixedAssignment, addLessonGroup, updateLessonGroup, removeLessonGroup, addDuty, updateDuty, removeDuty, importData, clearData, replaceData } = useTimetableData();
-    const [schedule, setSchedule] = useState<Schedule | null>(null);
+    const [initialSessionToken] = useState<string | null>(() => {
+        if (typeof window === 'undefined') return null;
+        try {
+            return window.localStorage.getItem('ozarik.session');
+        } catch {
+            return null;
+        }
+    });
+    const [initialLocalWorkspace] = useState(() => loadLocalWorkspace());
+    const { data, addTeacher, updateTeacher, removeTeacher, addClassroom, updateClassroom, removeClassroom, addSubject, updateSubject, removeSubject, addLocation, updateLocation, removeLocation, addFixedAssignment, removeFixedAssignment, addLessonGroup, updateLessonGroup, removeLessonGroup, addDuty, updateDuty, removeDuty, importData, clearData, replaceData } = useTimetableData(initialSessionToken ? null : initialLocalWorkspace?.data);
+    const [schedule, setSchedule] = useState<Schedule | null>(() => initialSessionToken ? null : initialLocalWorkspace?.schedule || null);
     const [solverStats, setSolverStats] = useState<SolverStats | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -377,17 +388,10 @@ const App: React.FC = () => {
     const [viewMode, setViewMode] = useState<ViewMode>('single');
     const [pdfScope, setPdfScope] = useState<'selected' | 'classes' | 'teachers'>('selected');
     const [selectedHeaderId, setSelectedHeaderId] = useState<string>('');
-    const [schoolHours, setSchoolHours] = useState<SchoolHours>(() => createDefaultSchoolHours());
-    const [schoolHoursDraft, setSchoolHoursDraft] = useState<SchoolHoursDraft>(() => schoolHoursToDraft(createDefaultSchoolHours()));
+    const [schoolHours, setSchoolHours] = useState<SchoolHours>(() => initialSessionToken ? createDefaultSchoolHours() : initialLocalWorkspace?.schoolHours || createDefaultSchoolHours());
+    const [schoolHoursDraft, setSchoolHoursDraft] = useState<SchoolHoursDraft>(() => schoolHoursToDraft(initialSessionToken ? createDefaultSchoolHours() : initialLocalWorkspace?.schoolHours || createDefaultSchoolHours()));
     const [modalState, setModalState] = useState<ModalState>({ type: null, item: null });
-    const [sessionToken, setSessionToken] = useState<string | null>(() => {
-        if (typeof window === 'undefined') return null;
-        try {
-            return localStorage.getItem('ozarik.session');
-        } catch {
-            return null;
-        }
-    });
+    const [sessionToken, setSessionToken] = useState<string | null>(initialSessionToken);
     const [sessionInfo, setSessionInfo] = useState<AuthSessionInfo | null>(null);
     const [sessionStatus, setSessionStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
     const [sessionError, setSessionError] = useState<string | null>(null);
@@ -510,7 +514,7 @@ const App: React.FC = () => {
     }, [isRemoteMode]);
 
     const performCatalogSync = useCallback(async () => {
-        if (!isRemoteMode || !sessionToken || !activeSchoolId) {
+        if (!isRemoteMode || !sessionToken || !activeSchoolId || catalogStatus !== 'ready') {
             return;
         }
         if (syncingCatalogRef.current) {
@@ -531,10 +535,10 @@ const App: React.FC = () => {
         } finally {
             syncingCatalogRef.current = false;
         }
-    }, [isRemoteMode, sessionToken, activeSchoolId]);
+    }, [isRemoteMode, sessionToken, activeSchoolId, catalogStatus]);
 
     const scheduleCatalogSync = useCallback(() => {
-        if (!isRemoteMode || !sessionToken || !activeSchoolId) {
+        if (!isRemoteMode || !sessionToken || !activeSchoolId || catalogStatus !== 'ready') {
             return;
         }
         dirtyCatalogRef.current = true;
@@ -549,7 +553,7 @@ const App: React.FC = () => {
             dirtyCatalogRef.current = false;
             performCatalogSync();
         }, 1000);
-    }, [isRemoteMode, sessionToken, activeSchoolId, performCatalogSync]);
+    }, [isRemoteMode, sessionToken, activeSchoolId, catalogStatus, performCatalogSync]);
 
     useEffect(() => {
         if (!isRemoteMode) {
@@ -603,6 +607,9 @@ const App: React.FC = () => {
                 skipSyncCounterRef.current += 2;
                 replaceData(result.data);
                 setSchoolHours(result.schoolHours);
+                setSchedule(null);
+                setSolverStats(null);
+                setActiveScheduleName(null);
                 setCatalogStatus('ready');
                 setCatalogSyncStatus('idle');
                 setCatalogSyncError(null);
@@ -782,7 +789,30 @@ const App: React.FC = () => {
     }, [sessionToken, activeSchoolId, loadPublishedSchedule]);
 
     const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
-    const [activeScheduleName, setActiveScheduleName] = useState<string | null>(null);
+    const [activeScheduleName, setActiveScheduleName] = useState<string | null>(() => initialSessionToken ? null : initialLocalWorkspace?.activeScheduleName || null);
+    const [localWorkspaceStatus, setLocalWorkspaceStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(!initialSessionToken && initialLocalWorkspace ? 'saved' : 'idle');
+    const [localWorkspaceSavedAt, setLocalWorkspaceSavedAt] = useState<string | null>(() => initialSessionToken ? null : initialLocalWorkspace?.savedAt || null);
+
+    useEffect(() => {
+        // Signed-in schools use the server catalog. Guest/local work is kept automatically.
+        if (sessionToken) {
+            setLocalWorkspaceStatus('idle');
+            return;
+        }
+        setLocalWorkspaceStatus('saving');
+        const timeout = window.setTimeout(() => {
+            const savedAt = new Date().toISOString();
+            try {
+                saveLocalWorkspace({ data, schedule, schoolHours, activeScheduleName, savedAt });
+                setLocalWorkspaceSavedAt(savedAt);
+                setLocalWorkspaceStatus('saved');
+            } catch (saveError) {
+                console.error('local-workspace-save-failed', saveError);
+                setLocalWorkspaceStatus('error');
+            }
+        }, 400);
+        return () => window.clearTimeout(timeout);
+    }, [data, schedule, schoolHours, activeScheduleName, sessionToken]);
     const publishedAtText = useMemo(() => {
         if (!publishedSchedule?.publishedAt) return null;
         try {
@@ -877,13 +907,19 @@ const App: React.FC = () => {
                 console.error('session-check failed', err);
                 setSessionError(err instanceof Error ? err.message : 'Oturum doğrulanamadı');
                 setSessionStatus('error');
+                if (initialLocalWorkspace) {
+                    replaceData(initialLocalWorkspace.data);
+                    setSchedule(initialLocalWorkspace.schedule);
+                    setSchoolHours(initialLocalWorkspace.schoolHours);
+                    setActiveScheduleName(initialLocalWorkspace.activeScheduleName);
+                }
                 persistSessionToken(null);
                 setSessionInfo(null);
             });
         return () => {
             cancelled = true;
         };
-    }, [sessionToken, persistSessionToken]);
+    }, [sessionToken, persistSessionToken, initialLocalWorkspace, replaceData]);
 
     useEffect(() => {
         if (sessionInfo?.user?.email && !bridgeEmail) {
@@ -1387,6 +1423,7 @@ const App: React.FC = () => {
     const [optDisableLNS, setOptDisableLNS] = useState<boolean>(true);
     const [solverStrategy, setSolverStrategy] = useState<"repair"|"tabu"|"alns"|"cp">("cp");
     const [optDisableEdge, setOptDisableEdge] = useState<boolean>(true);
+    const [relaxBlocksIfNeeded, setRelaxBlocksIfNeeded] = useState<boolean>(false);
     // CP-SAT (server) optional preferences – off by default; enable via simple toggles
     const [cpUseCustom, setCpUseCustom] = useState<boolean>(false);
     const [cpAllowSplit, setCpAllowSplit] = useState<boolean>(false);
@@ -1478,6 +1515,7 @@ const App: React.FC = () => {
                 if (typeof s.stopFirst === 'boolean') { setOptStopFirst(s.stopFirst); }
                 if (typeof s.disableLNS === 'boolean') { setOptDisableLNS(s.disableLNS); }
                 if (typeof s.disableEdge === 'boolean') { setOptDisableEdge(s.disableEdge); }
+                if (typeof s.relaxBlocksIfNeeded === 'boolean') { setRelaxBlocksIfNeeded(s.relaxBlocksIfNeeded); }
                 if (typeof s.defaultMaxConsec === 'number') { setDefaultMaxConsec(s.defaultMaxConsec); }
                 if (typeof s.defaultMaxConsec === 'number') { setDefaultMaxConsec(s.defaultMaxConsec); }
             }
@@ -1485,7 +1523,7 @@ const App: React.FC = () => {
     }, []);
 
     const saveSettingsAsDefault = () => {
-        const s = { time: optTime, seed: optSeedRatio, tenure: optTabuTenure, iter: optTabuIter, stopFirst: optStopFirst, disableLNS: optDisableLNS, disableEdge: optDisableEdge, defaultMaxConsec };
+        const s = { time: optTime, seed: optSeedRatio, tenure: optTabuTenure, iter: optTabuIter, stopFirst: optStopFirst, disableLNS: optDisableLNS, disableEdge: optDisableEdge, defaultMaxConsec, relaxBlocksIfNeeded };
         try { localStorage.setItem('solver_settings', JSON.stringify(s)); alert('Ayarlar varsayılan olarak kaydedildi.'); } catch {}
     };
 
@@ -1555,14 +1593,54 @@ const App: React.FC = () => {
                 const dm = parseInt(cpDailyMaxVal);
                 if (cpDailyMaxOn && Number.isFinite(dm) && dm > 0) cpPrefs.teacherDailyMaxHours = dm;
               }
+              const totalTime = Math.min(optTime, 180);
+              const hasDefinedBlocks = data.subjects.some((subject) =>
+                subject.blockHours > 0 || (subject.tripleBlockHours ?? 0) > 0
+              );
+              const shouldTryRelaxedBlocks = relaxBlocksIfNeeded && hasDefinedBlocks;
+              const strictTime = shouldTryRelaxedBlocks
+                ? Math.max(5, Math.floor(totalTime * 0.65))
+                : totalTime;
               result = await solveTimetableCP(
                 data,
                 schoolHours,
-                optTime,
+                strictTime,
                 { maxConsec: defaultMaxConsec },
                 cpPrefs,
                 optStopFirst
               );
+              if (!result.schedule && shouldTryRelaxedBlocks) {
+                const relaxedData: TimetableData = {
+                  ...data,
+                  subjects: data.subjects.map((subject) => ({
+                    ...subject,
+                    blockHours: 0,
+                    tripleBlockHours: 0,
+                  })),
+                };
+                const relaxedTime = Math.max(5, totalTime - strictTime);
+                const relaxedResult = await solveTimetableCP(
+                  relaxedData,
+                  schoolHours,
+                  relaxedTime,
+                  { maxConsec: defaultMaxConsec },
+                  cpPrefs,
+                  optStopFirst
+                );
+                if (relaxedResult.schedule) {
+                  relaxedResult.stats.notes = [
+                    ...(relaxedResult.stats.notes ?? []),
+                    'Bloklar esnetildi: Tanımlı 2\'li ve 3\'lü bloklar yer bulamadığı için ders saatleri bölünebildi.',
+                  ];
+                } else {
+                  relaxedResult.stats.notes = [
+                    ...(result.stats?.notes ?? []),
+                    ...(relaxedResult.stats.notes ?? []),
+                    'Önce tanımlı bloklarla, ardından bloklar esnetilerek denendi; çözüm bulunamadı.',
+                  ];
+                }
+                result = relaxedResult;
+              }
             } else {
               // Use in-browser heuristic solvers
               result = await solveTimetableLocally(data, { 
@@ -1577,7 +1655,7 @@ const App: React.FC = () => {
               disableTeacherEdgePenalty: classicMode ? true : optDisableEdge,
               teacherSpreadWeight: classicMode ? 0 : 1,
               teacherEdgeWeight: classicMode ? 0 : 1,
-              allowBlockRelaxation: classicMode ? false : true
+              allowBlockRelaxation: relaxBlocksIfNeeded
               });
             }
             
@@ -1594,7 +1672,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [data, schoolHours, optTime, optSeedRatio, optTabuTenure, optTabuIter, optStopFirst, classicMode, solverStrategy, optStopFirst, useDeterministic, optRngSeed, optDisableLNS, optDisableEdge, cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit]);
+    }, [data, schoolHours, optTime, optSeedRatio, optTabuTenure, optTabuIter, optStopFirst, classicMode, solverStrategy, useDeterministic, optRngSeed, optDisableLNS, optDisableEdge, cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit, cpDailyMaxOn, cpDailyMaxVal, defaultMaxConsec, relaxBlocksIfNeeded]);
     
     const handleExportData = () => {
         const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify({ data }, null, 2))}`;
@@ -1613,13 +1691,13 @@ const App: React.FC = () => {
         link.click();
     };
 
-    const handleExportPdf = () => {
+    const handleExportPdf = async () => {
         if (!schedule) {
             alert('Önce ders programı oluşturun.');
             return;
         }
         try {
-            const { doc, fileName } = buildSchedulePdf({
+            const { doc, fileName } = await buildSchedulePdf({
                 schedule,
                 data,
                 schoolHours,
@@ -1870,7 +1948,8 @@ const App: React.FC = () => {
         let cardTitle: string | null = null;
         let cardDescription: string | null = null;
         
-        const classroomErrors = validation.overflowingClasses.reduce((acc, err) => ({...acc, [err.id]: err.message}), {} as Record<string, string>);
+        const classroomErrors = [...validation.incompleteClasses, ...validation.overflowingClasses]
+            .reduce((acc, err) => ({...acc, [err.id]: err.message}), {} as Record<string, string>);
         const subjectErrors = validation.unassignedSubjects.reduce((acc, err) => ({...acc, [err.id]: err.message}), {} as Record<string, string>);
         
         switch (activeTab) {
@@ -1888,7 +1967,10 @@ case 'teachers':
                 {item.canTeachMiddleSchool && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">Ortaokul</span>}
                 {item.canTeachHighSchool && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full bg-green-100 text-green-800">Lise</span>}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-600">{Math.round(load.demand)} saat</td>
+            <td className={`px-4 py-3 whitespace-nowrap font-medium ${load.demand > load.capacity ? 'text-red-600' : 'text-slate-600'}`}>
+                {Math.round(load.demand)} / {load.capacity} saat
+                {item.maxWeeklyHours && <span className="ml-1 text-[10px] font-normal text-slate-500">(üst sınır {item.maxWeeklyHours})</span>}
+            </td>
             <td className="px-4 py-3 whitespace-nowrap">
                 <div className="flex flex-wrap items-center gap-1">
                     <button onClick={() => handleAssignRandomRestDays(item.id, 1)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 1 tam gün izin ayarla">1 Gün</button>
@@ -1939,7 +2021,8 @@ case 'teachers':
                 <div className="mt-4 grid grid-cols-2 gap-y-2 gap-x-4 text-xs text-slate-600">
                     <div>
                         <span className="block text-slate-500 font-medium">Haftalık yük</span>
-                        <span>{Math.round(load.demand)} saat</span>
+                        <span>{Math.round(load.demand)} / {load.capacity} saat</span>
+                        {item.maxWeeklyHours && <span className="block text-[10px] text-slate-500">Tanımlı üst sınır: {item.maxWeeklyHours}</span>}
                     </div>
                     <div>
                         <span className="block text-slate-500 font-medium">Müsait slot</span>
@@ -2462,7 +2545,7 @@ case 'duties':
                                 className={maxInputClass}
                             />
                         </label>
-                        <div className="text-xs text-slate-500">Not: Bu ayarlar kısıtları yumuşak şekilde yönlendirir. Çok sıkı kombinasyonlar çözümsüzlüğe yol açabilir.</div>
+                        <div className="text-xs text-slate-500">Boşlukları/kenar saatleri azaltma tercih; boşluk ve günlük saat üst sınırları kesin kuraldır. Çok sıkı sınırlar çözümü engelleyebilir.</div>
                     </div>
                 )}
             </div>
@@ -2646,6 +2729,10 @@ case 'duties':
                     <input type="checkbox" checked={optStopFirst} onChange={(e) => setOptStopFirst(e.target.checked)} />
                     <Tooltip text="İlk feasible çözüm bulunduğunda hemen durur (hızlı denemeler için)."><span className="text-slate-600">StopFirst</span></Tooltip>
                 </label>
+                <label className={`flex items-center gap-1 rounded px-2 py-1 ${relaxBlocksIfNeeded ? 'bg-amber-100 text-amber-900' : 'border border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    <input type="checkbox" checked={relaxBlocksIfNeeded} onChange={(e) => setRelaxBlocksIfNeeded(e.target.checked)} />
+                    <Tooltip text="Örnek: 5 saatlik ders 3+2 olarak yerleşmezse 3+1+1 veya 2+1+1+1 gibi bölünmesine izin verir. CP-SAT önce tanımlı blokları dener; olmazsa esnetir."><span className="font-medium">Yer bulamazsa blokları esnet</span></Tooltip>
+                </label>
                 <label className="flex items-center gap-1">
                     <input type="checkbox" checked={optDisableLNS} onChange={(e) => setOptDisableLNS(e.target.checked)} />
                     <Tooltip text="Ruin&Recreate iyileştirmesini kapatır; daha klasik/kararlı davranış."><span className="text-slate-600">LNS kapalı</span></Tooltip>
@@ -2727,6 +2814,30 @@ case 'duties':
                     <span>Nöbetçi yardımcısı</span>
                 </label>
             </div>
+        );
+    };
+
+    const renderSolverHelp = () => {
+        const cpSelected = !classicMode && solverStrategy === 'cp';
+        return (
+            <details className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                <summary className="cursor-pointer font-semibold text-slate-700">Bu ayarlar ne işe yarıyor?</summary>
+                <div className="mt-2 space-y-2 leading-relaxed">
+                    <p className="rounded bg-white px-2 py-1 font-medium text-slate-700">
+                        {cpSelected
+                            ? 'Şu an CP-SAT seçili: Süre, StopFirst ve CP-SAT Özel Ayarlar kullanılır. Seed, Tenure, Iter, RNG, Deterministik, LNS ve Kenar cezası yerel yöntemlere aittir.'
+                            : 'Şu an yerel yöntem seçili: Ayarlar bu tarayıcıdaki aramayı yönetir; sunucu kullanılmaz.'}
+                    </p>
+                    <p><strong>Strateji:</strong> CP-SAT en güvenilir kesin kısıt çözücüdür. Repair hızlı bir ilk yerleşim, Tabu ve ALNS ise daha uzun kalite araması yapar.</p>
+                    <p><strong>Süre:</strong> Çözücünün arama için kullanabileceği azami saniyedir. Süre dolmadan iyi bir sonuç bulursa daha erken bitebilir.</p>
+                    <p><strong>StopFirst:</strong> İlk geçerli programda durur. Açıkken hızlıdır; kapalıyken kalan sürede daha az boşluklu program arar.</p>
+                    <p><strong>Yer bulamazsa blokları esnet:</strong> Kapalıysa 3+2 gibi tanımladığınız bloklar zorunludur. Açarsanız çözücü önce 3+2'yi dener; program çıkmazsa 3+1+1 veya 2+1+1+1 gibi bölerek yeniden dener.</p>
+                    <p><strong>Seed / Tenure / Iter:</strong> Yalnız yerel Tabu/ALNS yöntemlerinin başlangıç oranı, hamle hafızası ve deneme sayısıdır.</p>
+                    <p><strong>RNG + Deterministik:</strong> Aynı veri ve ayarlarla yerel aramayı tekrarlanabilir yapar.</p>
+                    <p><strong>LNS kapalı / Kenar cezası kapalı:</strong> Yerel iyileştirmeyi ve öğretmenlerin ilk-son saatlerini azaltma tercihini kapatır.</p>
+                    <p><strong>Analiz kutuları:</strong> Programı değiştirmez; yalnız öğretmen yükü, gerçekleşen saatler, müsaitlik, çakışma ve nöbet raporlarını açıp kapatır.</p>
+                </div>
+            </details>
         );
     };
 
@@ -2867,6 +2978,11 @@ case 'duties':
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">Yerel mod</span>
                         <span>Veriler sadece bu cihazda tutulur.</span>
+                        <span className={localWorkspaceStatus === 'error' ? 'font-medium text-red-600' : 'text-emerald-700'}>
+                            {localWorkspaceStatus === 'saving' && 'Otomatik kaydediliyor...'}
+                            {localWorkspaceStatus === 'saved' && `Otomatik kaydedildi${localWorkspaceSavedAt ? ` · ${new Date(localWorkspaceSavedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+                            {localWorkspaceStatus === 'error' && 'Otomatik kayıt başarısız; JSON yedeği indirin.'}
+                        </span>
                         <button
                             type="button"
                             onClick={() => {
@@ -3054,6 +3170,7 @@ case 'duties':
                     {isMobileAdvancedOpen && (
                         <div className="mt-3 space-y-3 text-xs text-slate-600">
                             {renderSolverAdvancedRows('mobile', false)}
+                            {renderSolverHelp()}
                             <div className="space-y-3 border-t border-slate-200 pt-3">
                                 {activeSessionUser ? (
                                     <div className="space-y-2">
@@ -3183,6 +3300,7 @@ case 'duties':
                 </div>
                 <div className="hidden md:flex md:flex-col md:items-start gap-2 text-xs bg-white rounded-md px-3 py-2 shadow-sm max-w-[720px]">
                     {renderSolverAdvancedRows('desktop', true)}
+                    {renderSolverHelp()}
                     {renderAnalysisToggles('desktop')}
                 </div>
             </div>
@@ -3228,6 +3346,14 @@ case 'duties':
                         onCancel={handleCancelSubstitution}
                     />
                 )}
+
+                <PreflightOverview
+                    data={data}
+                    schoolHours={schoolHours}
+                    onEditClassroom={(classroom) => handleOpenModal('classrooms', classroom)}
+                    onEditTeacher={(teacher) => handleOpenModal('teachers', teacher)}
+                    onEditSubject={(subject) => handleOpenModal('subjects', subject)}
+                />
 
                 {renderContent()}
 

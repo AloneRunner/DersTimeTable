@@ -48,8 +48,60 @@ const createSimpleInitialData = (): TimetableData => {
   };
 };
 
-export const useTimetableData = () => {
-  const [data, setData] = useState<TimetableData>(() => createSimpleInitialData());
+const dedupeById = <T extends { id: string }>(arr: T[] | undefined) =>
+  Array.from(new Map((arr || []).map(x => [x.id, x])).values());
+
+const unique = <T>(arr: T[] | undefined) => Array.from(new Set(arr || []));
+
+/** Eski JSON verisini güncel modele taşır; dışa aktarma kökü `{ data }` olarak kalır. */
+export const normalizeTimetableData = (input: unknown): TimetableData => {
+  const imported = input as Partial<TimetableData> | null;
+  if (!imported || !Array.isArray(imported.teachers) || !Array.isArray(imported.classrooms) || !Array.isArray(imported.subjects)) {
+    throw new Error('Geçersiz dosya formatı. Lütfen uygulamadan dışa aktarılmış bir JSON dosyası kullanın.');
+  }
+
+  const teachers = dedupeById<Teacher>(imported.teachers).map(teacher => ({
+    ...teacher,
+    maxWeeklyHours: Number.isFinite(Number(teacher.maxWeeklyHours)) && Number(teacher.maxWeeklyHours) > 0
+      ? Number(teacher.maxWeeklyHours)
+      : undefined,
+  }));
+  const classrooms = dedupeById<Classroom>(imported.classrooms);
+  const classIds = new Set(classrooms.map(classroom => classroom.id));
+  const subjects = dedupeById<Subject>(imported.subjects).map(subject => ({
+    ...subject,
+    assignedClassIds: unique((subject.assignedClassIds || []).filter(id => classIds.has(id))),
+    tripleBlockHours: subject.tripleBlockHours || 0,
+    pinnedTeacherByClassroom: Object.fromEntries(
+      Object.entries(subject.pinnedTeacherByClassroom || {})
+        .filter(([classroomId]) => classIds.has(classroomId))
+        .map(([classroomId, value]) => [
+          classroomId,
+          unique(Array.isArray(value) ? value : value ? [value as unknown as string] : []),
+        ])
+    ),
+  }));
+
+  return {
+    teachers,
+    classrooms,
+    subjects,
+    locations: dedupeById<Location>(imported.locations || []),
+    fixedAssignments: dedupeById<FixedAssignment>(imported.fixedAssignments || []),
+    lessonGroups: dedupeById<LessonGroup>(imported.lessonGroups || []),
+    duties: dedupeById<Duty>(imported.duties || []),
+  };
+};
+
+export const useTimetableData = (initialData?: TimetableData | null) => {
+  const [data, setData] = useState<TimetableData>(() => {
+    if (!initialData) return createSimpleInitialData();
+    try {
+      return normalizeTimetableData(initialData);
+    } catch {
+      return createSimpleInitialData();
+    }
+  });
 
   const addOrUpdateItem = <T extends { id: string }>(itemType: keyof TimetableData, item: T) => {
     setData(prevData => {
@@ -76,68 +128,12 @@ export const useTimetableData = () => {
     });
   };
 
-  const dedupeById = <T extends { id: string }>(arr: T[] | undefined) =>
-    Array.from(new Map((arr || []).map(x => [x.id, x])).values());
-
-  const unique = <T>(arr: T[] | undefined) =>
-    Array.from(new Set(arr || []));
-
-  const sanitizeSubjects = (subjects: Subject[], classrooms: Classroom[]) => {
-    const classIds = new Set(classrooms.map(c => c.id));
-    return subjects.map(s => ({
-      ...s,
-      assignedClassIds: unique((s.assignedClassIds || []).filter(id => classIds.has(id))),
-      tripleBlockHours: s.tripleBlockHours || 0,
-      pinnedTeacherByClassroom: Object.fromEntries(
-        Object.entries(s.pinnedTeacherByClassroom || {}).filter(([cid]) => classIds.has(cid))
-      ),
-    }));
-  };
-
   const importData = (jsonData: string) => {
     const imported = JSON.parse(jsonData);
-    if (!imported.data || !imported.data.teachers || !imported.data.classrooms || !imported.data.subjects) {
-      throw new Error('Geçersiz dosya formatı. Lütfen uygulamadan dışa aktarılmış bir JSON dosyası kullanın.');
+    if (!imported?.data) {
+      throw new Error('Geçersiz dosya formatı. Dosyanın kökünde "data" alanı bulunmalıdır.');
     }
-
-    // --- MIGRATION LOGIC for multi-teacher pinning ---
-    if (imported.data.subjects) {
-      imported.data.subjects.forEach((s: Subject) => {
-        if (s.pinnedTeacherByClassroom) {
-          for (const classId in s.pinnedTeacherByClassroom) {
-            const val = (s.pinnedTeacherByClassroom as any)[classId];
-            if (val && !Array.isArray(val)) {
-              (s.pinnedTeacherByClassroom as any)[classId] = [val];
-            }
-          }
-        }
-      });
-    }
-    // --- END MIGRATION LOGIC ---
-
-    // FIX: Add explicit generic types to `dedupeById` calls to ensure correct type inference.
-    // The `imported` object from `JSON.parse` is of type `any`, so TypeScript infers the most
-    // generic type `({id: string})` for the arrays, causing assignment errors.
-    const teachers = dedupeById<Teacher>(imported.data.teachers);
-    const classrooms = dedupeById<Classroom>(imported.data.classrooms);
-    const locations = dedupeById<Location>(imported.data.locations || []);
-    const fixed = dedupeById<FixedAssignment>(imported.data.fixedAssignments || []);
-    const groups = dedupeById<LessonGroup>(imported.data.lessonGroups || []);
-    const duties = dedupeById<Duty>(imported.data.duties || []);
-    const subjects0 = dedupeById<Subject>(imported.data.subjects);
-    const subjects = sanitizeSubjects(subjects0, classrooms);
-
-    const newTimetableData: TimetableData = {
-      teachers,
-      classrooms,
-      subjects,
-      locations,
-      fixedAssignments: fixed,
-      lessonGroups: groups,
-      duties,
-    };
-
-    setData(newTimetableData);
+    setData(normalizeTimetableData(imported.data));
   };
 
   const clearData = () => {

@@ -1,6 +1,7 @@
 
 import { useMemo } from 'react';
 import type { TimetableData, SchoolHours } from '../types';
+import { buildClassroomSummaries, findDuplicateClassSubjects, normalizeLabel } from '../utils/dataDiagnostics';
 
 export interface ValidationError {
   id: string;
@@ -11,22 +12,25 @@ export const useDataValidation = (data: TimetableData, schoolHours: SchoolHours)
   const validationResult = useMemo(() => {
     const unassignedSubjects: ValidationError[] = [];
     const overflowingClasses: ValidationError[] = [];
+    const incompleteClasses: ValidationError[] = [];
+    const duplicateClassSubjects: ValidationError[] = [];
     const teacherSubjectMap = new Map<string, string[]>();
 
     // Build teacher-subject map
     data.teachers.forEach(teacher => {
       teacher.branches.forEach(branch => {
-        if (!teacherSubjectMap.has(branch)) {
-          teacherSubjectMap.set(branch, []);
+        const normalizedBranch = normalizeLabel(branch);
+        if (!teacherSubjectMap.has(normalizedBranch)) {
+          teacherSubjectMap.set(normalizedBranch, []);
         }
-        teacherSubjectMap.get(branch)!.push(teacher.id);
+        teacherSubjectMap.get(normalizedBranch)!.push(teacher.id);
       });
     });
 
     // 1. Check for subjects that have no available teacher
     data.subjects.forEach(subject => {
       if (subject.assignedClassIds.length > 0) {
-        const teachersForSubject = teacherSubjectMap.get(subject.name) || [];
+        const teachersForSubject = teacherSubjectMap.get(normalizeLabel(subject.name)) || [];
         if (teachersForSubject.length === 0) {
           unassignedSubjects.push({
             id: subject.id,
@@ -36,37 +40,38 @@ export const useDataValidation = (data: TimetableData, schoolHours: SchoolHours)
       }
     });
 
-    // 2. Check for classrooms where demand exceeds capacity
-    const classDemand = new Map<string, number>();
-    data.subjects.forEach(subject => {
-      subject.assignedClassIds.forEach(classroomId => {
-        classDemand.set(classroomId, (classDemand.get(classroomId) || 0) + subject.weeklyHours);
-      });
-    });
-    data.lessonGroups.forEach(group => {
-        group.classroomIds.forEach(classroomId => {
-            classDemand.set(classroomId, (classDemand.get(classroomId) || 0) + group.weeklyHours);
-        });
-    });
-
-    data.classrooms.forEach(classroom => {
-      const demand = classDemand.get(classroom.id) || 0;
-      const capacity = schoolHours[classroom.level].reduce((acc, hours) => acc + hours, 0);
+    // 2. A class should exactly fill its configured weekly capacity.
+    buildClassroomSummaries(data, schoolHours).forEach(({ classroom, demand, capacity }) => {
       if (demand > capacity) {
         overflowingClasses.push({
           id: classroom.id,
-          message: `Sınıf: "${classroom.name}" - Bu sınıfın haftalık ders talebi (${demand} saat), yapılandırılmış kapasitesini (${capacity} saat) aşıyor.`,
+          message: `Sınıf: "${classroom.name}" - Tanımlı dersler ${demand} saat, haftalık kapasite ${capacity} saat. ${demand - capacity} saat fazla ders var.`,
+        });
+      } else if (demand < capacity) {
+        incompleteClasses.push({
+          id: classroom.id,
+          message: `Sınıf: "${classroom.name}" - Tanımlı dersler ${demand} saat, haftalık kapasite ${capacity} saat. ${capacity - demand} saat ders eksik.`,
         });
       }
     });
 
-    const allErrors = [...unassignedSubjects, ...overflowingClasses];
+    // 3. Hour variants are allowed, but the same class cannot be in two variants of one lesson.
+    findDuplicateClassSubjects(data).forEach(duplicate => {
+      duplicateClassSubjects.push({
+        id: `${duplicate.classroomId}:${duplicate.normalizedSubjectName}`,
+        message: `Çift giriş: "${duplicate.classroomName}" sınıfı, "${duplicate.subjectName}" dersinin ${duplicate.subjectIds.length} ayrı kaydında bulunuyor (${duplicate.totalHours} saat toplam).`,
+      });
+    });
+
+    const allErrors = [...unassignedSubjects, ...incompleteClasses, ...overflowingClasses, ...duplicateClassSubjects];
     const isValid = allErrors.length === 0;
 
     return {
       isValid,
       unassignedSubjects,
+      incompleteClasses,
       overflowingClasses,
+      duplicateClassSubjects,
       allErrors,
     };
   }, [data, schoolHours]);

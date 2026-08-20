@@ -51,6 +51,7 @@ function makeWorkerScript() {
         classroomById: Map<string, Classroom>;
         schedule: Schedule;
         teacherOccupied: { [key: string]: boolean[][] };
+        teacherLessonCounts: { [key: string]: number };
         locationOccupied: { [key: string]: boolean[][] };
         fixedMask: { [key: string]: boolean[][] };
         dailyLessonCounts: { [key: string]: number[] };
@@ -91,6 +92,7 @@ function makeWorkerScript() {
           // Program tabloları
           this.schedule = {};           // classId -> [5][H] assignment|null
           this.teacherOccupied = {};    // teacherId -> [5][H] bool
+          this.teacherLessonCounts = {}; // teacherId -> yerleştirilmiş haftalık ders saati
           this.locationOccupied = {};   // locationId -> [5][H] bool
           this.fixedMask = {};          // classId -> [5][H] bool
           this.dailyLessonCounts = {};  // rapor için: classId -> [5] count
@@ -128,6 +130,7 @@ function makeWorkerScript() {
           }
           for (const t of (this.data.teachers || [])) {
             this.teacherOccupied[t.id] = Array(DAYS).fill(null).map(() => Array(H).fill(false));
+            this.teacherLessonCounts[t.id] = 0;
           }
           for (const l of (this.data.locations || [])) {
             this.locationOccupied[l.id] = Array(DAYS).fill(null).map(() => Array(H).fill(false));
@@ -210,6 +213,7 @@ function makeWorkerScript() {
           });
           (this.data.teachers || []).forEach(t => {
             this.teacherOccupied[t.id] = Array(DAYS).fill(null).map(() => Array(H).fill(false));
+            this.teacherLessonCounts[t.id] = 0;
           });
           (this.data.locations || []).forEach(l => {
             this.locationOccupied[l.id] = Array(DAYS).fill(null).map(() => Array(H).fill(false));
@@ -945,6 +949,7 @@ listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teac
             for (const t of teacherObjs) {
               let ok=true;
               if ((cr.level==='Ortaokul' && !t.canTeachMiddleSchool) || (cr.level==='Lise' && !t.canTeachHighSchool)) ok=false;
+              if (typeof t.maxWeeklyHours === 'number' && (this.teacherLessonCounts[t.id] || 0) + span > t.maxWeeklyHours) ok=false;
               for (let k=0;k<span && ok;k++) if (!t.availability?.[day]?.[hour+k] || this.teacherOccupied[t.id][day][hour+k]) ok=false;
               if (ok) list.push(t);
             }
@@ -988,6 +993,10 @@ listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teac
           for (const teacher of teachers) {
             if (classroom.level==='Ortaokul' && !teacher.canTeachMiddleSchool) { this.stats.invalidReasons.levelMismatch++; return false; }
             if (classroom.level==='Lise' && !teacher.canTeachHighSchool) { this.stats.invalidReasons.levelMismatch++; return false; }
+            if (typeof teacher.maxWeeklyHours === 'number' && (this.teacherLessonCounts[teacher.id] || 0) + span > teacher.maxWeeklyHours) {
+              this.stats.invalidReasons.teacherBusy++;
+              return false;
+            }
           }
 
           for (let k=0;k<span;k++) {
@@ -1015,6 +1024,7 @@ listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teac
               if (this.teacherOccupied[tid]) {
                 this.teacherOccupied[tid][day][hour+k] = true;
               }
+              this.teacherLessonCounts[tid] = (this.teacherLessonCounts[tid] || 0) + 1;
             }
             if (subject.locationId && this.locationOccupied[subject.locationId]) {
               this.locationOccupied[subject.locationId][day][hour+k] = true;
@@ -1035,10 +1045,12 @@ listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teac
               if (assignment?.teacherIds && Array.isArray(assignment.teacherIds)) {
                 for (const tid of assignment.teacherIds) {
                   if (this.teacherOccupied[tid]) this.teacherOccupied[tid][day][idx] = false;
+                  this.teacherLessonCounts[tid] = Math.max(0, (this.teacherLessonCounts[tid] || 0) - 1);
                 }
               } else if ((assignment as any).teacherId) {
                 const tid = (assignment as any).teacherId;
                 if (this.teacherOccupied[tid]) this.teacherOccupied[tid][day][idx] = false;
+                this.teacherLessonCounts[tid] = Math.max(0, (this.teacherLessonCounts[tid] || 0) - 1);
               }
               if (subject?.locationId && this.locationOccupied[subject.locationId]) this.locationOccupied[subject.locationId][day][idx] = false;
               this.dailyLessonCounts[classroomId][day]--;

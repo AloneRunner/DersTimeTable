@@ -18,6 +18,7 @@ export interface Teacher {
   availability: boolean[][]; // 5 days x 16 hours
   canTeachMiddleSchool: boolean;
   canTeachHighSchool: boolean;
+  maxWeeklyHours?: number; // Boşsa öğretmenin müsait saatleri dışında haftalık üst sınır uygulanmaz.
 }
 
 export interface Classroom {

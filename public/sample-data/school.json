@@ -2,957 +2,19 @@
   "data": {
     "teachers": [
       {
-        "id": "t1757446372826",
-        "name": "Adalet",
-        "branches": [
-          "Coğrafya",
-          "Seçmeli Coğrafya",
-          "Görsel Sanatlar"
-        ],
-        "availability": [
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446396130",
-        "name": "Ayşegül",
-        "branches": [
-          "Görsel Sanatlar"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": true,
-        "canTeachHighSchool": false
-      },
-      {
-        "id": "t1757446416280",
-        "name": "Deniz",
-        "branches": [
-          "Kimya"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446437294",
-        "name": "Eda",
-        "branches": [
-          "Felsefe",
-          "Sosyoloji"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446460886",
-        "name": "Erol",
-        "branches": [
-          "Teknoloji ve Tasarım"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": true,
-        "canTeachHighSchool": false
-      },
-      {
-        "id": "t1757446486202",
-        "name": "Haldun",
-        "branches": [
-          "Din Kültürü ve Ahlak Bilgisi",
-          "Peygamberimizin Hayatı",
-          "Kur'an-ı Kerim"
-        ],
-        "availability": [
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": true,
-        "canTeachHighSchool": false
-      },
-      {
-        "id": "t1757446507987",
-        "name": "Hande",
-        "branches": [
-          "Beden Eğitimi ve Spor"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": true,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446531773",
-        "name": "Hanife",
-        "branches": [
-          "İngilizce",
-          "İslam Kültür ve Medeniyeti"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": true,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446557699",
-        "name": "Hasan",
-        "branches": [
-          "Kur'an-ı Kerim",
-          "Arapça",
-          "Tefsir",
-          "Siyer",
-          "Osmanlı Türkçesi",
-          "İslam Kültür ve Medeniyeti"
-        ],
-        "availability": [
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ]
-        ],
-        "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446569851",
-        "name": "Kaan",
+        "name": "Kaan ÖZARIK",
         "branches": [
           "Fen Bilimleri",
-          "Bilim Uygulamaları"
+          "Proje Tasarımı ve Uygulamaları 3",
+          "Rehberlik ve Yönlendirme"
         ],
         "availability": [
           [
-            false,
-            true,
-            true,
-            true,
-            false,
             true,
             true,
             true,
             true,
             true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            true,
-            true,
-            true,
-            false,
             true,
             true,
             true,
@@ -966,11 +28,11 @@
             true
           ],
           [
-            false,
             true,
             true,
             true,
-            false,
+            true,
+            true,
             true,
             true,
             true,
@@ -984,11 +46,29 @@
             true
           ],
           [
-            false,
             true,
             true,
             true,
-            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
             true,
             true,
             true,
@@ -1020,524 +100,12 @@
             true
           ]
         ],
+        "canTeachHighSchool": false,
         "canTeachMiddleSchool": true,
-        "canTeachHighSchool": false
+        "id": "t1787139538653"
       },
       {
-        "id": "t1757446608229",
-        "name": "Mahmure",
-        "branches": [
-          "Biyoloji",
-          "Sağlık Bilgisi ve Trafik Kültürü",
-          "Temel Matematik"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446620347",
-        "name": "Meltem",
-        "branches": [
-          "Matematik",
-          "Temel Matematik"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446641605",
-        "name": "Merve",
-        "branches": [
-          "Matematik"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
-        ],
-        "canTeachMiddleSchool": true,
-        "canTeachHighSchool": false
-      },
-      {
-        "id": "t1757446663823",
-        "name": "Mustafa",
-        "branches": [
-          "Türkçe"
-        ],
-        "availability": [
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ]
-        ],
-        "canTeachMiddleSchool": true,
-        "canTeachHighSchool": false
-      },
-      {
-        "id": "t1757446767137",
-        "name": "nihal",
-        "branches": [
-          "Sosyal Bilgiler",
-          "T.C. İnkılap Tarihi ve Atatürkçülük",
-          "Rehberlik ve Kariyer Planlama",
-          "Okul Temelli Sosyal Sorumluluk Çalışmalar",
-          "Seçmeli Edebiyat"
-        ],
-        "availability": [
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ],
-          [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ]
-        ],
-        "canTeachMiddleSchool": true,
-        "canTeachHighSchool": false
-      },
-      {
-        "id": "t1757446783238",
-        "name": "sevinç",
+        "name": "Sevinç YIĞ",
         "branches": [
           "Türk Dili ve Edebiyatı",
           "Seçmeli Edebiyat"
@@ -1634,14 +202,15 @@
             true
           ]
         ],
+        "canTeachHighSchool": true,
         "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
+        "id": "t1787139569684"
       },
       {
-        "id": "t1757446805714",
-        "name": "Sonat",
+        "name": "Gizem ÇEKİÇ",
         "branches": [
-          "Müzik"
+          "Türkçe",
+          "Rehberlik ve Yönlendirme"
         ],
         "availability": [
           [
@@ -1663,14 +232,6 @@
             true
           ],
           [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
             true,
             true,
             true,
@@ -1678,17 +239,7 @@
             true,
             true,
             true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
+            true,
             true,
             true,
             true,
@@ -1699,14 +250,14 @@
             true
           ],
           [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
             true,
             true,
             true,
@@ -1717,14 +268,32 @@
             true
           ],
           [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
             true,
             true,
             true,
@@ -1735,14 +304,15 @@
             true
           ]
         ],
+        "canTeachHighSchool": false,
         "canTeachMiddleSchool": true,
-        "canTeachHighSchool": true
+        "id": "t1787139659580"
       },
       {
-        "id": "t1757446823272",
-        "name": "Yakup",
+        "name": "Yasemin ÇAKMAKÇI",
         "branches": [
-          "Akaid ve Kelam"
+          "Yabancı Dil",
+          "Yabancı Dil 2"
         ],
         "availability": [
           [
@@ -1836,123 +406,18 @@
             true
           ]
         ],
-        "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
-      },
-      {
-        "id": "t1757446852178",
-        "name": "Yasemin",
-        "branches": [
-          "İngilizce",
-          "Hadis"
-        ],
-        "availability": [
-          [
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ],
-          [
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ]
-        ],
+        "canTeachHighSchool": true,
         "canTeachMiddleSchool": true,
-        "canTeachHighSchool": true
+        "id": "t1787139708499"
       },
       {
-        "id": "t1757446911209",
-        "name": "Yunus",
+        "name": "Hasan TÜRER",
         "branches": [
-          "Dinler Tarihi",
-          "Akaid ve Kelam",
           "Arapça",
-          "Hitabet ve Mesleki Uygulama",
-          "Fıkıh",
+          "İslam Kültür ve Medeniyeti",
           "Kur'an-ı Kerim",
-          "Temel Dini Bilgiler",
-          "Hadis"
+          "Siyer",
+          "Tefsir"
         ],
         "availability": [
           [
@@ -2046,25 +511,18 @@
             true
           ]
         ],
+        "canTeachHighSchool": true,
         "canTeachMiddleSchool": true,
-        "canTeachHighSchool": true
+        "id": "t1787139816155"
       },
       {
-        "id": "t1757446926345",
-        "name": "Ziya",
+        "name": "Merve TOKGÖZ",
         "branches": [
-          "Fizik"
+          "Matematik",
+          "Rehberlik ve Yönlendirme"
         ],
         "availability": [
           [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
             true,
             true,
             true,
@@ -2072,53 +530,7 @@
             true,
             true,
             true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
             true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
             true,
             true,
             true,
@@ -2134,9 +546,63 @@
             true,
             true,
             true,
-            false,
-            false,
-            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
             true,
             true,
             true,
@@ -2147,14 +613,122 @@
             true
           ]
         ],
+        "canTeachHighSchool": false,
+        "canTeachMiddleSchool": true,
+        "id": "t1787139843195"
+      },
+      {
+        "name": "Meltem KABALAR",
+        "branches": [
+          "Matematik",
+          "İleri Düzey Matematik",
+          "Temel Matematik"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
         "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
+        "id": "t1787139920523"
       },
       {
-        "id": "t1757447111553",
-        "name": "Merve U.",
+        "name": "Haldun GERGİN",
         "branches": [
-          "İngilizce"
+          "Peygamberimizin Hayatı",
+          "Temel Dini Bilgiler",
+          "Din Kültürü ve Ahlak Bilgisi",
+          "Kur'an-ı Kerim",
+          "Rehberlik ve Yönlendirme",
+          "Peygamberimizin Hayat"
         ],
         "availability": [
           [
@@ -2176,24 +750,6 @@
             true
           ],
           [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-          ],
-          [
             true,
             true,
             true,
@@ -2238,22 +794,246 @@
             true,
             true,
             true,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
           ]
         ],
+        "canTeachHighSchool": false,
         "canTeachMiddleSchool": true,
-        "canTeachHighSchool": true
+        "id": "t1787140026978"
       },
       {
-        "id": "t1757447404095",
-        "name": "Osman",
+        "name": "Nihal CANBAZ",
+        "branches": [
+          "Sosyal Bilgiler",
+          "T.C. İnkılap Tarihi ve Atatürkçülük",
+          "Okul Temelli Sosyal Sorumluluk Çalışmaları 2",
+          "Rehberlik ve Yönlendirme",
+          "Okul Temelli Sosyal Sorumluluk Çalışmları 2"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": false,
+        "canTeachMiddleSchool": true,
+        "id": "t1787140166737"
+      },
+      {
+        "name": "Hande EDİZ",
+        "branches": [
+          "Beden Eğitimi ve Spor"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": false,
+        "canTeachMiddleSchool": true,
+        "id": "t1787140198097"
+      },
+      {
+        "name": "Osman KAHRAMAN",
         "branches": [
           "Bilişim Teknolojileri ve Yazılım"
         ],
@@ -2349,15 +1129,15 @@
             true
           ]
         ],
+        "canTeachHighSchool": false,
         "canTeachMiddleSchool": true,
-        "canTeachHighSchool": false
+        "id": "t1787140231089"
       },
       {
-        "id": "t1757450975575",
-        "name": "Pınar",
+        "name": "Yakup YIĞ",
         "branches": [
-          "Tarih",
-          "Seçmeli Tarih"
+          "Kelam",
+          "Dinler Tarihi"
         ],
         "availability": [
           [
@@ -2379,22 +1159,22 @@
             true
           ],
           [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
           ],
           [
             true,
@@ -2415,22 +1195,22 @@
             true
           ],
           [
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
           ],
           [
             true,
@@ -2451,1738 +1231,2485 @@
             true
           ]
         ],
+        "canTeachHighSchool": true,
         "canTeachMiddleSchool": false,
-        "canTeachHighSchool": true
+        "id": "t1787140350368"
+      },
+      {
+        "name": "Deniz ALÇAY",
+        "branches": [
+          "Kimya"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": false,
+        "id": "t1787140381016"
+      },
+      {
+        "name": "Pınar TUNA",
+        "branches": [
+          "Tarih",
+          "T.C. İnkılap Tarihi ve Atatürkçülük",
+          "Çağdaş Türk ve Dünya Tarihi",
+          "Türk Düşünce Tarihi",
+          "Türk Kültür ve Medeniyeti Tarihi"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": false,
+        "id": "t1787140472247"
+      },
+      {
+        "name": "Jülide İMREN",
+        "branches": [
+          "Coğrafya",
+          "Seçmeli Coğrafya"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": false,
+        "id": "t1787140499855"
+      },
+      {
+        "name": "Ayşegül SEVİLİR",
+        "branches": [
+          "Görsel Sanatlar",
+          "Dinler Tarihi"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": false,
+        "canTeachMiddleSchool": true,
+        "id": "t1787140547615"
+      },
+      {
+        "name": "Erol BUCAK",
+        "branches": [
+          "Teknoloji ve Tasarım"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": false,
+        "canTeachMiddleSchool": true,
+        "id": "t1787140609134"
+      },
+      {
+        "name": "Eda SÖĞÜTLÜ",
+        "branches": [
+          "Felsefe",
+          "Sosyoloji"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": false,
+        "id": "t1787140676702"
+      },
+      {
+        "name": "Mahmure  GÖKÇE",
+        "branches": [
+          "Biyoloji",
+          "Sağlık Bilgisi ve Trafik Kültürü"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": false,
+        "id": "t1787140739734"
+      },
+      {
+        "name": "Nermin Yapı ÖRS",
+        "branches": [
+          "Müzik"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": true,
+        "id": "t1787140772070"
+      },
+      {
+        "name": "Bahar DÜLGER ÇAKMAK",
+        "branches": [
+          "Yabancı Dil",
+          "Rehberlik ve Yönlendirme"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": true,
+        "id": "t1787140847238"
+      },
+      {
+        "name": "Yusuf Emre BULUT",
+        "branches": [
+          "Kur'an-ı Kerim",
+          "Arapça",
+          "Akaid",
+          "Temel Dini Bilgiler",
+          "Hitabet ve Mesleki Uygulama",
+          "Hadis",
+          "Fıkıh",
+          "Osmanlı Türkçesi"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": true,
+        "id": "t1787140961949"
+      },
+      {
+        "name": "Merve UÇULAN",
+        "branches": [
+          "Yabancı Dil",
+          "Yabancı Dil 2",
+          "Mesleki Arapça"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": false,
+        "canTeachMiddleSchool": true,
+        "id": "t1787140995956"
+      },
+      {
+        "name": "Ziya USLUKAN",
+        "branches": [
+          "Fizik"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": false,
+        "id": "t1787141030044"
+      },
+      {
+        "name": "Nebile AYGÜN",
+        "branches": [
+          "Arapça",
+          "Mesleki Arapça"
+        ],
+        "availability": [
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        ],
+        "canTeachHighSchool": true,
+        "canTeachMiddleSchool": true,
+        "id": "t1787223891273"
       }
     ],
     "classrooms": [
       {
-        "id": "c1757445666030",
-        "name": "5",
+        "name": "5-A",
         "level": "Ortaokul",
         "group": "Yok",
-        "homeroomTeacherId": "t1757446767137",
-        "sessionType": "full"
+        "homeroomTeacherId": "t1787139843195",
+        "sessionType": "full",
+        "id": "c1787141088540"
       },
       {
-        "id": "c1757445672627",
-        "name": "6",
+        "name": "5-B",
         "level": "Ortaokul",
         "group": "Yok",
-        "homeroomTeacherId": "t1757446569851",
-        "sessionType": "full"
+        "homeroomTeacherId": "t1787140026978",
+        "sessionType": "full",
+        "id": "c1787141100420"
       },
       {
-        "id": "c1757445679141",
-        "name": "7",
+        "name": "6-A",
         "level": "Ortaokul",
         "group": "Yok",
-        "homeroomTeacherId": "t1757446663823",
-        "sessionType": "full"
+        "homeroomTeacherId": "t1787139659580",
+        "sessionType": "full",
+        "id": "c1787141114092"
       },
       {
-        "id": "c1757445686951",
-        "name": "8",
+        "name": "7-A",
         "level": "Ortaokul",
         "group": "Yok",
-        "homeroomTeacherId": "t1757446641605",
-        "sessionType": "full"
+        "homeroomTeacherId": "t1787139538653",
+        "sessionType": "full",
+        "id": "c1787141127172"
       },
       {
-        "id": "c1757445693699",
-        "name": "9",
-        "level": "Lise",
+        "name": "8-A",
+        "level": "Ortaokul",
         "group": "Yok",
-        "homeroomTeacherId": null,
-        "sessionType": "full"
+        "homeroomTeacherId": "t1787140166737",
+        "sessionType": "full",
+        "id": "c1787141141484"
       },
       {
-        "id": "c1757445696969",
-        "name": "11",
+        "name": "9-A",
         "level": "Lise",
         "group": "Yok",
-        "homeroomTeacherId": null,
-        "sessionType": "full"
+        "sessionType": "full",
+        "id": "c1787141166564",
+        "homeroomTeacherId": "t1787140847238"
       },
       {
-        "id": "c1757445700219",
-        "name": "12",
+        "name": "10-A",
         "level": "Lise",
         "group": "Yok",
-        "homeroomTeacherId": null,
-        "sessionType": "full"
+        "sessionType": "full",
+        "id": "c1787141173539"
       },
       {
-        "id": "c1757450647858",
-        "name": "10",
+        "name": "11-A",
         "level": "Lise",
         "group": "Yok",
-        "homeroomTeacherId": null,
-        "sessionType": "full"
+        "sessionType": "full",
+        "id": "c1787141178644"
+      },
+      {
+        "name": "12-A",
+        "level": "Lise",
+        "group": "Yok",
+        "sessionType": "full",
+        "id": "c1787141184036"
       }
     ],
     "subjects": [
       {
-        "id": "s1757446314868",
-        "name": "Arapça",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445666030"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757446327728",
-        "name": "Din Kültürü ve Ahlak Bilgisi",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445666030"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757447031209",
-        "name": "Fen Bilimleri",
-        "weeklyHours": 4,
+        "name": "Türkçe",
+        "weeklyHours": 6,
         "blockHours": 4,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445666030"
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446569851"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141389955"
       },
       {
-        "id": "s1757447079308",
-        "name": "İngilizce",
-        "weeklyHours": 12,
-        "blockHours": 0,
-        "tripleBlockHours": 12,
+        "name": "Türkçe",
+        "weeklyHours": 5,
+        "blockHours": 2,
+        "tripleBlockHours": 3,
         "assignedClassIds": [
-          "c1757445666030"
+          "c1787141127172",
+          "c1787141141484"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757447111553"
-        },
-        "maxConsec": 3
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141419674"
       },
       {
-        "id": "s1757447150360",
-        "name": "Kur'an-ı Kerim",
-        "weeklyHours": 2,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445666030"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757447180569",
         "name": "Matematik",
         "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
+        "blockHours": 2,
+        "tripleBlockHours": 3,
         "assignedClassIds": [
-          "c1757445666030"
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092",
+          "c1787141127172",
+          "c1787141141484"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446641605"
-        }
+          "c1787141088540": [
+            "t1787139843195"
+          ],
+          "c1787141114092": [
+            "t1787139843195"
+          ],
+          "c1787141100420": [
+            "t1787139843195"
+          ],
+          "c1787141127172": [
+            "t1787139843195"
+          ],
+          "c1787141141484": [
+            "t1787139843195"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787141485762"
       },
       {
-        "id": "s1757447219702",
+        "name": "Sosyal Bilgiler",
+        "weeklyHours": 3,
+        "blockHours": 0,
+        "tripleBlockHours": 3,
+        "assignedClassIds": [
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092",
+          "c1787141127172"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141545602"
+      },
+      {
+        "name": "T.C. İnkılap Tarihi ve Atatürkçülük",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141141484"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141574777"
+      },
+      {
+        "name": "Yabancı Dil",
+        "weeklyHours": 12,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141088540"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141639217"
+      },
+      {
+        "name": "Yabancı Dil",
+        "weeklyHours": 7,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141114092"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141658329"
+      },
+      {
+        "name": "Yabancı Dil",
+        "weeklyHours": 4,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141127172",
+          "c1787141141484"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141687689"
+      },
+      {
+        "name": "Görsel Sanatlar",
+        "weeklyHours": 1,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141100420",
+          "c1787141127172",
+          "c1787141141484",
+          "c1787141114092"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141761241"
+      },
+      {
         "name": "Müzik",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445666030"
+          "c1787141100420",
+          "c1787141127172",
+          "c1787141141484",
+          "c1787141114092"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446805714"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141778737"
       },
       {
-        "id": "s1757447249869",
-        "name": "Peygamberimizin Hayatı",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445666030"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757447276284",
-        "name": "Rehberlik ve Kariyer Planlama",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445666030"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446767137"
-        }
-      },
-      {
-        "id": "s1757447294526",
-        "name": "Sosyal Bilgiler",
-        "weeklyHours": 3,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445666030"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446767137"
-        }
-      },
-      {
-        "id": "s1757447313664",
-        "name": "Türkçe",
-        "weeklyHours": 6,
-        "blockHours": 6,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445666030"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445666030": "t1757446663823"
-        },
-        "maxConsec": 3
-      },
-      {
-        "id": "s1757447344399",
-        "name": "Arapça",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757447355601",
         "name": "Beden Eğitimi ve Spor",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445672627"
+          "c1787141127172",
+          "c1787141141484",
+          "c1787141114092",
+          "c1787141173539",
+          "c1787141178644"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446507987"
-        }
+          "c1787141178644": [
+            "t1787140198097"
+          ],
+          "c1787141173539": [
+            "t1787140198097"
+          ],
+          "c1787141114092": [
+            "t1787140198097"
+          ],
+          "c1787141141484": [
+            "t1787140198097"
+          ],
+          "c1787141127172": [
+            "t1787140198097"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787141812592"
       },
       {
-        "id": "s1757447369687",
-        "name": "Bilim Uygulamaları",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446569851"
-        }
-      },
-      {
-        "id": "s1757447390305",
         "name": "Bilişim Teknolojileri ve Yazılım",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445672627"
+          "c1787141100420"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757447404095"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787141844456"
       },
       {
-        "id": "s1757447435683",
-        "name": "Din Kültürü ve Ahlak Bilgisi",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757447445609",
-        "name": "Fen Bilimleri",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446569851"
-        },
-        "maxConsec": 2
-      },
-      {
-        "id": "s1757447454841",
-        "name": "Görsel Sanatlar",
+        "name": "Rehberlik ve Yönlendirme",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445672627"
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092",
+          "c1787141141484",
+          "c1787141127172",
+          "c1787141166564"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757447481495",
-        "name": "İngilizce",
-        "weeklyHours": 3,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446852178"
-        }
-      },
-      {
-        "id": "s1757447497009",
-        "name": "İngilizce",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757447111553"
+          "c1787141088540": [
+            "t1787139843195"
+          ],
+          "c1787141100420": [
+            "t1787140026978"
+          ],
+          "c1787141114092": [
+            "t1787139659580"
+          ],
+          "c1787141127172": [
+            "t1787139538653"
+          ],
+          "c1787141141484": [
+            "t1787140166737"
+          ],
+          "c1787141166564": [
+            "t1787140847238"
+          ]
         },
-        "maxConsec": 2
+        "requiredTeacherCount": 1,
+        "id": "s1787141875568"
       },
       {
-        "id": "s1757447523782",
         "name": "Kur'an-ı Kerim",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445672627"
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092",
+          "c1787141127172",
+          "c1787141141484"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757447544138",
-        "name": "Matematik",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446641605"
+          "c1787141088540": [
+            "t1787140026978"
+          ],
+          "c1787141100420": [
+            "t1787140026978"
+          ],
+          "c1787141114092": [
+            "t1787140026978"
+          ],
+          "c1787141127172": [
+            "t1787140026978"
+          ],
+          "c1787141141484": [
+            "t1787139816155"
+          ]
         },
-        "maxConsec": 3
+        "requiredTeacherCount": 1,
+        "id": "s1787141943832"
       },
       {
-        "id": "s1757447559460",
-        "name": "Müzik",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446805714"
-        }
-      },
-      {
-        "id": "s1757447574328",
-        "name": "Rehberlik ve Kariyer Planlama",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446569851"
-        }
-      },
-      {
-        "id": "s1757447593814",
-        "name": "Sosyal Bilgiler",
-        "weeklyHours": 3,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757447608897",
-        "name": "Temel Dini Bilgiler",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757447623514",
-        "name": "Türkçe",
-        "weeklyHours": 6,
-        "blockHours": 6,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446663823"
-        },
-        "maxConsec": 3
-      },
-      {
-        "id": "s1757447678420",
-        "name": "Peygamberimizin Hayatı",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445672627"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445672627": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757447730428",
         "name": "Arapça",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445679141"
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092",
+          "c1787141127172",
+          "c1787141141484"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757447748857",
-        "name": "Beden Eğitimi ve Spor",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757447764349",
-        "name": "Bilim Uygulamaları",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446569851"
-        }
-      },
-      {
-        "id": "s1757447785651",
-        "name": "Görsel Sanatlar",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446396130"
-        }
-      },
-      {
-        "id": "s1757447812499",
-        "name": "İngilizce",
-        "weeklyHours": 8,
-        "blockHours": 8,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446531773"
+          "c1787141088540": [
+            "t1787223891273"
+          ],
+          "c1787141100420": [
+            "t1787223891273"
+          ],
+          "c1787141114092": [
+            "t1787223891273"
+          ],
+          "c1787141127172": [
+            "t1787223891273"
+          ],
+          "c1787141141484": [
+            "t1787223891273"
+          ]
         },
-        "maxConsec": 3
+        "requiredTeacherCount": 1,
+        "id": "s1787141962880"
       },
       {
-        "id": "s1757447831049",
-        "name": "Kur'an-ı Kerim",
+        "name": "Peygamberimizin Hayat",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445679141"
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092",
+          "c1787141127172",
+          "c1787141141484"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446486202"
-        }
+          "c1787141088540": [
+            "t1787140026978"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787142015319"
       },
       {
-        "id": "s1757447850255",
-        "name": "Matematik",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446641605"
-        }
-      },
-      {
-        "id": "s1757447865509",
-        "name": "Müzik",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446805714"
-        }
-      },
-      {
-        "id": "s1757447887129",
-        "name": "Peygamberimizin Hayatı",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757447901419",
-        "name": "Rehberlik ve Kariyer Planlama",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446663823"
-        }
-      },
-      {
-        "id": "s1757447917279",
-        "name": "Sosyal Bilgiler",
-        "weeklyHours": 3,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757447934185",
         "name": "Temel Dini Bilgiler",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445679141"
+          "c1787141114092",
+          "c1787141127172"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446486202"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787142123575"
       },
       {
-        "id": "s1757447957187",
-        "name": "Türkçe",
-        "weeklyHours": 5,
+        "name": "Proje Tasarımı ve Uygulamaları 3",
+        "weeklyHours": 1,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787142305510"
+      },
+      {
+        "name": "Okul Temelli Sosyal Sorumluluk Çalışmları 2",
+        "weeklyHours": 1,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141127172",
+          "c1787141114092"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141127172": [
+            "t1787140166737"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787142356837"
+      },
+      {
+        "name": "Fen Bilimleri",
+        "weeklyHours": 4,
+        "blockHours": 4,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141088540",
+          "c1787141100420",
+          "c1787141114092",
+          "c1787141127172",
+          "c1787141141484"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787142418141"
+      },
+      {
+        "name": "Din Kültürü ve Ahlak Bilgisi",
+        "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445679141"
+          "c1787141088540",
+          "c1787141114092",
+          "c1787141100420",
+          "c1787141127172",
+          "c1787141141484"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446663823"
-        },
-        "maxConsec": 3
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787142518605"
       },
       {
-        "id": "s1757447971563",
         "name": "Teknoloji ve Tasarım",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445679141"
+          "c1787141127172"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446460886"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787142684180"
       },
       {
-        "id": "s1757448008570",
-        "name": "Fen Bilimleri",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445679141"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757448047766",
-        "name": "Din Kültürü ve Ahlak Bilgisi",
+        "name": "Teknoloji ve Tasarım",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445679141"
+          "c1787141141484"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445679141": "t1757446486202"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787142698684"
       },
       {
-        "id": "s1757448120870",
-        "name": "Arapça",
+        "name": "Okul Temelli Sosyal Sorumluluk Çalışmaları 2",
+        "weeklyHours": 2,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141141484"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787142820499"
+      },
+      {
+        "name": "Yabancı Dil 2",
+        "weeklyHours": 4,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141100420",
+          "c1787141127172",
+          "c1787141141484"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787142851395"
+      },
+      {
+        "name": "Türk Dili ve Edebiyatı",
+        "weeklyHours": 5,
+        "blockHours": 2,
+        "tripleBlockHours": 3,
+        "assignedClassIds": [
+          "c1787141166564",
+          "c1787141173539",
+          "c1787141178644",
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145134678"
+      },
+      {
+        "name": "Tarih",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445686951"
+          "c1787141166564",
+          "c1787141173539",
+          "c1787141178644"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446911209"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145167774"
       },
       {
-        "id": "s1757448130320",
-        "name": "Beden Eğitimi ve Spor",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446507987"
-        }
-      },
-      {
-        "id": "s1757448140932",
-        "name": "Din Kültürü ve Ahlak Bilgisi",
-        "weeklyHours": 2,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757448154804",
-        "name": "Fen Bilimleri",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446569851"
-        }
-      },
-      {
-        "id": "s1757448165390",
-        "name": "Görsel Sanatlar",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757448185306",
-        "name": "İngilizce",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446531773"
-        }
-      },
-      {
-        "id": "s1757448216519",
-        "name": "İngilizce",
-        "weeklyHours": 7,
-        "blockHours": 6,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446852178"
-        }
-      },
-      {
-        "id": "s1757448244129",
         "name": "T.C. İnkılap Tarihi ve Atatürkçülük",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445686951"
+          "c1787141184036"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446767137"
-        }
-      },
-      {
-        "id": "s1757448266589",
-        "name": "Kur'an-ı Kerim",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757448298891",
-        "name": "Matematik",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446641605"
+          "c1787141184036": [
+            "t1787140472247"
+          ]
         },
-        "maxConsec": 3
+        "requiredTeacherCount": 1,
+        "id": "s1787145219054"
       },
       {
-        "id": "s1757448307333",
-        "name": "Müzik",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446805714"
-        }
-      },
-      {
-        "id": "s1757448343211",
-        "name": "Okul Temelli Sosyal Sorumluluk Çalışmalar",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446767137"
-        }
-      },
-      {
-        "id": "s1757448365501",
-        "name": "Peygamberimizin Hayatı",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446486202"
-        }
-      },
-      {
-        "id": "s1757448380301",
-        "name": "Rehberlik ve Kariyer Planlama",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445686951": "t1757446641605"
-        }
-      },
-      {
-        "id": "s1757448407490",
-        "name": "Türkçe",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757448418498",
-        "name": "Teknoloji ve Tasarım",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445686951"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757450686354",
-        "name": "Arapça",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757450704818",
-        "name": "Beden Eğitimi ve Spor",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446507987"
-        }
-      },
-      {
-        "id": "s1757450720232",
-        "name": "Biyoloji",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446608229"
-        }
-      },
-      {
-        "id": "s1757450739368",
         "name": "Coğrafya",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445693699"
+          "c1787141166564",
+          "c1787141173539"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145238454"
       },
       {
-        "id": "s1757450751876",
-        "name": "Fizik",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757450785201",
-        "name": "İngilizce",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446852178"
-        }
-      },
-      {
-        "id": "s1757450825899",
-        "name": "Kimya",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757450847777",
-        "name": "Kur'an-ı Kerim",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446911209"
-        },
-        "maxConsec": 3
-      },
-      {
-        "id": "s1757450872391",
         "name": "Matematik",
         "weeklyHours": 6,
         "blockHours": 6,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445693699"
+          "c1787141166564",
+          "c1787141173539"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446620347"
+          "c1787141166564": [
+            "t1787139920523"
+          ],
+          "c1787141173539": [
+            "t1787139920523"
+          ]
         },
-        "maxConsec": 3
+        "requiredTeacherCount": 1,
+        "id": "s1787145290750"
       },
       {
-        "id": "s1757450893137",
-        "name": "Rehberlik ve Kariyer Planlama",
-        "weeklyHours": 1,
-        "blockHours": 0,
+        "name": "Fizik",
+        "weeklyHours": 2,
+        "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445693699"
+          "c1787141166564",
+          "c1787141173539"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446852178"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145312141"
       },
       {
-        "id": "s1757450904873",
+        "name": "Kimya",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141166564",
+          "c1787141173539"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145330102"
+      },
+      {
+        "name": "Biyoloji",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141166564",
+          "c1787141173539"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145410037"
+      },
+      {
+        "name": "Felsefe",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141173539",
+          "c1787141178644"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145433389"
+      },
+      {
+        "name": "Yabancı Dil",
+        "weeklyHours": 5,
+        "blockHours": 2,
+        "tripleBlockHours": 3,
+        "assignedClassIds": [
+          "c1787141166564"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145460108"
+      },
+      {
+        "name": "Yabancı Dil",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141173539",
+          "c1787141178644",
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145481925"
+      },
+      {
+        "name": "Beden Eğitimi ve Spor",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141166564"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141166564": [
+            "t1787140198097"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787145506732"
+      },
+      {
         "name": "Sağlık Bilgisi ve Trafik Kültürü",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445693699"
+          "c1787141166564"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446608229"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145542412"
       },
       {
-        "id": "s1757450918565",
+        "name": "Arapça",
+        "weeklyHours": 4,
+        "blockHours": 4,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141166564"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145555012"
+      },
+      {
+        "name": "Arapça",
+        "weeklyHours": 3,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141173539"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145569404"
+      },
+      {
+        "name": "Kur'an-ı Kerim",
+        "weeklyHours": 5,
+        "blockHours": 2,
+        "tripleBlockHours": 3,
+        "assignedClassIds": [
+          "c1787141166564"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141166564": [
+            "t1787139816155"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787145634372"
+      },
+      {
+        "name": "Kur'an-ı Kerim",
+        "weeklyHours": 4,
+        "blockHours": 4,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141173539"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141173539": [
+            "t1787139816155"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787145655987"
+      },
+      {
+        "name": "Kur'an-ı Kerim",
+        "weeklyHours": 3,
+        "blockHours": 0,
+        "tripleBlockHours": 3,
+        "assignedClassIds": [
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141184036": [
+            "t1787139816155"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787145797683"
+      },
+      {
+        "name": "Mesleki Arapça",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145837067"
+      },
+      {
         "name": "Temel Dini Bilgiler",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445693699"
+          "c1787141166564"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446911209"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145860010"
       },
       {
-        "id": "s1757450943827",
-        "name": "Türk Dili ve Edebiyatı",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445693699": "t1757446783238"
-        },
-        "maxConsec": 3
-      },
-      {
-        "id": "s1757450961549",
-        "name": "Tarih",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445693699"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757451015564",
-        "name": "Arapça",
-        "weeklyHours": 3,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757451033434",
-        "name": "Beden Eğitimi ve Spor",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446507987"
-        }
-      },
-      {
-        "id": "s1757451046506",
-        "name": "Biyoloji",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446608229"
-        }
-      },
-      {
-        "id": "s1757451061844",
-        "name": "Coğrafya",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446372826"
-        }
-      },
-      {
-        "id": "s1757451079054",
-        "name": "Fıkıh",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757451093552",
-        "name": "Felsefe",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446437294"
-        }
-      },
-      {
-        "id": "s1757451121296",
-        "name": "Fizik",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446926345"
-        }
-      },
-      {
-        "id": "s1757451140840",
-        "name": "Hadis",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757451161414",
-        "name": "İngilizce",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446531773"
-        }
-      },
-      {
-        "id": "s1757451179880",
-        "name": "Kimya",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446416280"
-        }
-      },
-      {
-        "id": "s1757451207671",
-        "name": "Kur'an-ı Kerim",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446557699"
-        },
-        "maxConsec": 2
-      },
-      {
-        "id": "s1757451227529",
-        "name": "Matematik",
-        "weeklyHours": 6,
-        "blockHours": 6,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446620347"
-        },
-        "maxConsec": 3
-      },
-      {
-        "id": "s1757451247913",
-        "name": "Osmanlı Türkçesi",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446557699"
-        }
-      },
-      {
-        "id": "s1757451318867",
         "name": "Siyer",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757450647858"
+          "c1787141173539"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446557699"
-        }
-      },
-      {
-        "id": "s1757451342071",
-        "name": "Türk Dili ve Edebiyatı",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757446783238"
+          "c1787141173539": [
+            "t1787139816155"
+          ]
         },
-        "maxConsec": 3
+        "requiredTeacherCount": 1,
+        "id": "s1787145892274"
       },
       {
-        "id": "s1757451351941",
-        "name": "Tarih",
+        "name": "Fıkıh",
         "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757450647858"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757450647858": "t1757450975575"
-        }
-      },
-      {
-        "id": "s1757451416379",
-        "name": "Akaid ve Kelam",
-        "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445696969"
+          "c1787141173539"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757451431466",
-        "name": "Arapça",
-        "weeklyHours": 3,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446911209"
-        }
-      },
-      {
-        "id": "s1757451445630",
-        "name": "Coğrafya",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446372826"
-        }
-      },
-      {
-        "id": "s1757451461734",
-        "name": "Felsefe",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446437294"
-        }
-      },
-      {
-        "id": "s1757451476532",
-        "name": "Hitabet ve Mesleki Uygulama",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757451493686",
-        "name": "İngilizce",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446531773"
-        }
-      },
-      {
-        "id": "s1757451512610",
-        "name": "Kur'an-ı Kerim",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446557699"
+          "c1787141173539": [
+            "t1787140961949"
+          ]
         },
-        "maxConsec": 2
+        "requiredTeacherCount": 1,
+        "id": "s1787145913962"
       },
       {
-        "id": "s1757451538542",
-        "name": "Matematik",
-        "weeklyHours": 6,
-        "blockHours": 6,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446620347"
-        },
-        "maxConsec": 3
-      },
-      {
-        "id": "s1757451547864",
-        "name": "Müzik",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757451572380",
-        "name": "Seçmeli Edebiyat",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446783238"
-        }
-      },
-      {
-        "id": "s1757451597974",
-        "name": "Seçmeli Tarih",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757450975575"
-        }
-      },
-      {
-        "id": "s1757451624201",
-        "name": "Türk Dili ve Edebiyatı",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757451636954",
         "name": "Tefsir",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445696969"
+          "c1787141178644"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757451662419",
-        "name": "Temel Matematik",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757446620347"
-        }
-      },
-      {
-        "id": "s1757451674061",
-        "name": "Tarih",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445696969"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445696969": "t1757450975575"
-        }
-      },
-      {
-        "id": "s1757451717119",
-        "name": "Arapça",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446557699"
-        }
-      },
-      {
-        "id": "s1757451732555",
-        "name": "Seçmeli Coğrafya",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446372826"
+          "c1787141178644": [
+            "t1787139816155"
+          ]
         },
-        "maxConsec": 2
+        "requiredTeacherCount": 1,
+        "id": "s1787145939194"
       },
       {
-        "id": "s1757451745833",
         "name": "Dinler Tarihi",
         "weeklyHours": 1,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445700219"
+          "c1787141184036"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
+        "pinnedTeacherByClassroom": {
+          "c1787141184036": [
+            "t1787140350368"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787145952890"
       },
       {
-        "id": "s1757451761131",
-        "name": "İngilizce",
+        "name": "Hadis",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445700219"
+          "c1787141173539"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446531773"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145977066"
       },
       {
-        "id": "s1757451782139",
-        "name": "T.C. İnkılap Tarihi ve Atatürkçülük",
+        "name": "Akaid",
+        "weeklyHours": 1,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141178644"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787145998730"
+      },
+      {
+        "name": "Kelam",
+        "weeklyHours": 2,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787146020154"
+      },
+      {
+        "name": "Hitabet ve Mesleki Uygulama",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445700219"
+          "c1787141178644"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757450975575"
-        }
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787146038666"
       },
       {
-        "id": "s1757451809739",
         "name": "İslam Kültür ve Medeniyeti",
         "weeklyHours": 2,
         "blockHours": 2,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445700219"
+          "c1787141184036"
         ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446557699"
-        }
-      },
-      {
-        "id": "s1757451837247",
-        "name": "Akaid ve Kelam",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446823272"
-        }
-      },
-      {
-        "id": "s1757451855872",
-        "name": "Kur'an-ı Kerim",
-        "weeklyHours": 3,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446557699"
-        }
-      },
-      {
-        "id": "s1757451879110",
-        "name": "Matematik",
-        "weeklyHours": 6,
-        "blockHours": 6,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446620347"
-        },
-        "maxConsec": 3
-      },
-      {
-        "id": "s1757451895318",
-        "name": "Müzik",
-        "weeklyHours": 1,
-        "blockHours": 0,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {}
-      },
-      {
-        "id": "s1757451917198",
-        "name": "Seçmeli Edebiyat",
-        "weeklyHours": 4,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446783238"
-        }
-      },
-      {
-        "id": "s1757451940328",
-        "name": "Seçmeli Tarih",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757450975575"
-        }
-      },
-      {
-        "id": "s1757451954954",
-        "name": "Sosyoloji",
-        "weeklyHours": 2,
-        "blockHours": 2,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
-        "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446437294"
-        }
-      },
-      {
-        "id": "s1757451970416",
-        "name": "Türk Dili ve Edebiyatı",
-        "weeklyHours": 5,
-        "blockHours": 4,
-        "tripleBlockHours": 0,
-        "assignedClassIds": [
-          "c1757445700219"
-        ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {},
-        "maxConsec": 3
+        "requiredTeacherCount": 1,
+        "id": "s1787146054857"
       },
       {
-        "id": "s1757451989462",
+        "name": "İleri Düzey Matematik",
+        "weeklyHours": 6,
+        "blockHours": 0,
+        "tripleBlockHours": 6,
+        "assignedClassIds": [
+          "c1787141184036",
+          "c1787141178644"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141184036": [
+            "t1787139920523"
+          ],
+          "c1787141178644": [
+            "t1787139920523"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224187505"
+      },
+      {
         "name": "Temel Matematik",
         "weeklyHours": 2,
         "blockHours": 0,
         "tripleBlockHours": 0,
         "assignedClassIds": [
-          "c1757445700219"
+          "c1787141184036",
+          "c1787141178644"
         ],
-        "locationId": null,
         "pinnedTeacherByClassroom": {
-          "c1757445700219": "t1757446620347"
-        }
+          "c1787141184036": [
+            "t1787139920523"
+          ],
+          "c1787141178644": [
+            "t1787139920523"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224234330"
+      },
+      {
+        "name": "Seçmeli Edebiyat",
+        "weeklyHours": 4,
+        "blockHours": 4,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141178644",
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141178644": [
+            "t1787139569684"
+          ],
+          "c1787141184036": [
+            "t1787139569684"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224291963"
+      },
+      {
+        "name": "Çağdaş Türk ve Dünya Tarihi",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141184036": [
+            "t1787140472247"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224385069"
+      },
+      {
+        "name": "Seçmeli Coğrafya",
+        "weeklyHours": 4,
+        "blockHours": 4,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141184036": [
+            "t1787140499855"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224446511"
+      },
+      {
+        "name": "Seçmeli Coğrafya",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141178644"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141178644": [
+            "t1787140499855"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224588722"
+      },
+      {
+        "name": "Sosyoloji",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141184036": [
+            "t1787140676702"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224627484"
+      },
+      {
+        "name": "Türk Düşünce Tarihi",
+        "weeklyHours": 1,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141184036"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141184036": [
+            "t1787140472247"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224669421"
+      },
+      {
+        "name": "Türk Kültür ve Medeniyeti Tarihi",
+        "weeklyHours": 2,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141178644"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141178644": [
+            "t1787140472247"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787224730998"
+      },
+      {
+        "name": "Mesleki Arapça",
+        "weeklyHours": 3,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141178644"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141178644": [
+            "t1787223891273"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787225040934"
+      },
+      {
+        "name": "Kur'an-ı Kerim",
+        "weeklyHours": 4,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141178644"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787225071287"
+      },
+      {
+        "name": "Beden Eğitimi ve Spor",
+        "weeklyHours": 2,
+        "blockHours": 2,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141100420"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787226168317"
+      },
+      {
+        "name": "Yabancı Dil",
+        "weeklyHours": 3,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141100420"
+        ],
+        "pinnedTeacherByClassroom": {},
+        "requiredTeacherCount": 1,
+        "id": "s1787226298209"
+      },
+      {
+        "name": "Osmanlı Türkçesi",
+        "weeklyHours": 1,
+        "blockHours": 0,
+        "tripleBlockHours": 0,
+        "assignedClassIds": [
+          "c1787141173539"
+        ],
+        "pinnedTeacherByClassroom": {
+          "c1787141173539": [
+            "t1787140961949"
+          ]
+        },
+        "requiredTeacherCount": 1,
+        "id": "s1787226787374"
       }
     ],
     "locations": [],

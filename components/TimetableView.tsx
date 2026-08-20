@@ -19,18 +19,21 @@ interface TimetableViewProps {
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"];
 
-const subjectColors: { [key: string]: string } = {};
-const getColorForSubject = (subjectId: string) => {
-  if (!subjectColors[subjectId]) {
-    const colors = [
-      'bg-red-200 border-red-300', 'bg-blue-200 border-blue-300',
-      'bg-green-200 border-green-300', 'bg-yellow-200 border-yellow-300',
-      'bg-purple-200 border-purple-300', 'bg-pink-200 border-pink-300',
-      'bg-indigo-200 border-indigo-300', 'bg-teal-200 border-teal-300'
-    ];
-    subjectColors[subjectId] = colors[Object.keys(subjectColors).length % colors.length];
+const getColorForSubject = (subjectName: string): React.CSSProperties => {
+  // Stable, effectively unlimited palette. Same lesson name keeps the same color
+  // even when it has separate 1-hour / 2-hour records.
+  let hash = 0;
+  const normalized = subjectName.trim().toLocaleLowerCase('tr-TR');
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash = normalized.charCodeAt(index) + ((hash << 5) - hash);
   }
-  return subjectColors[subjectId];
+  const hue = Math.abs(hash * 137.508) % 360;
+  const saturation = 62 + (Math.abs(hash) % 12);
+  const lightness = 84 + (Math.abs(hash >> 4) % 7);
+  return {
+    backgroundColor: `hsl(${hue.toFixed(0)} ${saturation}% ${lightness}%)`,
+    borderColor: `hsl(${hue.toFixed(0)} ${Math.min(82, saturation + 8)}% 62%)`,
+  };
 };
 
 const ScheduleCell: React.FC<{ 
@@ -70,14 +73,15 @@ const ScheduleCell: React.FC<{
     return <div className="h-24 border-slate-200 border bg-red-100 p-1 text-xs">Hatalı Atama</div>;
   }
   
-  const color = getColorForSubject(subject.id);
+  const colorStyle = getColorForSubject(subject.name);
 
   return (
     <div 
       draggable={isDraggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`h-24 border p-1.5 text-xs flex flex-col justify-between ${color} ${isDraggable ? 'cursor-move' : ''}`}>
+      style={colorStyle}
+      className={`h-24 border p-1.5 text-xs flex flex-col justify-between ${isDraggable ? 'cursor-move' : ''}`}>
       <div>
         <p className="font-bold text-slate-800">{subject.name}</p>
         <p className="text-slate-600">{viewType === ViewTypeEnum.Class ? teachers.map(t => t.name).join(', ') : classroom.name}</p>

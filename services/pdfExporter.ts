@@ -1,31 +1,23 @@
-
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import type { Schedule, TimetableData, SchoolHours } from '../types';
-import { ViewType, SchoolLevel } from '../types';
+import { jsPDF } from 'jspdf';
+import * as autoTableModule from 'jspdf-autotable';
+import type { Assignment, Schedule, SchoolHours, TimetableData } from '../types';
+import { SchoolLevel, ViewType } from '../types';
 
 type PrintScope = 'selected' | 'classes' | 'teachers';
 type ViewMode = 'single' | 'master';
-
-type SectionRow = {
-  startHour: number;
-  span: number;
-  hourLabel: string;
-  primary: string;
-  secondary?: string;
-  location?: string;
-  note?: string;
-};
-
-type DaySection = {
-  dayLabel: string;
-  rows: SectionRow[];
-};
+type RGB = [number, number, number];
 
 type Target = {
   id: string;
   name: string;
   kind: 'class' | 'teacher';
+};
+
+type PdfCell = {
+  text: string;
+  subjectName?: string;
+  duty?: boolean;
+  unavailable?: boolean;
 };
 
 interface ExportOptions {
@@ -40,319 +32,263 @@ interface ExportOptions {
 }
 
 const DAY_LABELS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+const FONT_NAME = 'Atkinson';
+const FONT_FILE_NAME = 'AtkinsonHyperlegibleNext.ttf';
+const FONT_URL = '/assets/fonts/AtkinsonHyperlegibleNext.ttf';
+let fontBase64Promise: Promise<string> | null = null;
+const autoTable = (
+  (autoTableModule as any).autoTable
+  ?? (autoTableModule as any).default?.default
+  ?? (autoTableModule as any).default
+) as (doc: jsPDF, options: any) => void;
 
-const formatHourLabel = (startHour: number, span: number): string => {
-  if (span <= 1) return `${startHour}. ders`;
-  const endHour = startHour + span - 1;
-  return `${startHour}-${endHour}. ders`;
+const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
 };
 
-const teacherNamesForAssignment = (assignment: any, data: TimetableData): string => {
-  if (!assignment || !Array.isArray(assignment.teacherIds)) return '';
-  return assignment.teacherIds
-    .map((id: string) => data.teachers.find((teacher) => teacher.id === id)?.name)
-    .filter((name): name is string => Boolean(name))
-    .join(', ');
+const loadPdfFont = async (): Promise<string> => {
+  if (!fontBase64Promise) {
+    fontBase64Promise = fetch(FONT_URL).then(async (response) => {
+      if (!response.ok) throw new Error(`PDF yazı tipi yüklenemedi (${response.status}).`);
+      return arrayBufferToBase64(await response.arrayBuffer());
+    });
+  }
+  return fontBase64Promise;
 };
 
-const collectClassSections = (
-  classroomId: string,
-  schedule: Schedule,
-  data: TimetableData,
-  schoolHours: SchoolHours,
-  maxDailyHours: number,
-): DaySection[] => {
-  const classroom = data.classrooms.find((c) => c.id === classroomId);
-  if (!classroom) return [];
-
-  const classDays = schedule[classroomId] ?? [];
-  const dailyLimits = schoolHours[classroom.level as SchoolLevel] ?? [];
-
-  return DAY_LABELS.map((dayLabel, dayIndex) => {
-    const rows: SectionRow[] = [];
-    const dayLessons = classDays[dayIndex] ?? [];
-    const dayLimit = Math.max(dailyLimits[dayIndex] ?? 0, maxDailyHours);
-
-    let hourIndex = 0;
-    while (hourIndex < dayLimit) {
-      const assignment = dayLessons[hourIndex];
-      if (!assignment) {
-        hourIndex += 1;
-        continue;
-      }
-
-      let span = 1;
-      while (
-        hourIndex + span < dayLessons.length &&
-        dayLessons[hourIndex + span] === assignment
-      ) {
-        span += 1;
-      }
-
-      const startHour = hourIndex + 1;
-      const subjectName = data.subjects.find((subject) => subject.id === assignment.subjectId)?.name ?? 'Ders';
-      const teacherNames = teacherNamesForAssignment(assignment, data);
-      const locationName = assignment.locationId
-        ? data.locations.find((location) => location.id === assignment.locationId)?.name
-        : undefined;
-
-      rows.push({
-        startHour,
-        span,
-        hourLabel: formatHourLabel(startHour, span),
-        primary: subjectName,
-        secondary: teacherNames || undefined,
-        location: locationName,
-      });
-
-      hourIndex += span;
-    }
-
-    if (rows.length === 0) {
-      rows.push({
-        startHour: 0,
-        span: 0,
-        hourLabel: '-',
-        primary: 'Ders yok',
-        note: 'Bu gün için atanan ders bulunmuyor.',
-      });
-    }
-
-    rows.sort((a, b) => a.startHour - b.startHour);
-    return { dayLabel, rows };
-  });
-};
-
-const collectTeacherSections = (
-  teacherId: string,
-  schedule: Schedule,
-  data: TimetableData,
-  maxDailyHours: number,
-): DaySection[] => {
-  const teacher = data.teachers.find((t) => t.id === teacherId);
-  if (!teacher) return [];
-
-  const processedAssignments = new WeakMap<object, Set<string>>();
-  const limit = Number.isFinite(maxDailyHours) && maxDailyHours > 0 ? maxDailyHours : 12;
-
-  return DAY_LABELS.map((dayLabel, dayIndex) => {
-    const rows: SectionRow[] = [];
-
-    for (const [classroomId, classroomDays] of Object.entries(schedule)) {
-      const daySchedule = classroomDays?.[dayIndex] ?? [];
-      let hourIndex = 0;
-
-      while (hourIndex < limit && hourIndex < daySchedule.length) {
-        const assignment = daySchedule[hourIndex];
-        if (
-          !assignment ||
-          !Array.isArray(assignment.teacherIds) ||
-          !assignment.teacherIds.includes(teacherId)
-        ) {
-          hourIndex += 1;
-          continue;
-        }
-
-        const processedForTeacher = processedAssignments.get(assignment) ?? new Set<string>();
-        if (processedForTeacher.has(teacherId)) {
-          hourIndex += 1;
-          continue;
-        }
-
-        let span = 1;
-        while (
-          hourIndex + span < daySchedule.length &&
-          daySchedule[hourIndex + span] === assignment
-        ) {
-          span += 1;
-        }
-
-        processedForTeacher.add(teacherId);
-        processedAssignments.set(assignment, processedForTeacher);
-
-        const startHour = hourIndex + 1;
-        const subjectName = data.subjects.find((subject) => subject.id === assignment.subjectId)?.name ?? 'Ders';
-        const classroomName = data.classrooms.find((c) => c.id === (assignment.classroomId ?? classroomId))?.name ?? 'Sınıf';
-        const locationName = assignment.locationId
-          ? data.locations.find((location) => location.id === assignment.locationId)?.name
-          : undefined;
-        const coTeachers = assignment.teacherIds
-          .filter((id: string) => id !== teacherId)
-          .map((id: string) => data.teachers.find((t) => t.id === id)?.name)
-          .filter((name): name is string => Boolean(name))
-          .join(', ');
-
-        rows.push({
-          startHour,
-          span,
-          hourLabel: formatHourLabel(startHour, span),
-          primary: subjectName,
-          secondary: classroomName,
-          location: locationName,
-          note: coTeachers ? `Diğer öğretmenler: ${coTeachers}` : undefined,
-        });
-
-        hourIndex += span;
-      }
-    }
-
-    data.duties
-      .filter((duty) => duty.teacherId === teacherId && duty.dayIndex === dayIndex)
-      .forEach((duty) => {
-        const span = (duty as any).span ?? 1;
-        const locationName = (duty as any).locationId
-          ? data.locations.find((location) => location.id === (duty as any).locationId)?.name
-          : undefined;
-        const note = (duty as any).note ?? undefined;
-
-        rows.push({
-          startHour: duty.hourIndex + 1,
-          span,
-          hourLabel: formatHourLabel(duty.hourIndex + 1, span),
-          primary: duty.name,
-          secondary: locationName ?? 'Nöbet',
-          note,
-        });
-      });
-
-    if (rows.length === 0) {
-      rows.push({
-        startHour: 0,
-        span: 0,
-        hourLabel: '-',
-        primary: 'Ders yok',
-        note: 'Bu gün için ders veya görev bulunmuyor.',
-      });
-    }
-
-    rows.sort((a, b) => a.startHour - b.startHour);
-    return { dayLabel, rows };
-  });
+const addTurkishFont = async (doc: jsPDF): Promise<void> => {
+  const fontBase64 = await loadPdfFont();
+  doc.addFileToVFS(FONT_FILE_NAME, fontBase64);
+  doc.addFont(FONT_FILE_NAME, FONT_NAME, 'normal');
+  doc.setFont(FONT_NAME, 'normal');
 };
 
 const resolveTargets = (options: ExportOptions): Target[] => {
   const { mode, data, viewType, selectedHeaderId, viewMode } = options;
-
   if (mode === 'selected') {
-    if (viewMode !== 'single') {
-      throw new Error('PDF almak için önce "Sade görünüm" moduna geçin.');
-    }
-    if (!selectedHeaderId) {
-      throw new Error('Lütfen listeden bir kayıt seçin.');
-    }
+    if (viewMode !== 'single') throw new Error('PDF almak için önce "Sade görünüm" moduna geçin.');
+    if (!selectedHeaderId) throw new Error('Lütfen listeden bir sınıf veya öğretmen seçin.');
     if (viewType === ViewType.Class) {
-      const classroom = data.classrooms.find((c) => c.id === selectedHeaderId);
-      if (!classroom) {
-        throw new Error('Seçili sınıf bulunamadı.');
-      }
+      const classroom = data.classrooms.find((item) => item.id === selectedHeaderId);
+      if (!classroom) throw new Error('Seçili sınıf bulunamadı.');
       return [{ id: classroom.id, name: classroom.name, kind: 'class' }];
     }
-    const teacher = data.teachers.find((t) => t.id === selectedHeaderId);
-    if (!teacher) {
-      throw new Error('Seçili öğretmen bulunamadı.');
-    }
+    const teacher = data.teachers.find((item) => item.id === selectedHeaderId);
+    if (!teacher) throw new Error('Seçili öğretmen bulunamadı.');
     return [{ id: teacher.id, name: teacher.name, kind: 'teacher' }];
   }
-
   if (mode === 'classes') {
-    if (data.classrooms.length === 0) {
-      throw new Error('Tanımlı sınıf bulunmuyor.');
+    if (data.classrooms.length === 0) throw new Error('Tanımlı sınıf bulunmuyor.');
+    return data.classrooms.map((item) => ({ id: item.id, name: item.name, kind: 'class' as const }));
+  }
+  if (data.teachers.length === 0) throw new Error('Tanımlı öğretmen bulunmuyor.');
+  return data.teachers.map((item) => ({ id: item.id, name: item.name, kind: 'teacher' as const }));
+};
+
+const assignmentText = (
+  assignment: Assignment,
+  targetKind: Target['kind'],
+  data: TimetableData,
+  fallbackClassroomId?: string,
+): PdfCell => {
+  const subjectName = data.subjects.find((item) => item.id === assignment.subjectId)?.name ?? 'Ders';
+  const locationName = assignment.locationId
+    ? data.locations.find((item) => item.id === assignment.locationId)?.name
+    : undefined;
+  const secondary = targetKind === 'class'
+    ? (assignment.teacherIds ?? ((assignment as any).teacherId ? [(assignment as any).teacherId] : []))
+      .map((id) => data.teachers.find((teacher) => teacher.id === id)?.name)
+      .filter((name): name is string => Boolean(name))
+      .join(', ')
+    : data.classrooms.find((item) => item.id === (assignment.classroomId ?? fallbackClassroomId))?.name ?? 'Sınıf';
+  return { subjectName, text: [subjectName, secondary, locationName].filter(Boolean).join('\n') };
+};
+
+const findTeacherAssignment = (
+  teacherId: string,
+  dayIndex: number,
+  hourIndex: number,
+  schedule: Schedule,
+): { assignment: Assignment; classroomId: string } | null => {
+  for (const [classroomId, classroomDays] of Object.entries(schedule)) {
+    const assignment = classroomDays?.[dayIndex]?.[hourIndex];
+    const teacherIds = assignment
+      ? (assignment.teacherIds ?? ((assignment as any).teacherId ? [(assignment as any).teacherId] : []))
+      : [];
+    if (assignment && teacherIds.includes(teacherId)) return { assignment, classroomId };
+  }
+  return null;
+};
+
+const createWeeklyGrid = (
+  target: Target,
+  schedule: Schedule,
+  data: TimetableData,
+  schoolHours: SchoolHours,
+  maxDailyHours: number,
+): PdfCell[][] => {
+  const classroom = target.kind === 'class' ? data.classrooms.find((item) => item.id === target.id) : undefined;
+  const classDailyLimits = classroom ? schoolHours[classroom.level as SchoolLevel] ?? [] : [];
+  const hourCount = target.kind === 'class'
+    ? Math.max(1, ...classDailyLimits, maxDailyHours)
+    : Math.max(1, maxDailyHours);
+
+  return Array.from({ length: hourCount }, (_, hourIndex) => DAY_LABELS.map((_, dayIndex) => {
+    if (target.kind === 'class') {
+      const dailyLimit = classDailyLimits[dayIndex] ?? maxDailyHours;
+      if (hourIndex >= dailyLimit) return { text: '', unavailable: true };
+      const assignment = schedule[target.id]?.[dayIndex]?.[hourIndex];
+      return assignment ? assignmentText(assignment, target.kind, data, target.id) : { text: '' };
     }
-    return data.classrooms.map((classroom) => ({ id: classroom.id, name: classroom.name, kind: 'class' as const }));
-  }
 
-  if (data.teachers.length === 0) {
-    throw new Error('Tanımlı öğretmen bulunmuyor.');
-  }
-  return data.teachers.map((teacher) => ({ id: teacher.id, name: teacher.name, kind: 'teacher' as const }));
+    const found = findTeacherAssignment(target.id, dayIndex, hourIndex, schedule);
+    const duty = data.duties.find((item) => {
+      const span = Number((item as any).span ?? 1);
+      return item.teacherId === target.id
+        && item.dayIndex === dayIndex
+        && hourIndex >= item.hourIndex
+        && hourIndex < item.hourIndex + span;
+    });
+    if (found) {
+      const cell = assignmentText(found.assignment, target.kind, data, found.classroomId);
+      if (duty) cell.text += `\nGörev: ${duty.name}`;
+      return cell;
+    }
+    if (duty) {
+      const locationName = (duty as any).locationId
+        ? data.locations.find((item) => item.id === (duty as any).locationId)?.name
+        : undefined;
+      return { text: [duty.name, locationName ?? 'Nöbet / görev'].filter(Boolean).join('\n'), duty: true };
+    }
+    return { text: '' };
+  }));
 };
 
-const makeFileName = (mode: PrintScope) => {
-  const today = new Date();
-  const iso = today.toISOString().split('T')[0];
+const hslToRgb = (hue: number, saturation: number, lightness: number): RGB => {
+  const s = saturation / 100;
+  const l = lightness / 100;
+  const chroma = (1 - Math.abs(2 * l - 1)) * s;
+  const section = hue / 60;
+  const x = chroma * (1 - Math.abs((section % 2) - 1));
+  let rgb: [number, number, number] = [0, 0, 0];
+  if (section < 1) rgb = [chroma, x, 0];
+  else if (section < 2) rgb = [x, chroma, 0];
+  else if (section < 3) rgb = [0, chroma, x];
+  else if (section < 4) rgb = [0, x, chroma];
+  else if (section < 5) rgb = [x, 0, chroma];
+  else rgb = [chroma, 0, x];
+  const match = l - chroma / 2;
+  return rgb.map((value) => Math.round((value + match) * 255)) as RGB;
+};
+
+const colorForSubject = (subjectName: string): { fill: RGB; line: RGB } => {
+  let hash = 0;
+  const normalized = subjectName.trim().toLocaleLowerCase('tr-TR');
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash = normalized.charCodeAt(index) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash * 137.508) % 360;
+  const saturation = 62 + (Math.abs(hash) % 12);
+  const lightness = 84 + (Math.abs(hash >> 4) % 7);
+  return {
+    fill: hslToRgb(hue, saturation, lightness),
+    line: hslToRgb(hue, Math.min(82, saturation + 8), 62),
+  };
+};
+
+const makeFileName = (mode: PrintScope): string => {
+  const date = new Date().toISOString().split('T')[0];
   const suffix = mode === 'selected' ? 'secili' : mode === 'classes' ? 'siniflar' : 'ogretmenler';
-  return `ders-programi-${suffix}-${iso}.pdf`;
+  return `ders-programi-${suffix}-${date}.pdf`;
 };
 
-export const buildSchedulePdf = (options: ExportOptions) => {
-  const { schedule, data, schoolHours, maxDailyHours, mode } = options;
-
+export const buildSchedulePdf = async (options: ExportOptions) => {
   const targets = resolveTargets(options);
-  if (targets.length === 0) {
-    throw new Error('PDF oluşturmak için uygun kayıt bulunamadı.');
-  }
+  if (targets.length === 0) throw new Error('PDF oluşturmak için uygun kayıt bulunamadı.');
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  await addTurkishFont(doc);
 
   targets.forEach((target, targetIndex) => {
     if (targetIndex > 0) {
-      doc.addPage();
+      doc.addPage('a4', 'landscape');
+      doc.setFont(FONT_NAME, 'normal');
     }
 
-    const title = target.kind === 'class' ? 'Haftalık Ders Programı' : 'Öğretmen Ders Programı';
-    doc.setFontSize(16);
-    doc.setTextColor(17, 24, 39);
-    doc.text(title, 40, 50);
-
-    doc.setFontSize(12);
-    doc.setTextColor(55, 65, 81);
+    const grid = createWeeklyGrid(target, options.schedule, options.data, options.schoolHours, options.maxDailyHours);
     const descriptor = target.kind === 'class' ? 'Sınıf' : 'Öğretmen';
-    doc.text(`${descriptor}: ${target.name}`, 40, 70);
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(15);
+    doc.text(`${target.name} Haftalık Ders Programı`, 8, 10);
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`${descriptor}: ${target.name}  •  Her renk aynı dersi gösterir`, 8, 16);
 
-    const sections = target.kind === 'class'
-      ? collectClassSections(target.id, schedule, data, schoolHours, maxDailyHours)
-      : collectTeacherSections(target.id, schedule, data, maxDailyHours);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const startY = 21;
+    const bottomMargin = 8;
+    const headerHeight = 9;
+    const minCellHeight = Math.max(8, Math.min(20, (pageHeight - startY - bottomMargin - headerHeight) / grid.length));
+    const fontSize = grid.length > 11 ? 6.1 : grid.length > 8 ? 6.7 : 7.3;
+    const body = grid.map((row, hourIndex) => [`${hourIndex + 1}. Ders`, ...row.map((cell) => cell.text)]);
 
-    let cursor = 100;
-
-    sections.forEach((section) => {
-      if (cursor > 720) {
-        doc.addPage();
-        cursor = 60;
-      }
-
-      doc.setFontSize(12);
-      doc.setTextColor(30, 64, 175);
-      doc.text(section.dayLabel, 40, cursor);
-      cursor += 14;
-
-      if (section.rows.length === 0) {
-        doc.setFontSize(10);
-        doc.setTextColor(75, 85, 99);
-        doc.text('Bu gün için kayıt bulunamadı.', 40, cursor);
-        cursor += 20;
-        return;
-      }
-
-      const body = section.rows.map((row) => [
-        row.hourLabel,
-        row.primary,
-        row.secondary ? (row.note ? `${row.secondary} (${row.note})` : row.secondary) : (row.note ?? ''),
-        row.location ?? '-',
-      ]);
-
-      autoTable(doc, {
-        head: [[
-          'Saat',
-          'Ders',
-          target.kind === 'class' ? 'Öğretmen' : 'Sınıf',
-          'Yer',
-        ]],
-        body,
-        startY: cursor,
-        margin: { left: 40, right: 40 },
-        styles: { fontSize: 9, cellPadding: 4, textColor: 55, overflow: 'linebreak' },
-        headStyles: { fillColor: [14, 116, 144], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [243, 244, 246] },
-        tableWidth: 'auto',
-      });
-
-      const lastTable: any = (doc as any).lastAutoTable;
-      cursor = lastTable?.finalY ? lastTable.finalY + 20 : cursor + 40;
-      doc.setTextColor(55, 65, 81);
+    autoTable(doc, {
+      head: [['Saatler', ...DAY_LABELS]],
+      body,
+      startY,
+      margin: { left: 8, right: 8, bottom: bottomMargin },
+      tableWidth: 281,
+      pageBreak: 'avoid',
+      rowPageBreak: 'avoid',
+      styles: {
+        font: FONT_NAME,
+        fontStyle: 'normal',
+        fontSize,
+        minCellHeight,
+        cellPadding: 1.6,
+        valign: 'top',
+        overflow: 'linebreak',
+        textColor: [30, 41, 59],
+        lineColor: [203, 213, 225],
+        lineWidth: 0.25,
+      },
+      headStyles: {
+        fillColor: [241, 245, 249],
+        textColor: [30, 41, 59],
+        halign: 'center',
+        minCellHeight: headerHeight,
+      },
+      columnStyles: {
+        0: { cellWidth: 18, halign: 'center', fillColor: [248, 250, 252] },
+        1: { cellWidth: 52.6 },
+        2: { cellWidth: 52.6 },
+        3: { cellWidth: 52.6 },
+        4: { cellWidth: 52.6 },
+        5: { cellWidth: 52.6 },
+      },
+      didParseCell: (hook) => {
+        if (hook.section !== 'body' || hook.column.index === 0) return;
+        const cell = grid[hook.row.index]?.[hook.column.index - 1];
+        if (!cell) return;
+        if (cell.unavailable) {
+          hook.cell.styles.fillColor = [241, 245, 249];
+        } else if (cell.duty) {
+          hook.cell.styles.fillColor = [226, 232, 240];
+          hook.cell.styles.lineColor = [148, 163, 184];
+        } else if (cell.subjectName) {
+          const color = colorForSubject(cell.subjectName);
+          hook.cell.styles.fillColor = color.fill;
+          hook.cell.styles.lineColor = color.line;
+        }
+      },
     });
   });
 
-  const fileName = makeFileName(mode);
-  return { doc, fileName };
+  return { doc, fileName: makeFileName(options.mode) };
 };

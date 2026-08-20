@@ -20,6 +20,7 @@ export const TeacherForm: React.FC<{
         .map(() => Array(16).fill(true)),
       canTeachHighSchool: true,
       canTeachMiddleSchool: true,
+      maxWeeklyHours: undefined,
     }
   );
   const [branchesStr, setBranchesStr] = useState(item?.branches.join(', ') || '');
@@ -30,7 +31,12 @@ export const TeacherForm: React.FC<{
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setTeacher((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    const nextValue = type === 'checkbox'
+      ? checked
+      : name === 'maxWeeklyHours'
+        ? (value === '' ? undefined : Math.max(1, Math.min(80, Number.parseInt(value, 10) || 1)))
+        : value;
+    setTeacher((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const handleAvailabilityToggle = (dayIndex: number, hourIndex: number) => {
@@ -138,6 +144,22 @@ export const TeacherForm: React.FC<{
         <label className="flex items-center gap-2">
           <input type="checkbox" name="canTeachHighSchool" checked={teacher.canTeachHighSchool} onChange={handleChange} className="rounded" /> Lise
         </label>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700">Haftalık en fazla ders saati (isteğe bağlı)</label>
+        <input
+          type="number"
+          name="maxWeeklyHours"
+          value={teacher.maxWeeklyHours ?? ''}
+          onChange={handleChange}
+          min={1}
+          max={80}
+          placeholder="Sınır yok"
+          className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Örneğin 30 yazarsanız çözücü bu öğretmene haftada 30 saatten fazla ders vermez. Boş bırakırsanız özel bir üst sınır uygulanmaz.
+        </p>
       </div>
       <div className="flex justify-end gap-2 pt-4">
         <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700">
