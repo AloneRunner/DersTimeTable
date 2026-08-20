@@ -1,7 +1,7 @@
 
 import { useMemo } from 'react';
 import type { TimetableData, SchoolHours } from '../types';
-import { buildClassroomSummaries, findDuplicateClassSubjects, normalizeLabel } from '../utils/dataDiagnostics';
+import { buildClassroomSummaries, buildTeacherCapacitySummaries, findDuplicateClassSubjects, normalizeLabel } from '../utils/dataDiagnostics';
 
 export interface ValidationError {
   id: string;
@@ -14,6 +14,7 @@ export const useDataValidation = (data: TimetableData, schoolHours: SchoolHours)
     const overflowingClasses: ValidationError[] = [];
     const incompleteClasses: ValidationError[] = [];
     const duplicateClassSubjects: ValidationError[] = [];
+    const teacherCapacityErrors: ValidationError[] = [];
     const teacherSubjectMap = new Map<string, string[]>();
 
     // Build teacher-subject map
@@ -63,7 +64,17 @@ export const useDataValidation = (data: TimetableData, schoolHours: SchoolHours)
       });
     });
 
-    const allErrors = [...unassignedSubjects, ...incompleteClasses, ...overflowingClasses, ...duplicateClassSubjects];
+    // 4. A teacher's unavoidable lesson load cannot exceed usable availability.
+    buildTeacherCapacitySummaries(data, schoolHours)
+      .filter(summary => summary.shortage > 0)
+      .forEach(summary => {
+        teacherCapacityErrors.push({
+          id: summary.teacher.id,
+          message: `Öğretmen: "${summary.teacher.name}" - Kesin ders yükü ${summary.definiteDemand} saat, kullanılabilir zamanı ${summary.capacity} saat. En az ${summary.shortage} saat müsaitlik açın, haftalık üst sınırı yükseltin veya ders atamalarını değiştirin.`,
+        });
+      });
+
+    const allErrors = [...unassignedSubjects, ...incompleteClasses, ...overflowingClasses, ...duplicateClassSubjects, ...teacherCapacityErrors];
     const isValid = allErrors.length === 0;
 
     return {
@@ -72,6 +83,7 @@ export const useDataValidation = (data: TimetableData, schoolHours: SchoolHours)
       incompleteClasses,
       overflowingClasses,
       duplicateClassSubjects,
+      teacherCapacityErrors,
       allErrors,
     };
   }, [data, schoolHours]);

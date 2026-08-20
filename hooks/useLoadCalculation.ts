@@ -1,6 +1,7 @@
 
 import { useMemo } from 'react';
 import type { TimetableData, SchoolHours } from '../types';
+import { buildTeacherCapacitySummaries } from '../utils/dataDiagnostics';
 
 export interface ClassroomLoad {
   demand: number;
@@ -24,12 +25,11 @@ export const useLoadCalculation = (data: TimetableData, schoolHours: SchoolHours
         capacity: schoolHours[c.level]?.reduce((acc, hours) => acc + hours, 0) || 0
       });
     });
+    const teacherCapacityMap = new Map(
+      buildTeacherCapacitySummaries(data, schoolHours).map(summary => [summary.teacher.id, summary.capacity])
+    );
     data.teachers.forEach(t => {
-      const availableHours = t.availability.flat().filter(Boolean).length;
-      const capacity = typeof t.maxWeeklyHours === 'number'
-        ? Math.min(availableHours, t.maxWeeklyHours)
-        : availableHours;
-      teacherLoads.set(t.id, { demand: 0, capacity });
+      teacherLoads.set(t.id, { demand: 0, capacity: teacherCapacityMap.get(t.id) ?? 0 });
     });
 
     // 2. Calculate classroom demand from subjects and groups

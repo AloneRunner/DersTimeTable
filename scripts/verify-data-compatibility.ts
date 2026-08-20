@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SchoolLevel } from '../types';
 import { normalizeTimetableData } from '../hooks/useTimetableData';
-import { buildClassroomSummaries, findDuplicateClassSubjects } from '../utils/dataDiagnostics';
+import { buildClassroomSummaries, buildTeacherCapacitySummaries, findDuplicateClassSubjects } from '../utils/dataDiagnostics';
 
 const filePath = resolve(process.argv[2] || 'ders-programi-verileri (5).json');
 const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
@@ -49,6 +49,46 @@ if (legacySubject) {
   if (!Array.isArray(migratedValue)) throw new Error('Eski tek-öğretmen sabitleme biçimi dönüştürülemedi.');
 }
 
+const capacityProbeData = {
+  teachers: [{
+    id: 'capacity-probe-teacher',
+    name: 'Kapasite Denemesi',
+    branches: ['Fen Bilimleri'],
+    availability: Array.from({ length: 5 }, (_, dayIndex) => Array.from({ length: 16 }, (_, hourIndex) => dayIndex > 0 && hourIndex < 5)),
+    canTeachMiddleSchool: true,
+    canTeachHighSchool: false,
+  }],
+  classrooms: [{ id: 'capacity-probe-class', name: '5-A', level: SchoolLevel.Middle, group: 'Yok' as any, sessionType: 'full' as const }],
+  subjects: [{
+    id: 'capacity-probe-subject',
+    name: 'Fen Bilimleri',
+    blockHours: 0,
+    weeklyHours: 24,
+    assignedClassIds: ['capacity-probe-class'],
+    requiredTeacherCount: 1,
+    pinnedTeacherByClassroom: {},
+  }],
+  locations: [],
+  fixedAssignments: [],
+  lessonGroups: [],
+  duties: [],
+};
+const capacityProbe = buildTeacherCapacitySummaries(capacityProbeData, schoolHours)[0];
+if (capacityProbe.definiteDemand !== 24 || capacityProbe.capacity !== 20 || capacityProbe.shortage !== 4) {
+  throw new Error(`Öğretmen kapasite denetimi başarısız: ${JSON.stringify(capacityProbe)}`);
+}
+const flexibleProbeData = {
+  ...capacityProbeData,
+  teachers: [
+    ...capacityProbeData.teachers,
+    { ...capacityProbeData.teachers[0], id: 'capacity-probe-alternative', name: 'Alternatif Öğretmen' },
+  ],
+};
+const flexibleProbe = buildTeacherCapacitySummaries(flexibleProbeData, schoolHours);
+if (flexibleProbe.some(summary => summary.definiteDemand > 0)) {
+  throw new Error('Alternatif öğretmen bulunan ders yanlış biçimde kesin yük sayıldı.');
+}
+
 console.log(JSON.stringify({
   file: filePath,
   teachers: normalized.teachers.length,
@@ -58,4 +98,6 @@ console.log(JSON.stringify({
   duplicateClassSubjects: duplicates.length,
   duplicateDetectionProbe: 'ok',
   legacyPinMigration: 'ok',
+  teacherCapacityProbe: `${capacityProbe.definiteDemand}/${capacityProbe.capacity} (shortage ${capacityProbe.shortage})`,
+  flexibleTeacherProbe: 'ok',
 }, null, 2));

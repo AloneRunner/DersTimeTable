@@ -66,6 +66,19 @@ const schoolHoursToDraft = (hours: SchoolHours): SchoolHoursDraft => ({
 });
 
 const clampSchoolHour = (value: number) => Math.max(4, Math.min(16, value));
+
+const explainSolverNote = (note: string): string => {
+    if (/^status=INFEASIBLE$/i.test(note)) {
+        return 'Bu kurallarla program oluşturmak mümkün değil. Program Öncesi Kontrol bölümündeki kırmızı uyarıları düzeltin veya müsaitlik/blok kurallarını esnetin.';
+    }
+    if (/^status=UNKNOWN$/i.test(note)) {
+        return 'Çözücü verilen süre içinde kesin bir sonuç bulamadı. Süreyi artırıp yeniden deneyin.';
+    }
+    if (/^status=MODEL_INVALID$/i.test(note)) {
+        return 'Program kurallarında çözücünün işleyemediği bir tanım var. Veri kontrollerini gözden geçirin.';
+    }
+    return note;
+};
  // --- Modal Component --- (moved to components/Modal)
 
 // Teacher load analysis UI is provided by the extracted `TeacherLoadAnalysis` component in components/TeacherLoadAnalysis.tsx
@@ -1659,12 +1672,16 @@ const App: React.FC = () => {
               });
             }
             
-            setSolverStats(result.stats);
+            const displayStats: SolverStats = {
+                ...result.stats,
+                notes: (result.stats.notes ?? []).map(explainSolverNote),
+            };
+            setSolverStats(displayStats);
 
             if (result.schedule) {
                 setSchedule(result.schedule);
             } else {
-                const errorMsg = result.stats?.notes?.join(' | ') || "Çözüm bulunamadı. Kısıtlar çok sıkı olabilir.";
+                const errorMsg = displayStats.notes.join(' | ') || "Çözüm bulunamadı. Kısıtlar çok sıkı olabilir.";
                 setError(errorMsg);
             }
         } catch (err: any) {

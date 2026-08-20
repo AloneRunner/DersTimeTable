@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Classroom, SchoolHours, Subject, Teacher, TimetableData } from '../types';
-import { buildClassroomSummaries, findDuplicateClassSubjects, normalizeLabel } from '../utils/dataDiagnostics';
+import { buildClassroomSummaries, buildTeacherCapacitySummaries, findDuplicateClassSubjects, normalizeLabel } from '../utils/dataDiagnostics';
 
 type OverviewTab = 'classrooms' | 'teachers' | 'subjects';
 
@@ -47,6 +47,18 @@ export const PreflightOverview: React.FC<Props> = ({
     [data, schoolHours]
   );
   const duplicates = useMemo(() => findDuplicateClassSubjects(data), [data]);
+  const teacherCapacitySummaries = useMemo(
+    () => buildTeacherCapacitySummaries(data, schoolHours),
+    [data, schoolHours]
+  );
+  const teacherCapacityById = useMemo(
+    () => new Map(teacherCapacitySummaries.map(summary => [summary.teacher.id, summary])),
+    [teacherCapacitySummaries]
+  );
+  const teacherCapacityIssues = useMemo(
+    () => teacherCapacitySummaries.filter(summary => summary.shortage > 0),
+    [teacherCapacitySummaries]
+  );
   const duplicateKeys = useMemo(
     () => new Set(duplicates.map(item => `${item.classroomId}::${item.normalizedSubjectName}`)),
     [duplicates]
@@ -101,6 +113,7 @@ export const PreflightOverview: React.FC<Props> = ({
   const normalizedQuery = normalizeLabel(query);
   const selectedClassroom = classroomSummaries.find(item => item.classroom.id === selectedClassroomId);
   const selectedTeacher = data.teachers.find(item => item.id === selectedTeacherId);
+  const selectedTeacherCapacity = selectedTeacher ? teacherCapacityById.get(selectedTeacher.id) : undefined;
   const selectedSubjectGroup = subjectGroups.find(item => item.key === selectedSubjectKey);
   const filteredClassrooms = classroomSummaries.filter(item => normalizeLabel(item.classroom.name).includes(normalizedQuery));
   const filteredTeachers = data.teachers
@@ -118,6 +131,12 @@ export const PreflightOverview: React.FC<Props> = ({
     setActiveTab('classrooms');
     setQuery('');
     if (classroomId) setSelectedClassroomId(classroomId);
+  };
+
+  const openFirstTeacherCapacityIssue = () => {
+    setActiveTab('teachers');
+    setQuery('');
+    if (teacherCapacityIssues[0]) setSelectedTeacherId(teacherCapacityIssues[0].teacher.id);
   };
 
   const selectedTeacherSubjects = useMemo(() => {
@@ -142,12 +161,22 @@ export const PreflightOverview: React.FC<Props> = ({
       ));
     }
     if (activeTab === 'teachers') {
-      return filteredTeachers.map(teacher => (
-        <button key={teacher.id} onClick={() => setSelectedTeacherId(teacher.id)} className={`${commonClass} ${selectedTeacherId === teacher.id ? 'bg-sky-100 text-sky-900' : 'hover:bg-slate-100 text-slate-700'}`}>
-          <span className="font-medium">{teacher.name}</span>
-          <span className="mt-0.5 block truncate text-xs text-slate-500">{teacher.branches.join(', ') || 'Branş yok'}</span>
-        </button>
-      ));
+      return filteredTeachers.map(teacher => {
+        const capacity = teacherCapacityById.get(teacher.id);
+        return (
+          <button key={teacher.id} onClick={() => setSelectedTeacherId(teacher.id)} className={`${commonClass} ${selectedTeacherId === teacher.id ? 'bg-sky-100 text-sky-900' : 'hover:bg-slate-100 text-slate-700'}`}>
+            <span className="flex items-center justify-between gap-2">
+              <span className="font-medium">{teacher.name}</span>
+              {capacity && capacity.definiteDemand > 0 && (
+                <span className={`rounded-full border px-2 py-0.5 text-[11px] ${capacity.shortage > 0 ? 'border-red-200 bg-red-100 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                  {capacity.definiteDemand}/{capacity.capacity}
+                </span>
+              )}
+            </span>
+            <span className="mt-0.5 block truncate text-xs text-slate-500">{teacher.branches.join(', ') || 'Branş yok'}</span>
+          </button>
+        );
+      });
     }
     return filteredSubjects.map(group => (
       <button key={group.key} onClick={() => setSelectedSubjectKey(group.key)} className={`${commonClass} ${selectedSubjectKey === group.key ? 'bg-sky-100 text-sky-900' : 'hover:bg-slate-100 text-slate-700'}`}>
@@ -222,6 +251,23 @@ export const PreflightOverview: React.FC<Props> = ({
           </div>
           <button onClick={() => onEditTeacher(selectedTeacher)} className="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">Öğretmeni düzenle</button>
         </div>
+        {selectedTeacherCapacity && (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="rounded-lg bg-slate-50 p-3 text-sm">
+              <span className="block text-xs text-slate-500">Kesin atanacak en az ders</span>
+              <strong>{selectedTeacherCapacity.definiteDemand} saat</strong>
+            </div>
+            <div className={`rounded-lg border p-3 text-sm ${selectedTeacherCapacity.shortage > 0 ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+              <span className="block text-xs">Kullanılabilir zaman</span>
+              <strong>{selectedTeacherCapacity.capacity} saat</strong>
+            </div>
+          </div>
+        )}
+        {selectedTeacherCapacity && selectedTeacherCapacity.shortage > 0 && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">
+            Bu öğretmenin zamanı yetmiyor. En az {selectedTeacherCapacity.shortage} saat daha müsaitlik açın, haftalık üst sınırı yükseltin veya ders atamalarını değiştirin.
+          </p>
+        )}
         <p className="mt-4 text-xs text-slate-500">Branşına uyan veya bu öğretmene sabitlenmiş ders kayıtları:</p>
         <div className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
           {selectedTeacherSubjects.map(subject => {
@@ -290,6 +336,7 @@ export const PreflightOverview: React.FC<Props> = ({
           <button onClick={() => openFirstClassIssue('overflow')} className={`rounded-full border px-3 py-1 ${overflowCount ? 'border-red-200 bg-red-100 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{overflowCount} fazla saat</button>
           <button onClick={() => openFirstClassIssue('duplicate')} className={`rounded-full border px-3 py-1 ${duplicates.length ? 'border-red-200 bg-red-100 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{duplicates.length} çift giriş</button>
           <button onClick={() => { setActiveTab('subjects'); setQuery(''); if (unstaffedSubjects[0]) setSelectedSubjectKey(normalizeLabel(unstaffedSubjects[0].name)); }} className={`rounded-full border px-3 py-1 ${unstaffedSubjects.length ? 'border-red-200 bg-red-100 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{unstaffedSubjects.length} öğretmensiz ders</button>
+          <button onClick={openFirstTeacherCapacityIssue} className={`rounded-full border px-3 py-1 ${teacherCapacityIssues.length ? 'border-red-200 bg-red-100 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{teacherCapacityIssues.length} zamanı yetmeyen öğretmen</button>
         </div>
       </div>
 
