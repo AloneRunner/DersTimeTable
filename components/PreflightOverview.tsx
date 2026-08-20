@@ -4,6 +4,11 @@ import { buildClassroomSummaries, findDuplicateClassSubjects, normalizeLabel } f
 
 type OverviewTab = 'classrooms' | 'teachers' | 'subjects';
 
+const classroomNameCollator = new Intl.Collator('tr-TR', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
 interface Props {
   data: TimetableData;
   schoolHours: SchoolHours;
@@ -38,7 +43,7 @@ export const PreflightOverview: React.FC<Props> = ({
   const [selectedSubjectKey, setSelectedSubjectKey] = useState('');
 
   const classroomSummaries = useMemo(
-    () => buildClassroomSummaries(data, schoolHours).sort((a, b) => a.classroom.name.localeCompare(b.classroom.name, 'tr')),
+    () => buildClassroomSummaries(data, schoolHours).sort((a, b) => classroomNameCollator.compare(a.classroom.name, b.classroom.name)),
     [data, schoolHours]
   );
   const duplicates = useMemo(() => findDuplicateClassSubjects(data), [data]);
