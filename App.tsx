@@ -2979,7 +2979,7 @@ case 'duties':
                         className={`mt-1 text-slate-500 ${isSmallScreen ? 'flex flex-col gap-1 text-sm' : 'flex items-center text-xs'}`}
                     >
                         <span>
-                            Bagli kullanici:{' '}
+                            <span>Bagli kullanici: </span>
                             <span className="font-medium text-slate-700">{activeSessionUser.name || activeSessionUser.email}</span>
                         </span>
                         <button
