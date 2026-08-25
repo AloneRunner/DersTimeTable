@@ -28,3 +28,10 @@ dist-ssr
 __pycache__/
 *.py[cod]
 
+
+# Gercek okul verisi - kisisel veri icerir, depoya girmemeli
+ders-programi-verileri*.json
+
+# Reklam gorselleri ve zip ciktilari (depoyu sisiriyor)
+google-ads/
+google-ads-clean/

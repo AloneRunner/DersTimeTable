@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DersTimeTable</string>
+    <string name="title_activity_main">DersTimeTable</string>
+    <string name="package_name">com.ozarik.dersprogrami</string>
+    <string name="custom_url_scheme">com.ozarik.dersprogrami</string>
+</resources>
