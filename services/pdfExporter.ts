@@ -3,9 +3,10 @@ import * as autoTableModule from 'jspdf-autotable';
 import type { Assignment, Schedule, SchoolHours, TimetableData } from '../types';
 import { SchoolLevel, ViewType } from '../types';
 
-type PrintScope = 'selected' | 'classes' | 'teachers';
+export type PrintScope = 'selected' | 'classes' | 'teachers' | 'classMatrix' | 'teacherMatrix';
 type ViewMode = 'single' | 'master';
 type RGB = [number, number, number];
+type MatrixKind = 'class' | 'teacher';
 
 type Target = {
   id: string;
@@ -16,6 +17,12 @@ type Target = {
 type PdfCell = {
   text: string;
   subjectName?: string;
+  duty?: boolean;
+  unavailable?: boolean;
+};
+
+type MatrixPdfCell = {
+  text: string;
   duty?: boolean;
   unavailable?: boolean;
 };
@@ -202,13 +209,353 @@ const colorForSubject = (subjectName: string): { fill: RGB; line: RGB } => {
   };
 };
 
+const normalizeForCode = (value: string): string => value
+  .trim()
+  .toLocaleUpperCase('tr-TR')
+  .replace(/[^\p{L}\p{N}]+/gu, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const SUBJECT_CODE_RULES: Array<[RegExp, string]> = [
+  [/^TÜRK DİLİ VE EDEBİYATI$/u, 'TDE'],
+  [/^T C İNKILAP TARİHİ/u, 'İNK'],
+  [/^DİN KÜLTÜRÜ/u, 'DİN'],
+  [/^REHBERLİK/u, 'RHB'],
+  [/^BEDEN EĞİTİMİ/u, 'BED'],
+  [/^BİLİŞİM TEKNOLOJİLERİ/u, 'BİL'],
+  [/^BİLİM UYGULAMALARI$/u, 'BLM'],
+  [/^GÖRSEL SANATLAR$/u, 'GRS'],
+  [/^SOSYAL BİLGİLER$/u, 'SOS'],
+  [/^FEN BİLİMLERİ$/u, 'FEN'],
+  [/^YABANCI DİL$/u, 'İNG'],
+  [/^İNGİLİZCE$/u, 'İNG'],
+  [/^TEMEL MATEMATİK$/u, 'TMT'],
+  [/^MATEMATİK$/u, 'MAT'],
+  [/^TÜRKÇE$/u, 'TRK'],
+  [/^KUR AN I KERİM$/u, 'KUR'],
+  [/^PEYGAMBERİMİZİN HAYATI$/u, 'PEY'],
+  [/^TEMEL DİNİ BİLGİLER$/u, 'TDB'],
+  [/^TEKNOLOJİ VE TASARIM$/u, 'TET'],
+  [/^OKUL TEMELLİ SOSYAL SORUMLULUK/u, 'OTS'],
+  [/^SAĞLIK BİLGİSİ/u, 'SBT'],
+  [/^ARAPÇA$/u, 'ARP'],
+  [/^BİYOLOJİ$/u, 'BİY'],
+  [/^COĞRAFYA$/u, 'COĞ'],
+  [/^FELSEFE$/u, 'FEL'],
+  [/^FİZİK$/u, 'FİZ'],
+  [/^KİMYA$/u, 'KİM'],
+  [/^MÜZİK$/u, 'MÜZ'],
+  [/^TARİH$/u, 'TRH'],
+];
+
+const makeSubjectCode = (name: string): string => {
+  const normalized = normalizeForCode(name);
+  const matchingRule = SUBJECT_CODE_RULES.find(([pattern]) => pattern.test(normalized));
+  if (matchingRule) return matchingRule[1];
+
+  const words = normalized.split(' ').filter((word) => word && word !== 'VE' && word !== 'İLE');
+  const trailingDigits = normalized.match(/\d+$/)?.[0] ?? '';
+  const letters = words.length <= 1
+    ? (words[0] ?? 'DERS').replace(/\d+/g, '').slice(0, 4)
+    : words.map((word) => word[0]).join('').slice(0, 4);
+  return `${letters || 'DRS'}${trailingDigits}`.slice(0, 5);
+};
+
+const makeTeacherCode = (name: string): string => {
+  const words = normalizeForCode(name).split(' ').filter(Boolean);
+  if (words.length <= 1) return (words[0] ?? 'ÖĞR').slice(0, 5);
+  const firstName = words[0];
+  const surname = words[words.length - 1];
+  return `${firstName[0]}.${surname.slice(0, 3)}`;
+};
+
+const createUniqueCodeMap = (
+  entries: Array<{ id: string; label: string }>,
+  baseCode: (label: string) => string,
+  maxLength: number,
+  shareCodeForSameLabel: boolean,
+): Map<string, string> => {
+  const result = new Map<string, string>();
+  const labelCodes = new Map<string, string>();
+  const usedCodes = new Set<string>();
+  const sorted = [...entries].sort((left, right) => (
+    left.label.localeCompare(right.label, 'tr-TR', { numeric: true }) || left.id.localeCompare(right.id)
+  ));
+
+  sorted.forEach(({ id, label }) => {
+    const normalizedLabel = normalizeForCode(label);
+    const sharedCode = shareCodeForSameLabel ? labelCodes.get(normalizedLabel) : undefined;
+    if (sharedCode) {
+      result.set(id, sharedCode);
+      return;
+    }
+
+    const rawBase = normalizeForCode(baseCode(label)).replace(/\s/g, '') || 'KOD';
+    let candidate = rawBase.slice(0, maxLength);
+    let suffix = 2;
+    while (usedCodes.has(candidate)) {
+      const suffixText = String(suffix);
+      candidate = `${rawBase.slice(0, Math.max(1, maxLength - suffixText.length))}${suffixText}`;
+      suffix += 1;
+    }
+    usedCodes.add(candidate);
+    labelCodes.set(normalizedLabel, candidate);
+    result.set(id, candidate);
+  });
+
+  return result;
+};
+
+const compactCodes = (codes: string[], maxLength: number): string => {
+  const unique = [...new Set(codes.filter(Boolean))];
+  if (unique.length === 0) return '';
+  const joined = unique.join('/');
+  if (joined.length <= maxLength) return joined;
+  if (unique.length === 1) return unique[0].slice(0, maxLength);
+  const suffix = `+${unique.length - 1}`;
+  return `${unique[0].slice(0, Math.max(1, maxLength - suffix.length))}${suffix}`;
+};
+
+const getDayHourCounts = (
+  schedule: Schedule,
+  schoolHours: SchoolHours,
+  maxDailyHours: number,
+): number[] => DAY_LABELS.map((_, dayIndex) => {
+  const configured = Math.max(
+    0,
+    ...(Object.values(schoolHours) as number[][]).map((hours) => Number(hours[dayIndex] ?? 0)),
+  );
+  const scheduled = Math.max(
+    0,
+    ...Object.values(schedule).map((days) => {
+      const row = days?.[dayIndex] ?? [];
+      let lastOccupied = 0;
+      row.forEach((assignment, hourIndex) => {
+        if (assignment) lastOccupied = hourIndex + 1;
+      });
+      return lastOccupied;
+    }),
+  );
+  return Math.max(1, configured || maxDailyHours, scheduled);
+});
+
+const findTeacherAssignments = (
+  teacherId: string,
+  dayIndex: number,
+  hourIndex: number,
+  schedule: Schedule,
+): Array<{ assignment: Assignment; classroomId: string }> => {
+  const found: Array<{ assignment: Assignment; classroomId: string }> = [];
+  Object.entries(schedule).forEach(([classroomId, classroomDays]) => {
+    const assignment = classroomDays?.[dayIndex]?.[hourIndex];
+    if (!assignment) return;
+    const teacherIds = assignment.teacherIds ?? ((assignment as any).teacherId ? [(assignment as any).teacherId] : []);
+    if (teacherIds.includes(teacherId)) found.push({ assignment, classroomId });
+  });
+  return found;
+};
+
+const buildMatrixCells = (
+  kind: MatrixKind,
+  targets: Target[],
+  dayHourCounts: number[],
+  options: ExportOptions,
+  subjectCodes: Map<string, string>,
+  teacherCodes: Map<string, string>,
+): MatrixPdfCell[][] => targets.map((target) => {
+  const classroom = kind === 'class'
+    ? options.data.classrooms.find((item) => item.id === target.id)
+    : undefined;
+
+  return dayHourCounts.flatMap((hourCount, dayIndex) => Array.from({ length: hourCount }, (_, hourIndex) => {
+    if (kind === 'class') {
+      const assignment = options.schedule[target.id]?.[dayIndex]?.[hourIndex];
+      if (assignment) {
+        const teacherIds = assignment.teacherIds
+          ?? ((assignment as any).teacherId ? [(assignment as any).teacherId] : []);
+        return {
+          text: [
+            subjectCodes.get(assignment.subjectId) ?? 'DRS',
+            compactCodes(teacherIds.map((id) => teacherCodes.get(id) ?? ''), 7),
+          ].filter(Boolean).join('\n'),
+        };
+      }
+
+      const dailyLimit = classroom
+        ? options.schoolHours[classroom.level as SchoolLevel]?.[dayIndex] ?? hourCount
+        : hourCount;
+      return { text: '', unavailable: hourIndex >= dailyLimit };
+    }
+
+    const assignments = findTeacherAssignments(target.id, dayIndex, hourIndex, options.schedule);
+    if (assignments.length > 0) {
+      const lessonCodes = assignments.map(({ assignment }) => subjectCodes.get(assignment.subjectId) ?? 'DRS');
+      const classroomCodes = assignments.map(({ classroomId }) => (
+        options.data.classrooms.find((item) => item.id === classroomId)?.name ?? 'SNF'
+      ));
+      return {
+        text: [compactCodes(lessonCodes, 7), compactCodes(classroomCodes, 7)].filter(Boolean).join('\n'),
+      };
+    }
+
+    const duty = options.data.duties.find((item) => {
+      const span = Number((item as any).span ?? 1);
+      return item.teacherId === target.id
+        && item.dayIndex === dayIndex
+        && hourIndex >= item.hourIndex
+        && hourIndex < item.hourIndex + span;
+    });
+    if (duty) return { text: 'NÖB', duty: true };
+    return { text: '' };
+  }));
+});
+
+const buildMatrixSchedulePdf = async (options: ExportOptions) => {
+  const kind: MatrixKind = options.mode === 'classMatrix' ? 'class' : 'teacher';
+  const sourceTargets: Target[] = kind === 'class'
+    ? options.data.classrooms.map((item) => ({ id: item.id, name: item.name, kind: 'class' as const }))
+    : options.data.teachers.map((item) => ({ id: item.id, name: item.name, kind: 'teacher' as const }));
+  const targets = sourceTargets.sort((left, right) => left.name.localeCompare(right.name, 'tr-TR', { numeric: true }));
+  if (targets.length === 0) {
+    throw new Error(kind === 'class' ? 'Tanımlı sınıf bulunmuyor.' : 'Tanımlı öğretmen bulunmuyor.');
+  }
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  await addTurkishFont(doc);
+  const dayHourCounts = getDayHourCounts(options.schedule, options.schoolHours, options.maxDailyHours);
+  const totalHourCount = dayHourCounts.reduce((sum, value) => sum + value, 0);
+  const subjectCodes = createUniqueCodeMap(
+    options.data.subjects.map((item) => ({ id: item.id, label: item.name })),
+    makeSubjectCode,
+    5,
+    true,
+  );
+  const teacherCodes = createUniqueCodeMap(
+    options.data.teachers.map((item) => ({ id: item.id, label: item.name })),
+    makeTeacherCode,
+    5,
+    false,
+  );
+  const matrix = buildMatrixCells(kind, targets, dayHourCounts, options, subjectCodes, teacherCodes);
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const horizontalMargin = 4;
+  const tableWidth = pageWidth - (horizontalMargin * 2);
+  const firstColumnWidth = kind === 'class' ? 15 : 25;
+  const slotWidth = (tableWidth - firstColumnWidth) / totalHourCount;
+  const startY = 12;
+  const bottomMargin = 6;
+  const availableBodyHeight = pageHeight - startY - bottomMargin - 12;
+  const rowHeight = Math.max(4.2, Math.min(8, availableBodyHeight / targets.length));
+  const bodyFontSize = totalHourCount > 45 ? 2.7 : totalHourCount > 40 ? 3 : 3.4;
+  const rowLabel = kind === 'class' ? 'Sınıf' : 'Öğretmen';
+  const title = kind === 'class' ? 'Toplu Sınıf Ders Programı' : 'Toplu Öğretmen Ders Programı';
+  const columnStyles: Record<number, any> = {
+    0: {
+      cellWidth: firstColumnWidth,
+      halign: 'left',
+      fillColor: [248, 250, 252],
+      fontSize: kind === 'class' ? 5 : 4.3,
+      cellPadding: { top: 0.4, right: 0.5, bottom: 0.4, left: 0.8 },
+    },
+  };
+  for (let columnIndex = 1; columnIndex <= totalHourCount; columnIndex += 1) {
+    columnStyles[columnIndex] = { cellWidth: slotWidth, halign: 'center' };
+  }
+
+  const firstHeadRow: any[] = [{ content: rowLabel, rowSpan: 2, styles: { valign: 'middle' } }];
+  dayHourCounts.forEach((hourCount, dayIndex) => {
+    firstHeadRow.push({ content: DAY_LABELS[dayIndex], colSpan: hourCount });
+  });
+  const secondHeadRow = dayHourCounts.flatMap((hourCount) => (
+    Array.from({ length: hourCount }, (_, hourIndex) => String(hourIndex + 1))
+  ));
+  const body = targets.map((target, rowIndex) => [target.name, ...matrix[rowIndex].map((cell) => cell.text)]);
+
+  autoTable(doc, {
+    head: [firstHeadRow, secondHeadRow],
+    body,
+    startY,
+    margin: { top: startY, left: horizontalMargin, right: horizontalMargin, bottom: bottomMargin },
+    tableWidth,
+    showHead: 'everyPage',
+    rowPageBreak: 'avoid',
+    styles: {
+      font: FONT_NAME,
+      fontStyle: 'normal',
+      fontSize: bodyFontSize,
+      minCellHeight: rowHeight,
+      cellPadding: 0.25,
+      valign: 'middle',
+      halign: 'center',
+      overflow: 'linebreak',
+      textColor: [15, 23, 42],
+      lineColor: [100, 116, 139],
+      lineWidth: 0.15,
+    },
+    headStyles: {
+      fillColor: [241, 245, 249],
+      textColor: [15, 23, 42],
+      halign: 'center',
+      valign: 'middle',
+      fontSize: totalHourCount > 45 ? 3.4 : 4,
+      minCellHeight: 5,
+      cellPadding: 0.35,
+      lineColor: [71, 85, 105],
+      lineWidth: 0.2,
+    },
+    columnStyles,
+    didParseCell: (hook) => {
+      if (hook.section !== 'body' || hook.column.index === 0) return;
+      const cell = matrix[hook.row.index]?.[hook.column.index - 1];
+      if (!cell) return;
+      if (cell.unavailable) hook.cell.styles.fillColor = [241, 245, 249];
+      if (cell.duty) hook.cell.styles.fillColor = [226, 232, 240];
+    },
+    didDrawPage: () => {
+      doc.setFont(FONT_NAME, 'normal');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(7.5);
+      doc.text(title, horizontalMargin, 6.5);
+      doc.setTextColor(71, 85, 105);
+      doc.setFontSize(4.5);
+      doc.text(
+        kind === 'class' ? 'Hücre: ders / öğretmen' : 'Hücre: ders / sınıf',
+        pageWidth - horizontalMargin,
+        6.5,
+        { align: 'right' },
+      );
+      doc.text(
+        `Sayfa ${doc.getCurrentPageInfo().pageNumber}`,
+        pageWidth - horizontalMargin,
+        pageHeight - 2,
+        { align: 'right' },
+      );
+    },
+  });
+
+  return { doc, fileName: makeFileName(options.mode) };
+};
+
 const makeFileName = (mode: PrintScope): string => {
   const date = new Date().toISOString().split('T')[0];
-  const suffix = mode === 'selected' ? 'secili' : mode === 'classes' ? 'siniflar' : 'ogretmenler';
+  const suffix = mode === 'selected'
+    ? 'secili'
+    : mode === 'classes'
+      ? 'siniflar'
+      : mode === 'teachers'
+        ? 'ogretmenler'
+        : mode === 'classMatrix'
+          ? 'toplu-sinif'
+          : 'toplu-ogretmen';
   return `ders-programi-${suffix}-${date}.pdf`;
 };
 
 export const buildSchedulePdf = async (options: ExportOptions) => {
+  if (options.mode === 'classMatrix' || options.mode === 'teacherMatrix') {
+    return buildMatrixSchedulePdf(options);
+  }
   const targets = resolveTargets(options);
   if (targets.length === 0) throw new Error('PDF oluşturmak için uygun kayıt bulunamadı.');
 

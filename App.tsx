@@ -27,7 +27,7 @@ import TeacherActualLoadPanel from './components/TeacherActualLoadPanel';
 import TeacherAvailabilityHeatmap from './components/analysis/TeacherAvailabilityHeatmap';
 import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
-import { buildSchedulePdf } from './services/pdfExporter';
+import { buildSchedulePdf, type PrintScope } from './services/pdfExporter';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
 import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
@@ -399,7 +399,7 @@ const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState<Tab>('teachers');
     const [viewType, setViewType] = useState<ViewType>(ViewType.Class);
     const [viewMode, setViewMode] = useState<ViewMode>('single');
-    const [pdfScope, setPdfScope] = useState<'selected' | 'classes' | 'teachers'>('selected');
+    const [pdfScope, setPdfScope] = useState<PrintScope>('selected');
     const [selectedHeaderId, setSelectedHeaderId] = useState<string>('');
     const [schoolHours, setSchoolHours] = useState<SchoolHours>(() => initialSessionToken ? createDefaultSchoolHours() : initialLocalWorkspace?.schoolHours || createDefaultSchoolHours());
     const [schoolHoursDraft, setSchoolHoursDraft] = useState<SchoolHoursDraft>(() => schoolHoursToDraft(initialSessionToken ? createDefaultSchoolHours() : initialLocalWorkspace?.schoolHours || createDefaultSchoolHours()));
@@ -3423,13 +3423,15 @@ case 'duties':
                                 <div className="flex items-center gap-2">
                                     <select
                                         value={pdfScope}
-                                        onChange={(e) => setPdfScope(e.target.value as 'selected' | 'classes' | 'teachers')}
+                                        onChange={(e) => setPdfScope(e.target.value as PrintScope)}
                                         className="rounded-md border-slate-300 bg-white text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500 px-2 py-1"
                                         title="Hangi kayıtların PDF'e aktarılacağını seçin"
                                     >
                                         <option value="selected">Seçili kayıt</option>
-                                        <option value="classes">Tüm sınıflar</option>
-                                        <option value="teachers">Tüm öğretmenler</option>
+                                        <option value="classes">Tüm sınıflar (ayrı sayfalar)</option>
+                                        <option value="teachers">Tüm öğretmenler (ayrı sayfalar)</option>
+                                        <option value="classMatrix">Toplu sınıf çizelgesi (A4)</option>
+                                        <option value="teacherMatrix">Toplu öğretmen çizelgesi (A4)</option>
                                     </select>
                                     <button
                                         onClick={handleExportPdf}
