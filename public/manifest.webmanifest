@@ -1,7 +1,7 @@
 {
   "id": "/",
   "name": "DersTimeTable - Okul Ders Programı",
-  "short_name": "DersTimeTable",
+  "short_name": "DersTimeTable - Okul Ders Programı",
   "description": "Okullar için öğretmen kısıtlarını dikkate alan ücretsiz ders programı ve nöbet çizelgesi hazırlama uygulaması.",
   "lang": "tr-TR",
   "dir": "ltr",
