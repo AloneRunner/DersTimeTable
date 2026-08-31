@@ -17,3 +17,14 @@ root.render(
     </ErrorBoundary>
   </React.StrictMode>
 );
+
+// Microsoft Store ve tarayıcı kurulumu için gereken hafif PWA katmanı.
+// Servis çalışanı uygulama dosyalarını önbelleğe almaz; yalnızca ağ tamamen
+// kesildiğinde açıklayıcı çevrimdışı sayfasını gösterir.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.warn('PWA servis çalışanı kaydedilemedi:', error);
+    });
+  });
+}
