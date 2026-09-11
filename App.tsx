@@ -53,6 +53,7 @@ try {
 
 const WEB_PORTAL_URL = 'https://idare.ozarik.org';
 const WINDOWS_STORE_URL = 'https://apps.microsoft.com/detail/9N5Z8M82FSQ2';
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.ozarik.dersprogrami';
 const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
 
 /** Katalogda hic anlamli kayit var mi? (bos bulut katalogunu tespit etmek icin) */
@@ -1541,6 +1542,21 @@ const App: React.FC = () => {
 
     const [isMobileAdvancedOpen, setIsMobileAdvancedOpen] = useState<boolean>(false);
     const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
+
+    // Uygulamanin bulundugu diger platformlar. Zaten uzerinde oldugun
+    // platformun linkini gostermiyoruz.
+    const platformLinks = useMemo(() => {
+        const native = isNativeApp();
+        const links: Array<{ label: string; url: string }> = [];
+        if (native) {
+            links.push({ label: 'Web paneli', url: WEB_PORTAL_URL });
+            links.push({ label: 'Windows uygulamasi', url: WINDOWS_STORE_URL });
+        } else {
+            links.push({ label: 'Windows uygulamasi', url: WINDOWS_STORE_URL });
+            links.push({ label: 'Android uygulamasi', url: PLAY_STORE_URL });
+        }
+        return links;
+    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -3049,6 +3065,20 @@ case 'duties':
                     <h1 className="text-3xl font-bold text-slate-900">Ozarik DersTimeTable</h1>
                 </div>
                 <p className="text-slate-500 mt-1">Haftalık ders programınızı saniyeler içinde oluşturun.</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-400">Ayrıca şuralarda:</span>
+                    {platformLinks.map((link) => (
+                        <a
+                            key={link.url}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-sky-400 hover:text-sky-700"
+                        >
+                            {link.label}
+                        </a>
+                    ))}
+                </div>
                 <div className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <a
                         href="https://sites.google.com/view/derstimetable"
