@@ -6,6 +6,7 @@ import QrScanner from 'qr-scanner';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import qrScannerWorkerUrl from 'qr-scanner/qr-scanner-worker.min.js?url';
+import { saveOrShareFile } from '../services/fileSaver';
 
 QrScanner.WORKER_PATH = qrScannerWorkerUrl as string;
 
@@ -137,13 +138,29 @@ export const QrTools: React.FC<QrToolsProps> = ({ data, schedule, onImportText }
           <div className="flex flex-col items-center gap-2">
             <canvas ref={canvasRef} className="border rounded shadow"/>
             {qrDataUrl && (
-              <a
-                href={qrDataUrl}
-                download={payload === 'dataOnly' ? 'veri-qr.png' : 'veri-program-qr.png'}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const canvas = canvasRef.current;
+                    if (!canvas) return;
+                    const blob = await new Promise<Blob | null>((resolve) =>
+                      canvas.toBlob(resolve, 'image/png')
+                    );
+                    if (!blob) throw new Error('QR görüntüsü oluşturulamadı.');
+                    await saveOrShareFile({
+                      blob,
+                      fileName: payload === 'dataOnly' ? 'veri-qr.png' : 'veri-program-qr.png',
+                      title: 'QR Kodu',
+                    });
+                  } catch (e: any) {
+                    setError(e?.message || 'QR indirilemedi.');
+                  }
+                }}
                 className="text-sm text-sky-600 hover:underline"
               >
                 QR'ı indir (PNG)
-              </a>
+              </button>
             )}
           </div>
         </div>

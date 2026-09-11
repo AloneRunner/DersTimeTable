@@ -50,7 +50,30 @@ export const loadLocalWorkspace = (): LocalWorkspaceDraft | null => {
   }
 };
 
+const isEmptyData = (d: TimetableData | null | undefined): boolean => {
+  if (!d) return true;
+  return (
+    (d.teachers?.length ?? 0) === 0 &&
+    (d.classrooms?.length ?? 0) === 0 &&
+    (d.subjects?.length ?? 0) === 0 &&
+    (d.locations?.length ?? 0) === 0 &&
+    (d.fixedAssignments?.length ?? 0) === 0 &&
+    (d.lessonGroups?.length ?? 0) === 0 &&
+    (d.duties?.length ?? 0) === 0
+  );
+};
+
 export const saveLocalWorkspace = (draft: Omit<LocalWorkspaceDraft, 'version'>): void => {
   if (typeof window === 'undefined') return;
+
+  // Guvenlik kilidi: dolu bir yerel yedegin uzerine BOS veri yazma.
+  // (Buluta girip cikinca ekran bosaliyordu ve yedek yok oluyordu.)
+  if (isEmptyData(draft.data)) {
+    const existing = loadLocalWorkspace();
+    if (existing && !isEmptyData(existing.data)) {
+      return;
+    }
+  }
+
   window.localStorage.setItem(LOCAL_WORKSPACE_KEY, JSON.stringify({ ...draft, version: 1 }));
 };

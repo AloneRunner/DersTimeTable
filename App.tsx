@@ -28,6 +28,7 @@ import TeacherAvailabilityHeatmap from './components/analysis/TeacherAvailabilit
 import MobileScheduleView from './components/mobile/MobileScheduleView';
 import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf, type PrintScope } from './services/pdfExporter';
+import { saveOrShareFile, saveTextFile, isNativeApp } from './services/fileSaver';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
 import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
@@ -51,7 +52,22 @@ try {
 } catch {}
 
 const WEB_PORTAL_URL = 'https://idare.ozarik.org';
+const WINDOWS_STORE_URL = 'https://apps.microsoft.com/detail/9N5Z8M82FSQ2';
 const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
+
+/** Katalogda hic anlamli kayit var mi? (bos bulut katalogunu tespit etmek icin) */
+const isCatalogEmpty = (d: TimetableData | null | undefined): boolean => {
+    if (!d) return true;
+    return (
+        (d.teachers?.length ?? 0) === 0 &&
+        (d.classrooms?.length ?? 0) === 0 &&
+        (d.subjects?.length ?? 0) === 0 &&
+        (d.locations?.length ?? 0) === 0 &&
+        (d.fixedAssignments?.length ?? 0) === 0 &&
+        (d.lessonGroups?.length ?? 0) === 0 &&
+        (d.duties?.length ?? 0) === 0
+    );
+};
 
 const createDefaultSchoolHours = (): SchoolHours => ({
     [SchoolLevel.Middle]: [8, 8, 8, 8, 8],
@@ -446,6 +462,7 @@ const App: React.FC = () => {
     const [catalogError, setCatalogError] = useState<string | null>(null);
     const [catalogSyncStatus, setCatalogSyncStatus] = useState<'idle' | 'saving' | 'error'>('idle');
     const [catalogSyncError, setCatalogSyncError] = useState<string | null>(null);
+    const [catalogNotice, setCatalogNotice] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scheduleFileInputRef = useRef<HTMLInputElement>(null);
     const skipSyncCounterRef = useRef<number>(0);
@@ -599,6 +616,7 @@ const App: React.FC = () => {
             setCatalogError(null);
             setCatalogSyncStatus('idle');
             setCatalogSyncError(null);
+            setCatalogNotice(null);
             return;
         }
         if (!sessionToken || !activeSchoolId) {
@@ -617,6 +635,31 @@ const App: React.FC = () => {
                     pendingSyncRef.current = null;
                 }
                 dirtyCatalogRef.current = false;
+
+                // Bulutta bu okul icin hic veri yoksa, bu cihazdaki veriyi SILME.
+                // Aksi halde giris yapan kullanicinin yerel verisi sessizce kayboluyordu.
+                if (isCatalogEmpty(result.data) && !isCatalogEmpty(dataRef.current)) {
+                    setCatalogStatus('ready');
+                    setCatalogSyncStatus('saving');
+                    setCatalogSyncError(null);
+                    setCatalogNotice('Bulutta bu okul icin kayit yoktu. Bu cihazdaki veriler korundu ve buluta yukleniyor...');
+                    try {
+                        await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
+                        await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
+                        if (cancelled) return;
+                        setCatalogSyncStatus('idle');
+                        setCatalogNotice('Bu cihazdaki veriler buluta yuklendi.');
+                    } catch (uploadErr: any) {
+                        if (cancelled) return;
+                        setCatalogSyncStatus('error');
+                        setCatalogSyncError(
+                            uploadErr instanceof Error ? uploadErr.message : 'Veriler buluta yuklenemedi'
+                        );
+                        setCatalogNotice(null);
+                    }
+                    return;
+                }
+
                 skipSyncCounterRef.current += 2;
                 replaceData(result.data);
                 setSchoolHours(result.schoolHours);
@@ -626,6 +669,11 @@ const App: React.FC = () => {
                 setCatalogStatus('ready');
                 setCatalogSyncStatus('idle');
                 setCatalogSyncError(null);
+                setCatalogNotice(
+                    isCatalogEmpty(result.data)
+                        ? 'Bulutta bu okul icin henuz kayit yok. Verileri girin veya telefon uygulamasindan yukleyin.'
+                        : null
+                );
             } catch (err: any) {
                 if (cancelled) return;
                 const message = err instanceof Error ? err.message : 'Bulut verileri yuklenemedi';
@@ -1316,7 +1364,7 @@ const App: React.FC = () => {
         } finally {
             setVerifyLoading(false);
         }
-    }, [codeInput, persistSessionToken]);
+    }, [codeInput, persistSessionToken, persistGuestWebMode]);
 
     const handleContinueWithoutLogin = useCallback(() => {
         setSessionError(null);
@@ -1327,6 +1375,12 @@ const App: React.FC = () => {
     const handleOpenWebPortal = useCallback(() => {
         if (typeof window !== 'undefined') {
             window.open(WEB_PORTAL_URL, '_blank');
+        }
+    }, []);
+
+    const handleOpenWindowsStore = useCallback(() => {
+        if (typeof window !== 'undefined') {
+            window.open(WINDOWS_STORE_URL, '_blank');
         }
     }, []);
 
@@ -1691,21 +1745,21 @@ const App: React.FC = () => {
         }
     }, [data, schoolHours, optTime, optSeedRatio, optTabuTenure, optTabuIter, optStopFirst, classicMode, solverStrategy, useDeterministic, optRngSeed, optDisableLNS, optDisableEdge, cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit, cpDailyMaxOn, cpDailyMaxVal, defaultMaxConsec, relaxBlocksIfNeeded]);
     
-    const handleExportData = () => {
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify({ data }, null, 2))}`;
-        const link = document.createElement("a");
-        link.href = jsonString;
-        link.download = "ders-programi-verileri.json";
-        link.click();
+    const handleExportData = async () => {
+        try {
+            await saveTextFile(JSON.stringify({ data }, null, 2), "ders-programi-verileri.json");
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Veriler disa aktarilamadi.');
+        }
     };
 
-    const handleExportSchedule = () => {
+    const handleExportSchedule = async () => {
         if (!schedule) return;
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify({ data, schedule }, null, 2))}`;
-        const link = document.createElement("a");
-        link.href = jsonString;
-        link.download = "ders-programi.json";
-        link.click();
+        try {
+            await saveTextFile(JSON.stringify({ data, schedule }, null, 2), "ders-programi.json");
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Program disa aktarilamadi.');
+        }
     };
 
     const handleExportPdf = async () => {
@@ -1724,7 +1778,8 @@ const App: React.FC = () => {
                 selectedHeaderId,
                 viewMode,
             });
-            doc.save(fileName);
+            const blob = doc.output('blob') as Blob;
+            await saveOrShareFile({ blob, fileName, title: 'Ders Programi' });
         } catch (err) {
             const message = err instanceof Error ? err.message : 'PDF oluşturulurken bir hata oluştu.';
             alert(message);
@@ -1904,7 +1959,15 @@ const App: React.FC = () => {
         }
     };
 
-    const handlePrint = () => { window.print(); };
+    const handlePrint = async () => {
+        // Android WebView'de window.print() calismaz; PDF uretip sistem
+        // paylasim sayfasini aciyoruz (oradan yazdirma da secilebilir).
+        if (isNativeApp()) {
+            await handleExportPdf();
+            return;
+        }
+        window.print();
+    };
     const handleOpenModal = (type: Tab, item: any | null = null) => setModalState({ type, item });
     const handleCloseModal = () => setModalState({ type: null, item: null });
 
@@ -3034,7 +3097,12 @@ case 'duties':
                                 {catalogSyncError}
                             </div>
                         )}
-                        {catalogStatus === 'ready' && catalogSyncStatus === 'idle' && !catalogSyncError && (
+                        {catalogStatus === 'ready' && catalogNotice && (
+                            <div className="mt-2 text-xs font-medium text-amber-700">
+                                {catalogNotice}
+                            </div>
+                        )}
+                        {catalogStatus === 'ready' && catalogSyncStatus === 'idle' && !catalogSyncError && !catalogNotice && (
                             <div className={`mt-2 text-xs ${isSmallScreen ? 'text-slate-600' : 'text-slate-500'}`}>
                                 Bulut ile senkron durumda.
                             </div>
@@ -3251,6 +3319,16 @@ case 'duties':
                                               Adresi kopyala
                                           </button>
                                       </div>
+                                      <p className="border-t border-slate-200 pt-2">
+                                          Windows bilgisayarlar icin masaustu uygulamasi:
+                                          <button
+                                              type="button"
+                                              onClick={handleOpenWindowsStore}
+                                              className="ml-1 font-semibold text-sky-700 underline hover:text-sky-800"
+                                          >
+                                              Microsoft Store'da ac
+                                          </button>
+                                      </p>
                                   </div>
                                   <div className="grid grid-cols-1 gap-2">
                                       <input

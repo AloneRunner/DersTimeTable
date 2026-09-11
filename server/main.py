@@ -105,6 +105,7 @@ app.add_middleware(
     allow_origins=[
         "https://ozariktable.netlify.app",
         "https://idare.ozarik.org",
+        "https://www.idare.ozarik.org",
         "http://localhost:5173",
         "http://localhost:3000",
         "capacitor://localhost",
