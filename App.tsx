@@ -660,6 +660,44 @@ const App: React.FC = () => {
                     return;
                 }
 
+                // Hem bu cihazda hem bulutta veri varsa, kullaniciya sormadan
+                // yerel veriyi degistirme.
+                if (!isCatalogEmpty(dataRef.current)) {
+                    const local = dataRef.current;
+                    const useCloud = window.confirm(
+                        [
+                            'Bu cihazda kayitli veriler var ve bulutta da bu okula ait veriler bulundu.',
+                            '',
+                            `Bu cihaz: ${local.teachers.length} ogretmen, ${local.classrooms.length} sinif, ${local.subjects.length} ders`,
+                            `Bulut: ${result.data.teachers.length} ogretmen, ${result.data.classrooms.length} sinif, ${result.data.subjects.length} ders`,
+                            '',
+                            'TAMAM = Bulut verilerini kullan (bu cihazdakinin yerine gecer)',
+                            'IPTAL = Bu cihazdaki verileri koru ve buluta yukle',
+                        ].join('\n')
+                    );
+                    if (!useCloud) {
+                        setCatalogStatus('ready');
+                        setCatalogSyncStatus('saving');
+                        setCatalogSyncError(null);
+                        setCatalogNotice('Bu cihazdaki veriler korundu, buluta yukleniyor...');
+                        try {
+                            await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
+                            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
+                            if (cancelled) return;
+                            setCatalogSyncStatus('idle');
+                            setCatalogNotice('Bu cihazdaki veriler buluta yuklendi.');
+                        } catch (uploadErr: any) {
+                            if (cancelled) return;
+                            setCatalogSyncStatus('error');
+                            setCatalogSyncError(
+                                uploadErr instanceof Error ? uploadErr.message : 'Veriler buluta yuklenemedi'
+                            );
+                            setCatalogNotice(null);
+                        }
+                        return;
+                    }
+                }
+
                 skipSyncCounterRef.current += 2;
                 replaceData(result.data);
                 setSchoolHours(result.schoolHours);
