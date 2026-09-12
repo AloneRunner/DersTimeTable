@@ -1,9 +1,15 @@
 /* Project base styles (kept intentionally minimal).
    Tailwind is loaded via CDN in index.html for utilities. */
 
-html, body, #root {
+html, body {
   height: 100%;
 }
 
-/* Print helpers can live here later if needed. */
+/* #root sabit yukseklik olmamali: uygulama icerigi ekrandan uzun oldugunda
+   buyuyebilsin, aksi halde tasan kisim kendisinden sonra gelen icerigin
+   (SEO footer'i) uzerine biniyor. */
+#root {
+  min-height: 100%;
+}
 
+/* Print helpers can live here later if needed. */
