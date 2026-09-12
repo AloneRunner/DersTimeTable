@@ -34,6 +34,7 @@ import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fet
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 import { PreflightOverview } from './components/PreflightOverview';
 import { loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
+import { planMove } from './utils/moveValidation';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
@@ -1702,8 +1703,9 @@ const App: React.FC = () => {
         setActiveScheduleName(null);
         try {
             let result;
-            if (!classicMode && solverStrategy === 'cp') {
-              // Use server-side CP-SAT solver
+            let localFallbackNote: string | null = null;
+            try {
+              // Sunucu tarafı CP-SAT tek varsayılan çözücüdür.
               let cpPrefs: any | undefined = undefined;
               if (cpUseCustom) {
                 cpPrefs = {} as any;
@@ -1762,12 +1764,19 @@ const App: React.FC = () => {
                 }
                 result = relaxedResult;
               }
-            } else {
-              // Use in-browser heuristic solvers
+            } catch (cpErr: any) {
+              // Sunucuya ulaşılamadı / meşgul: tarayıcı içi yedek çözücüye düş.
+              const detail = cpErr instanceof Error ? cpErr.message : String(cpErr ?? '');
+              const busy = /solver-busy/i.test(detail);
+              localFallbackNote = busy
+                ? 'Sunucu çözücüsü şu an meşgul; program tarayıcıdaki yedek çözücüyle oluşturuldu. Daha iyi sonuç için biraz sonra tekrar deneyin.'
+                : `Sunucu çözücüsüne ulaşılamadı (${detail || 'bağlantı hatası'}); program tarayıcıdaki yedek çözücüyle oluşturuldu.`;
+            }
+            if (localFallbackNote) {
               result = await solveTimetableLocally(data, { 
               schoolHours,
               timeLimitSeconds: optTime,
-              strategy: classicMode ? 'repair' : solverStrategy,
+              strategy: classicMode ? 'repair' : (solverStrategy === 'cp' ? 'tabu' : solverStrategy),
               seedRatio: optSeedRatio,
               tabu: { tenure: optTabuTenure, iterations: optTabuIter },
               stopAtFirstSolution: classicMode ? true : optStopFirst,
@@ -1783,7 +1792,10 @@ const App: React.FC = () => {
             
             const displayStats: SolverStats = {
                 ...result.stats,
-                notes: (result.stats.notes ?? []).map(explainSolverNote),
+                notes: [
+                    ...(localFallbackNote ? [localFallbackNote] : []),
+                    ...(result.stats.notes ?? []).map(explainSolverNote),
+                ],
             };
             setSolverStats(displayStats);
 
@@ -1893,81 +1905,31 @@ const App: React.FC = () => {
         }
     };
 
+    const [moveFeedback, setMoveFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+    useEffect(() => {
+        if (!moveFeedback) return;
+        const timeout = setTimeout(() => setMoveFeedback(null), moveFeedback.kind === 'ok' ? 3000 : 6000);
+        return () => clearTimeout(timeout);
+    }, [moveFeedback]);
+
     const handleIsMoveValid = useCallback((sourceInfo: any, targetInfo: any): boolean => {
         if (!schedule) return false;
-        
-        const { blockSpan = 1 } = sourceInfo;
-        const sourceAssignmentRef = schedule[sourceInfo.classroomId]?.[sourceInfo.dayIndex]?.[sourceInfo.hourIndex];
-
-        if (!sourceAssignmentRef) return false;
-
-        const teachers = (sourceAssignmentRef.teacherIds || []).map(tid => data.teachers.find(t => t.id === tid)).filter(Boolean) as Teacher[];
-        const targetClassroom = data.classrooms.find(c => c.id === targetInfo.classroomId);
-
-        if (teachers.length === 0 || !targetClassroom) return false;
-
-        const targetDayHours = schoolHours[targetClassroom.level][targetInfo.dayIndex];
-        if (targetInfo.hourIndex + (blockSpan - 1) >= targetDayHours) return false;
-
-        for (let k = 0; k < blockSpan; k++){
-            const h = targetInfo.hourIndex + k;
-
-            const assignmentAtTarget = schedule[targetInfo.classroomId]?.[targetInfo.dayIndex]?.[h];
-            if (assignmentAtTarget && assignmentAtTarget !== sourceAssignmentRef) {
-                return false;
-            }
-
-            for (const teacher of teachers) {
-                if (!teacher.availability[targetInfo.dayIndex][h]) return false;
-
-                for (const classId in schedule) {
-                    const assignmentInOtherClass = schedule[classId]?.[targetInfo.dayIndex]?.[h];
-                    if (assignmentInOtherClass && assignmentInOtherClass !== sourceAssignmentRef && assignmentInOtherClass.teacherIds.includes(teacher.id)) {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return true;
-    }, [schedule, data.teachers, data.classrooms, schoolHours]);
-
+        return planMove(schedule, { data, schoolHours, defaultMaxConsec }, sourceInfo, targetInfo).ok;
+    }, [schedule, data, schoolHours, defaultMaxConsec]);
 
     const handleManualDrop = (sourceInfo: any, targetInfo: any) => {
         if (!schedule) return;
-        if (sourceInfo.classroomId === targetInfo.classroomId && sourceInfo.dayIndex === targetInfo.dayIndex && sourceInfo.hourIndex === targetInfo.hourIndex) {
-            return;
-        }
-
-        if (!handleIsMoveValid(sourceInfo, targetInfo)) {
-            alert("Bu hamle geçersiz. Öğretmen müsait değil veya hedef konum (sınıfın ders saatleri/blok ders) için uygun değil.");
-            return;
-        }
-
-        const newSchedule = JSON.parse(JSON.stringify(schedule));
-        const sourceAssignment = newSchedule[sourceInfo.classroomId]?.[sourceInfo.dayIndex]?.[sourceInfo.hourIndex];
-        const sourceAssignmentRef = schedule[sourceInfo.classroomId]?.[sourceInfo.dayIndex]?.[sourceInfo.hourIndex];
-        if (!sourceAssignmentRef) return;
-        
-        const { blockSpan = 1 } = sourceInfo;
-
-        // Clear all cells related to the source assignment object
-        for (let d = 0; d < 5; d++) {
-             for (let h = 0; h < maxDailyHours; h++) {
-                if (schedule[sourceInfo.classroomId]?.[d]?.[h] === sourceAssignmentRef) {
-                   newSchedule[sourceInfo.classroomId][d][h] = null;
-                }
+        const plan = planMove(schedule, { data, schoolHours, defaultMaxConsec }, sourceInfo, targetInfo);
+        if (plan.ok === false) {
+            if (plan.reason !== 'Ders zaten bu saatte.') {
+                setMoveFeedback({ kind: 'error', text: plan.reason });
             }
+            return;
         }
-        
-        // Place the lesson block at the target
-        for (let k = 0; k < blockSpan; k++){
-            newSchedule[targetInfo.classroomId][targetInfo.dayIndex][targetInfo.hourIndex + k] = sourceAssignment;
-        }
-
-        setSchedule(newSchedule);
+        setSchedule(plan.schedule);
         setSolverStats(null); // Manual change invalidates the report
         setActiveScheduleName(prev => prev ? `${prev.replace(' (değiştirildi)','')} (değiştirildi)` : 'Yeni Program (değiştirildi)');
+        setMoveFeedback({ kind: 'ok', text: plan.swapped ? 'İki ders yer değiştirdi.' : 'Ders taşındı.' });
     };
     
     const handleSaveSchedule = () => {
@@ -2628,10 +2590,7 @@ case 'duties':
     };
 
     const buildCpBlock = (layout: 'desktop' | 'mobile') => {
-        if (classicMode || solverStrategy !== 'cp') {
-            return null;
-        }
-        const containerClass = layout === 'mobile'
+                const containerClass = layout === 'mobile'
             ? 'flex flex-col gap-2 w-full border-t border-slate-200 pt-3'
             : 'flex flex-wrap items-center gap-2 pl-2 ml-2 border-l border-slate-200';
         const innerClass = layout === 'mobile'
@@ -2688,7 +2647,7 @@ case 'duties':
         );
     };
 
-    const renderSolverAdvancedRows = (layout: 'desktop' | 'mobile', includeStrategySelect: boolean): React.ReactNode => {
+    const renderSolverAdvancedRows = (layout: 'desktop' | 'mobile'): React.ReactNode => {
         const rowClass = layout === 'mobile'
             ? 'flex flex-wrap items-center gap-3'
             : 'flex flex-wrap items-center gap-2';
@@ -2701,31 +2660,9 @@ case 'duties':
         const rows: React.ReactNode[] = [];
 
         const firstRowItems: React.ReactNode[] = [];
-        if (includeStrategySelect) {
-            firstRowItems.push(
-                <label key="strategy" className="flex items-center gap-1">
-                    <span className="text-slate-600">Strateji</span>
-                    <select
-                        value={classicMode ? 'repair' : (solverStrategy || 'cp')}
-                        onChange={(e) => {
-                            const value = e.target.value as 'repair' | 'tabu' | 'alns' | 'cp';
-                            if (value === 'repair') {
-                                setClassicMode(true);
-                            } else {
-                                setClassicMode(false);
-                                setSolverStrategy(value);
-                            }
-                        }}
-                        className="border rounded px-1 py-0.5"
-                    >
-                        <option value="repair">Repair</option>
-                        <option value="tabu">Tabu</option>
-                        <option value="alns">ALNS</option>
-                        <option value="cp">CP-SAT (Server)</option>
-                    </select>
-                </label>
-            );
-        }
+        // Yalniz yedek yerel cozucuyu ilgilendiren ayarlar ayri bir <details> icinde toplanir.
+        const localItems: React.ReactNode[] = [];
+        const localRows: React.ReactNode[] = [];
 
         if (layout === 'desktop') {
             const desktopCp = buildCpBlock('desktop');
@@ -2757,12 +2694,12 @@ case 'duties':
                 className={numericInputClass}
             />
         );
-        firstRowItems.push(
+        localItems.push(
             <Tooltip key="seed-label" text="Greedy tohumlama oranı. Düşük (0.10–0.15) daha esnek; yüksek daha hızlı fakat kilitlenebilir.">
                 <span className="font-medium text-slate-600">Seed</span>
             </Tooltip>
         );
-        firstRowItems.push(
+        localItems.push(
             <input
                 key="seed-input"
                 value={seedText}
@@ -2794,7 +2731,7 @@ case 'duties':
             }
         }
 
-        rows.push(
+        localRows.push(
             <div key="row-2" className={rowClass}>
                 <Tooltip text="Tabu tenure: aynı hamlenin tabu kaldığı iterasyon. 50–80 önerilir.">
                     <span className="font-medium text-slate-600">Tenure</span>
@@ -2858,16 +2795,21 @@ case 'duties':
         rows.push(
             <div key="row-3" className={rowClass}>
                 <label className="flex items-center gap-1">
-                    <input type="checkbox" checked={useDeterministic} onChange={(e) => setUseDeterministic(e.target.checked)} />
-                    <Tooltip text="İşaretliyken randomSeed gönderilir; aynı parametrelerle aynı sonuçları üretir."><span className="text-slate-600">Deterministik</span></Tooltip>
-                </label>
-                <label className="flex items-center gap-1">
                     <input type="checkbox" checked={optStopFirst} onChange={(e) => setOptStopFirst(e.target.checked)} />
                     <Tooltip text="İlk feasible çözüm bulunduğunda hemen durur (hızlı denemeler için)."><span className="text-slate-600">StopFirst</span></Tooltip>
                 </label>
                 <label className={`flex items-center gap-1 rounded px-2 py-1 ${relaxBlocksIfNeeded ? 'bg-amber-100 text-amber-900' : 'border border-amber-200 bg-amber-50 text-amber-800'}`}>
                     <input type="checkbox" checked={relaxBlocksIfNeeded} onChange={(e) => setRelaxBlocksIfNeeded(e.target.checked)} />
                     <Tooltip text="Örnek: 5 saatlik ders 3+2 olarak yerleşmezse 3+1+1 veya 2+1+1+1 gibi bölünmesine izin verir. CP-SAT önce tanımlı blokları dener; olmazsa esnetir."><span className="font-medium">Yer bulamazsa blokları esnet</span></Tooltip>
+                </label>
+            </div>
+        );
+
+        localRows.push(
+            <div key="row-3-local" className={rowClass}>
+                <label className="flex items-center gap-1">
+                    <input type="checkbox" checked={useDeterministic} onChange={(e) => setUseDeterministic(e.target.checked)} />
+                    <Tooltip text="İşaretliyken randomSeed gönderilir; aynı parametrelerle aynı sonuçları üretir."><span className="text-slate-600">Deterministik</span></Tooltip>
                 </label>
                 <label className="flex items-center gap-1">
                     <input type="checkbox" checked={optDisableLNS} onChange={(e) => setOptDisableLNS(e.target.checked)} />
@@ -2880,7 +2822,7 @@ case 'duties':
             </div>
         );
 
-        rows.push(
+        localRows.push(
             <div key="row-4" className={rowClass}>
                 <Tooltip text="45 sn, seed 0.12, tenure 60, iter 2500, StopFirst açık">
                     <button onClick={() => applyProfile('fast')} className="px-2 py-1 border rounded text-slate-600 hover:bg-slate-50">Hızlı</button>
@@ -2894,10 +2836,28 @@ case 'duties':
                 <Tooltip text="Klasik: Repair, StopFirst, LNS kapalı, kenar ve yayılım cezası yok">
                     <button onClick={() => applyProfile('classic')} className={`px-2 py-1 border rounded ${classicMode ? 'bg-amber-500 text-white border-amber-500' : 'text-slate-600 hover:bg-slate-50'}`}>Klasik</button>
                 </Tooltip>
+            </div>
+        );
+
+        rows.push(
+            <div key="row-save" className={rowClass}>
                 <Tooltip text="Bu ayarları başlangıçta otomatik yüklensin diye kaydeder.">
                     <button onClick={saveSettingsAsDefault} className="px-2 py-1 border rounded text-emerald-600 hover:bg-emerald-50">Varsayılan Yap</button>
                 </Tooltip>
             </div>
+        );
+
+        rows.push(
+            <details key="local-fallback" className="w-full rounded-md border border-dashed border-slate-300 px-3 py-2">
+                <summary className="cursor-pointer text-slate-600">
+                    Yedek yerel çözücü ayarları
+                    <span className="ml-1 text-slate-400">(yalnız sunucuya ulaşılamazsa kullanılır)</span>
+                </summary>
+                <div className="mt-2 space-y-2">
+                    <div className={rowClass}>{localItems}</div>
+                    {localRows}
+                </div>
+            </details>
         );
 
         return <>{rows}</>;
@@ -2954,17 +2914,14 @@ case 'duties':
     };
 
     const renderSolverHelp = () => {
-        const cpSelected = !classicMode && solverStrategy === 'cp';
         return (
             <details className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                 <summary className="cursor-pointer font-semibold text-slate-700">Bu ayarlar ne işe yarıyor?</summary>
                 <div className="mt-2 space-y-2 leading-relaxed">
                     <p className="rounded bg-white px-2 py-1 font-medium text-slate-700">
-                        {cpSelected
-                            ? 'Şu an CP-SAT seçili: Süre, StopFirst ve CP-SAT Özel Ayarlar kullanılır. Seed, Tenure, Iter, RNG, Deterministik, LNS ve Kenar cezası yerel yöntemlere aittir.'
-                            : 'Şu an yerel yöntem seçili: Ayarlar bu tarayıcıdaki aramayı yönetir; sunucu kullanılmaz.'}
+                        Program her zaman sunucudaki CP-SAT çözücüsüyle oluşturulur; Süre, StopFirst, blok esnetme ve CP-SAT Özel Ayarlar buna aittir. Sunucuya ulaşılamazsa veya meşgulse tarayıcıdaki yedek çözücü kendiliğinden devreye girer ve bu, sonuç notunda belirtilir.
                     </p>
-                    <p><strong>Strateji:</strong> CP-SAT en güvenilir kesin kısıt çözücüdür. Repair hızlı bir ilk yerleşim, Tabu ve ALNS ise daha uzun kalite araması yapar.</p>
+                    <p><strong>Yedek yerel çözücü:</strong> Seed, Tenure, Iter, RNG, Deterministik, LNS, Kenar cezası ve Hızlı/Dengeli/Maks/Klasik profilleri yalnız bu yedek aramayı yönetir.</p>
                     <p><strong>Süre:</strong> Çözücünün arama için kullanabileceği azami saniyedir. Süre dolmadan iyi bir sonuç bulursa daha erken bitebilir.</p>
                     <p><strong>StopFirst:</strong> İlk geçerli programda durur. Açıkken hızlıdır; kapalıyken kalan sürede daha az boşluklu program arar.</p>
                     <p><strong>Yer bulamazsa blokları esnet:</strong> Kapalıysa 3+2 gibi tanımladığınız bloklar zorunludur. Açarsanız çözücü önce 3+2'yi dener; program çıkmazsa 3+1+1 veya 2+1+1+1 gibi bölerek yeniden dener.</p>
@@ -3281,27 +3238,6 @@ case 'duties':
                 </div>
                 <div className="md:hidden bg-white border border-slate-200 rounded-lg px-3 py-3 shadow-sm">
                     <div className="flex flex-col gap-3">
-                        <label className="flex flex-col gap-1 text-sm text-slate-600">
-                            <span className="font-medium">Strateji</span>
-                            <select
-                                value={classicMode ? 'repair' : (solverStrategy || 'cp')}
-                                onChange={(e) => {
-                                    const value = e.target.value as 'repair' | 'tabu' | 'alns' | 'cp';
-                                    if (value === 'repair') {
-                                        setClassicMode(true);
-                                    } else {
-                                        setClassicMode(false);
-                                        setSolverStrategy(value);
-                                    }
-                                }}
-                                className="border rounded px-2 py-1 text-sm"
-                            >
-                                <option value="repair">Repair</option>
-                                <option value="tabu">Tabu</option>
-                                <option value="alns">ALNS</option>
-                                <option value="cp">CP-SAT (Server)</option>
-                            </select>
-                        </label>
                         <button
                             type="button"
                             onClick={() => setIsMobileAdvancedOpen((prev) => !prev)}
@@ -3324,7 +3260,7 @@ case 'duties':
                     </div>
                     {isMobileAdvancedOpen && (
                         <div className="mt-3 space-y-3 text-xs text-slate-600">
-                            {renderSolverAdvancedRows('mobile', false)}
+                            {renderSolverAdvancedRows('mobile')}
                             {renderSolverHelp()}
                             <div className="space-y-3 border-t border-slate-200 pt-3">
                                 {activeSessionUser ? (
@@ -3464,7 +3400,7 @@ case 'duties':
                     {renderAnalysisToggles('mobile')}
                 </div>
                 <div className="hidden md:flex md:flex-col md:items-start gap-2 text-xs bg-white rounded-md px-3 py-2 shadow-sm max-w-[720px]">
-                    {renderSolverAdvancedRows('desktop', true)}
+                    {renderSolverAdvancedRows('desktop')}
                     {renderSolverHelp()}
                     {renderAnalysisToggles('desktop')}
                 </div>
@@ -3613,6 +3549,14 @@ case 'duties':
                             <p className="no-print text-xs text-slate-500 sm:text-right">
                                 Son paylaşılan program: {publishedAtText}
                             </p>
+                        )}
+                        {moveFeedback && (
+                            <div
+                                role="status"
+                                className={`no-print mb-2 rounded-md px-3 py-2 text-sm ${moveFeedback.kind === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
+                            >
+                                {moveFeedback.text}
+                            </div>
                         )}
                         {!isSmallScreen && (
                             <TimetableView

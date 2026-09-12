@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 // FIX: Corrected typo from TimetabeData to TimetableData
 import type { Schedule, TimetableData, ViewType, Assignment, Duty, SchoolHours, Teacher } from '../types';
 import { ViewType as ViewTypeEnum, SchoolLevel } from '../types';
+import { getBlockAt } from '../utils/moveValidation';
 
 interface TimetableViewProps {
   schedule: Schedule | null;
@@ -46,7 +47,7 @@ const ScheduleCell: React.FC<{
     onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
     onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
 }> = ({ assignment, duty, data, viewType, viewMode, isDisabled, onDragStart, onDragEnd }) => {
-  const isDraggable = viewMode === 'master' && viewType === ViewTypeEnum.Class && !!assignment && !isDisabled;
+  const isDraggable = viewType === ViewTypeEnum.Class && !!assignment && !isDisabled;
 
   if(isDisabled) {
     return <div className="h-24 border-slate-200 border bg-slate-100"></div>;
@@ -150,30 +151,18 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
       return null;
   }
 
-  const measureBlockSpan = (classroomId: string, dayIndex: number, hourIndex: number) => {
-    if (!schedule?.[classroomId]) return 1;
-    const row = schedule[classroomId][dayIndex];
-    const a = row?.[hourIndex];
-    if (!a) return 1;
-    let span = 1;
-    // Count how many consecutive cells to the right have the same assignment object reference
-    for (let k = hourIndex + 1; k < row.length && row[k] === a; k++) {
-        span++;
-    }
-    return span;
-  };
-
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, assignment: Assignment, dayIndex: number, hourIndex: number, headerId: string) => {
-    if (viewMode !== 'master' || viewType !== ViewTypeEnum.Class || !assignment) return;
-    
-    const span = measureBlockSpan(headerId, dayIndex, hourIndex);
+    if (viewType !== ViewTypeEnum.Class || !assignment) return;
+
+    // Blok, nesne kimliğiyle değil içerikle ölçülür (sunucu sonuçlarında kimlik paylaşımı yok).
+    const block = getBlockAt(schedule, headerId, dayIndex, hourIndex);
 
     const sourceInfo = {
       classroomId: headerId,
       dayIndex,
-      hourIndex,
+      hourIndex: block.start,
       subjectId: assignment.subjectId,
-      blockSpan: span,
+      blockSpan: block.span,
     };
     e.dataTransfer.setData('application/json', JSON.stringify(sourceInfo));
     setDraggedItemInfo(sourceInfo);
@@ -188,7 +177,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
 
   const handleDrop = (e: React.DragEvent, dayIndex: number, hourIndex: number, headerId: string) => {
     e.preventDefault();
-    if (viewMode !== 'master' || viewType !== ViewTypeEnum.Class) return;
+    if (viewType !== ViewTypeEnum.Class) return;
     try {
         const sourceInfo = JSON.parse(e.dataTransfer.getData('application/json'));
         const targetInfo = {
@@ -196,9 +185,8 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
             dayIndex,
             hourIndex,
         };
-        if (onIsMoveValid(sourceInfo, targetInfo)) {
-          onCellDrop(sourceInfo, targetInfo);
-        }
+        // Geçersiz hamlenin nedenini üst bileşen gösterir; burada sessizce yutma.
+        onCellDrop(sourceInfo, targetInfo);
     } catch (error) {
         console.error("Drop failed:", error)
     } finally {
@@ -210,7 +198,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
 
   return (
       <>
-       {viewMode === 'master' && viewType === ViewTypeEnum.Class && <p className="text-xs text-slate-500 mb-2 no-print text-center">İpucu: Dersleri sınıflar arasında boş saatlere sürükleyerek programı manuel olarak düzenleyebilirsiniz.</p>}
+       {viewType === ViewTypeEnum.Class && <p className="text-xs text-slate-500 mb-2 no-print text-center">İpucu: Bir dersi aynı sınıf içinde başka bir gün/saate sürükleyin. Boş hücreye bırakınca taşınır, dolu hücreye bırakınca iki ders yer değiştirir.</p>}
         <div id="timetable-view" className="w-full overflow-x-auto bg-white p-4 rounded-lg shadow-lg">
         <div className="grid grid-flow-col auto-cols-fr min-w-[800px]">
             <div className="sticky left-0 bg-white z-10 w-32">
@@ -251,7 +239,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
                                       isDisabled = hourIndex >= schoolHours[classroomLevel][dayIndex];
                                     }
 
-                                    if (viewMode === 'master' && isDraggedOver && draggedItemInfo && !assignment && !isDisabled) {
+                                    if (isDraggedOver && draggedItemInfo && !isDisabled) {
                                         const targetInfo = { classroomId: header.id, dayIndex, hourIndex };
                                         dropTargetState = onIsMoveValid(draggedItemInfo, targetInfo) ? 'valid' : 'invalid';
                                     }
@@ -260,14 +248,18 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
                                         <div 
                                         key={hourIndex}
                                         onDragOver={(e) => {
-                                            if (viewMode === 'master' && draggedItemInfo) e.preventDefault();
+                                            if (draggedItemInfo) e.preventDefault();
                                         }}
                                         onDrop={(e) => handleDrop(e, dayIndex, hourIndex, header.id)}
-                                        onDragEnter={() => viewMode === 'master' && !assignment && !isDisabled && setDraggedOverCell({ dayIndex, hourIndex, headerId: header.id })}
-                                        onDragLeave={() => viewMode === 'master' && setDraggedOverCell(null)}
+                                        onDragEnter={() => !isDisabled && setDraggedOverCell({ dayIndex, hourIndex, headerId: header.id })}
+                                        onDragLeave={(e) => {
+                                            // Alt öğeye geçerken tetiklenen leave'i yok say
+                                            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                                            setDraggedOverCell(null);
+                                        }}
                                         className={`
-                                          ${dropTargetState === 'valid' ? 'bg-sky-100' : ''}
-                                          ${dropTargetState === 'invalid' ? 'bg-red-200' : ''}
+                                          ${dropTargetState === 'valid' ? (assignment ? 'ring-2 ring-sky-500 ring-offset-1' : 'bg-sky-100') : ''}
+                                          ${dropTargetState === 'invalid' ? (assignment ? 'ring-2 ring-red-500 ring-offset-1' : 'bg-red-200') : ''}
                                           transition-colors duration-150`}
                                         >
                                         <ScheduleCell
