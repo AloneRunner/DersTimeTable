@@ -12,9 +12,60 @@
          "removeChild" hatasina yol aciyordu. lang="tr" + translate="no" + bu meta
          etiketi ucu birlikte cevirinin hic baslamamasini saglar. -->
     <meta name="google" content="notranslate" />
-    <title>Ücretsiz Otomatik Ders Programı Hazırlama Programı | DersTimeTable</title>
-    <meta name="description" content="Okul idareleri için CP-SAT yapay zeka algoritmalı, web tabanlı, tamamen ücretsiz ders programı ve nöbet dağıtım programı. Masaüstü kuruluma gerek yok, hemen otomatik çizelgenizi PDF olarak alın." />
-    <meta name="keywords" content="ders programı hazırlama programı, otomatik ders programı yapıcı, okul ders programı hazırlama, öğretmen nöbet programı, çakışmasız ders programı, idareci programları, cp-sat ders dağıtımı" />
+
+    <title>Ders Programı Hazırlama Programı — Ücretsiz Otomatik Okul Ders Programı | DersTimeTable</title>
+    <meta name="description" content="Ortaokul ve liseler için ücretsiz otomatik ders programı hazırlama programı. Öğretmen müsaitliği, blok dersler ve nöbet çizelgesiyle çakışmasız haftalık ders programını saniyeler içinde oluşturun, PDF alın. Kurulum gerektirmez; web, Android ve Windows." />
+    <link rel="canonical" href="https://idare.ozarik.org/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="Kaan Özarık" />
+
+    <!-- Sosyal paylasim kartlari -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="tr_TR" />
+    <meta property="og:site_name" content="DersTimeTable" />
+    <meta property="og:url" content="https://idare.ozarik.org/" />
+    <meta property="og:title" content="DersTimeTable — Ücretsiz Otomatik Ders Programı Hazırlama Programı" />
+    <meta property="og:description" content="Okul idareleri için çakışmasız haftalık ders programı ve nöbet çizelgesi. Öğretmen kısıtlarını dikkate alır, saniyeler içinde PDF verir. Tamamen ücretsiz." />
+    <meta property="og:image" content="https://idare.ozarik.org/assets/logo.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="DersTimeTable — Ücretsiz Ders Programı Hazırlama Programı" />
+    <meta name="twitter:description" content="Ortaokul ve liseler için çakışmasız otomatik ders programı ve nöbet çizelgesi. Web, Android ve Windows." />
+    <meta name="twitter:image" content="https://idare.ozarik.org/assets/logo.png" />
+
+    <!-- Yapisal veri: Google'in uygulamayi tanimasi icin -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "DersTimeTable",
+      "alternateName": "Ozarik DersTimeTable - Okul Ders Programı",
+      "url": "https://idare.ozarik.org/",
+      "description": "Ortaokul ve liseler için öğretmen kısıtlarını dikkate alan, çakışmasız haftalık ders programı ve nöbet çizelgesi hazırlayan ücretsiz uygulama.",
+      "applicationCategory": "EducationalApplication",
+      "applicationSubCategory": "Ders programı hazırlama",
+      "operatingSystem": "Web, Android, Windows",
+      "inLanguage": "tr",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
+      "installUrl": [
+        "https://play.google.com/store/apps/details?id=com.ozarik.dersprogrami",
+        "https://apps.microsoft.com/detail/9N5Z8M82FSQ2"
+      ],
+      "featureList": [
+        "Otomatik çakışmasız haftalık ders programı",
+        "Öğretmen müsaitlik ve haftalık saat kısıtları",
+        "2'li ve 3'lü blok ders desteği",
+        "Aynı güne gelmemesi gereken dersler",
+        "Nöbet çizelgesi ve nöbetçi öğretmen dağıtımı",
+        "Sınıf ve öğretmen bazlı PDF çıktısı",
+        "Sürükle-bırak ile elle düzenleme",
+        "Bulut senkronizasyonu ve öğretmen paneli"
+      ],
+      "author": { "@type": "Person", "name": "Kaan Özarık" },
+      "image": "https://idare.ozarik.org/assets/logo.png"
+    }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @media print {
@@ -35,12 +86,106 @@
 <link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-slate-50 text-slate-800">
-    <div id="root">
-      <div style="text-align: center; padding: 20px; font-family: sans-serif; color: #666; display: none;">
-        <h1>Akıllı ve Ücretsiz Okul Ders Programı Oluşturucu</h1>
-        <p>DersTimeTable; ortaokul ve liseler için öğretmen kısıtlamalarını dikkate alan, yapay zeka (CP-SAT) algoritmasıyla saniyeler içinde çakışmasız haftalık ders çizelgesi oluşturan bulut tabanlı bir sistemdir. Nöbet dağıtımı, öğretmen paneli ve anında PDF aktarımı ile okul idaresinin yükünü hafifletir.</p>
+    <div id="root"></div>
+
+    <!-- Uygulamanin altinda kalan, arama motorlarinin okudugu gercek icerik.
+         #root disinda oldugu icin React tarafindan silinmez. -->
+    <footer id="hakkinda" class="no-print border-t border-slate-200 bg-white">
+      <div class="mx-auto max-w-5xl px-4 py-10 text-slate-700 sm:px-6 lg:px-8">
+        <section>
+          <h2 class="text-2xl font-bold text-slate-900">DersTimeTable nedir?</h2>
+          <p class="mt-3 leading-relaxed">
+            DersTimeTable, okullar için geliştirilmiş <strong>ücretsiz ders programı hazırlama programıdır</strong>.
+            Öğretmenlerin müsait olduğu saatleri, haftalık ders yüklerini, blok dersleri ve sınıf kısıtlarını
+            dikkate alarak <strong>çakışmasız haftalık ders programını</strong> otomatik oluşturur. Program
+            hazırlama işi günler süren bir uğraş olmaktan çıkar; verileri girersiniz, uygulama saniyeler içinde
+            sınıf ve öğretmen bazlı programı hazırlar, PDF olarak indirirsiniz. Okul idaresinin <strong>nöbet
+            çizelgesi</strong> ihtiyacını da aynı yerden karşılar.
+          </p>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold text-slate-900">Kimler için?</h2>
+          <p class="mt-2 leading-relaxed">
+            Ders programı hazırlamakla görevli okul müdürleri, müdür yardımcıları ve öğretmenler için.
+            Ortaokul, Anadolu lisesi, fen lisesi, imam hatip ve meslek lisesi gibi her kademedeki okulda;
+            tam gün, sabahçı ve öğlenci düzeninde kullanılabilir. Lise ders programı ile ortaokul ders programı
+            aynı okulda birlikte hazırlanabilir.
+          </p>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold text-slate-900">Öne çıkan özellikler</h2>
+          <ul class="mt-2 grid list-disc gap-1 pl-5 leading-relaxed sm:grid-cols-2">
+            <li>Otomatik ve çakışmasız <strong>ders dağıtımı</strong> (CP-SAT kısıt çözücü)</li>
+            <li>Öğretmen müsaitlik takvimi ve haftalık azami saat</li>
+            <li>2'li ve 3'lü <strong>blok ders</strong> tanımı</li>
+            <li>Aynı gün içinde bölünmeyen dersler; aynı güne gelmemesi gereken ders çiftleri</li>
+            <li>Ders başına ardışık saat sınırı</li>
+            <li>Laboratuvar, spor salonu gibi mekan çakışması kontrolü</li>
+            <li>Sabit (kilitli) ders saatleri</li>
+            <li><strong>Nöbet çizelgesi</strong> ve nöbetçi öğretmen yardımcısı</li>
+            <li>Sınıf, öğretmen ve toplu A4 çizelge olarak <strong>PDF çıktısı</strong></li>
+            <li>Sürükle-bırak ile elle düzenleme; geçersiz hamlede nedenini gösterir</li>
+            <li>Program öncesi kontrol: eksik saat, öğretmensiz ders, yetmeyen müsaitlik uyarıları</li>
+            <li>Bulut senkronizasyonu, öğretmen paneli ve JSON yedekleme</li>
+          </ul>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold text-slate-900">Nasıl çalışır?</h2>
+          <ol class="mt-2 list-decimal space-y-1 pl-5 leading-relaxed">
+            <li>Öğretmenleri, sınıfları ve dersleri girin; isterseniz örnek okul verisinden başlayın.</li>
+            <li>Öğretmen müsaitliklerini, blok dersleri ve günlük ders saatlerini belirleyin.</li>
+            <li>"Program Oluştur" deyin; çözücü tüm kısıtları sağlayan programı bulur.</li>
+            <li>Gerekirse sürükle-bırak ile düzenleyin, PDF alın veya öğretmenlerle paylaşın.</li>
+          </ol>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold text-slate-900">Sık sorulan sorular</h2>
+          <dl class="mt-2 space-y-3 leading-relaxed">
+            <div>
+              <dt class="font-medium text-slate-900">Ders programı hazırlama programı ücretsiz mi?</dt>
+              <dd>Evet. DersTimeTable web, Android ve Windows sürümleriyle tamamen ücretsizdir; abonelik veya uygulama içi satın alma yoktur.</dd>
+            </div>
+            <div>
+              <dt class="font-medium text-slate-900">Kurulum gerekiyor mu?</dt>
+              <dd>Hayır. Tarayıcıdan doğrudan kullanılır. İsteyenler için Google Play'de Android, Microsoft Store'da Windows uygulaması vardır.</dd>
+            </div>
+            <div>
+              <dt class="font-medium text-slate-900">Verilerim nerede tutuluyor?</dt>
+              <dd>Giriş yapmadan kullanırsanız veriler yalnızca cihazınızda kalır. Buluta bağlanırsanız okul verisi hesabınıza kaydedilir ve başka cihazlardan açılabilir. JSON yedeğini istediğiniz zaman indirebilirsiniz.</dd>
+            </div>
+            <div>
+              <dt class="font-medium text-slate-900">Çakışmasız program garantisi var mı?</dt>
+              <dd>Çözücü öğretmen, sınıf ve mekan çakışmasını kesin kural olarak uygular. Kısıtlar birbiriyle çelişiyorsa program üretmez ve Program Öncesi Kontrol bölümünde nedenini gösterir.</dd>
+            </div>
+            <div>
+              <dt class="font-medium text-slate-900">Kaç sınıf ve öğretmenle çalışır?</dt>
+              <dd>Onlarca sınıf ve öğretmenden oluşan tam bir okul programı tipik olarak birkaç dakikanın altında hazırlanır.</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold text-slate-900">İndir</h2>
+          <ul class="mt-2 flex flex-wrap gap-3">
+            <li><a class="rounded-full border border-slate-300 px-4 py-1.5 text-sm font-medium hover:border-sky-400 hover:text-sky-700" href="https://idare.ozarik.org/">Web uygulaması</a></li>
+            <li><a class="rounded-full border border-slate-300 px-4 py-1.5 text-sm font-medium hover:border-sky-400 hover:text-sky-700" href="https://play.google.com/store/apps/details?id=com.ozarik.dersprogrami" rel="noopener">Android — Google Play</a></li>
+            <li><a class="rounded-full border border-slate-300 px-4 py-1.5 text-sm font-medium hover:border-sky-400 hover:text-sky-700" href="https://apps.microsoft.com/detail/9N5Z8M82FSQ2" rel="noopener">Windows — Microsoft Store</a></li>
+          </ul>
+        </section>
+
+        <p class="mt-10 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+          <a class="underline hover:text-slate-700" href="https://sites.google.com/view/derstimetable" rel="noopener">Gizlilik Politikası</a>
+          <a class="underline hover:text-slate-700" href="https://sites.google.com/view/derstimetable/data-deletion" rel="noopener">Veri Silme Talebi</a>
+          <a class="underline hover:text-slate-700" href="mailto:kaanozarik@gmail.com">Destek: kaanozarik@gmail.com</a>
+          <span>© Kaan Özarık — DersTimeTable</span>
+        </p>
       </div>
-    </div>
+    </footer>
+
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
