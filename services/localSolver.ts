@@ -62,6 +62,7 @@ function makeWorkerScript() {
         hardLessonCounter: Map<string, number>;
         failureReason: string | null;
         _deferredReinsert: any[];
+        notSameDayPartners: Map<string, Set<string>>;
 
         constructor(data: TimetableData, options: SolverOptions) {
           this.data = data as TimetableData;
@@ -78,6 +79,7 @@ function makeWorkerScript() {
             teacherEdgeWeight: 1,            // set 0 to ignore first/last/isolated-hour penalty
             stopAtFirstSolution: false,      // set true to return immediately after first feasible
             allowBlockRelaxation: true,      // if false, never split 2'li/3'lü blokları
+            allowSameDaySplit: false,        // if true, bir ders gün içinde bölünebilir (1,0,1 deseni)
           }, options || {});
           // Backward-compat for older UI flag
           if (this.options.disableTeacherEdgePenalty === true) {
@@ -109,12 +111,24 @@ function makeWorkerScript() {
             startedAt: Date.now(), endedAt: 0, elapsedSeconds: 0, timedOut: false,
             firstSolutionAt: 0, firstSolutionSeconds: 0,
             attempts: 0, placements: 0, backtracks: 0,
-            invalidReasons: { levelMismatch: 0, availability: 0, classBusy: 0, teacherBusy: 0, locationBusy: 0, blockBoundary: 0 },
+            invalidReasons: { levelMismatch: 0, availability: 0, classBusy: 0, teacherBusy: 0, locationBusy: 0, blockBoundary: 0, sameDay: 0 },
             hardestLessons: [], mrvDeadEnds: 0, notes: []
           };
           this.hardLessonCounter = new Map();
           this.failureReason = null;
           this._deferredReinsert = [];
+
+          // "Aynı güne gelmesin" eşleşmeleri (simetrik): subjectId -> Set<subjectId>
+          this.notSameDayPartners = new Map();
+          for (const s of (this.data.subjects || [])) {
+            for (const other of ((s as any).notSameDayWith || [])) {
+              if (!other || other === s.id) continue;
+              if (!this.notSameDayPartners.has(s.id)) this.notSameDayPartners.set(s.id, new Set());
+              if (!this.notSameDayPartners.has(other)) this.notSameDayPartners.set(other, new Set());
+              this.notSameDayPartners.get(s.id)!.add(other);
+              this.notSameDayPartners.get(other)!.add(s.id);
+            }
+          }
 
           this.initialize();
         }
@@ -937,6 +951,7 @@ listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teac
             if (hour<w.start || (hour+span)>w.end) return false;
             for (let k=0;k<span;k++) if (this.schedule[classId][day][hour+k]) return false;
             if (this.violatesRunLimit(classId, subject.id, day, hour, span)) return false;
+            if (this.violatesSameDayRules(classId, subject, day, hour, span)) return false;
           }
           for (let k=0;k<span;k++) if (subject.locationId && this.locationOccupied[subject.locationId]?.[day]?.[hour+k]) return false;
 
@@ -984,7 +999,34 @@ listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teac
           return (left + span + right) > maxC;
         }
 
-        isValid(classroomId: string, subject: Subject, teachers: Teacher[], day: number, hour: number, span: number) {
+        // ---- Aynı gün kuralları ----
+        // (1) allowSameDaySplit=false: aynı ders bir gün içinde bölünmesin. Yeni yerleşim,
+        //     o günkü mevcut aynı-ders saatlerine bitişik olmalı (1,0,1 deseni yasak).
+        // (2) notSameDayWith: eşleştirilmiş dersler aynı sınıfta aynı güne düşemez.
+        // `ignore`: taşınmakta olan mevcut atama; kendi eski yeri kuralı tetiklemesin.
+        violatesSameDayRules(classroomId: string, subject: Subject, day: number, hour: number, span: number, ignore?: any) {
+          const row = this.schedule[classroomId][day];
+          if (!this.options.allowSameDaySplit) {
+            let minH = -1, maxH = -1;
+            for (let i=0; i<row.length; i++) {
+              const a = row[i];
+              if (!a || a === ignore || a.subjectId !== subject.id) continue;
+              if (minH < 0) minH = i;
+              maxH = i;
+            }
+            if (minH >= 0 && !(maxH === hour-1 || minH === hour+span)) return true;
+          }
+          const partners = this.notSameDayPartners.get(subject.id);
+          if (partners && partners.size) {
+            for (let i=0; i<row.length; i++) {
+              const a = row[i];
+              if (a && a !== ignore && partners.has(a.subjectId)) return true;
+            }
+          }
+          return false;
+        }
+
+        isValid(classroomId: string, subject: Subject, teachers: Teacher[], day: number, hour: number, span: number, ignore?: any) {
           this.stats.attempts++;
           const classroom = this.classroomById.get(classroomId)!;
           const { start, end } = this.getAllowedWindow(classroom, day);
@@ -1010,6 +1052,7 @@ listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teac
             if (subject.locationId && this.locationOccupied[subject.locationId]?.[day]?.[h]) { this.stats.invalidReasons.locationBusy++; return false; }
           }
           if (this.violatesRunLimit(classroomId, subject.id, day, hour, span)) { this.stats.invalidReasons.blockBoundary++; return false; }
+          if (this.violatesSameDayRules(classroomId, subject, day, hour, span, ignore)) { this.stats.invalidReasons.sameDay = (this.stats.invalidReasons.sameDay || 0) + 1; return false; }
           return true;
         }
 
@@ -1268,7 +1311,7 @@ listConflictingAssignments(classroomId: string, subject: Subject, teachers: Teac
                 if (!teachers.length) continue;
                 for (let nh=start; nh<=end-span; nh++) {
                   if (nh===h) continue;
-                  if (this.isValid(classId, subject, teachers, d, nh, span))
+                  if (this.isValid(classId, subject, teachers, d, nh, span, a))
                     moves.push({ type:'relocate', classId, day:d, from:h, to:nh, span });
                 }
               }

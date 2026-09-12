@@ -48,6 +48,7 @@ type CatalogSubject = {
   requiredTeacherCount?: number | null;
   assignedClassIds?: string[] | null;
   pinnedTeacherByClassroom?: Record<string, string[]> | null;
+  notSameDayWith?: string[] | null;
 };
 
 type CatalogFixedAssignment = {
@@ -145,6 +146,7 @@ const toSubject = (raw: CatalogSubject): Subject => ({
         ]),
       )
     : {},
+  notSameDayWith: raw.notSameDayWith ? raw.notSameDayWith.map(String) : [],
 });
 
 const toFixedAssignment = (raw: CatalogFixedAssignment): FixedAssignment => ({
@@ -207,6 +209,7 @@ const toCatalogSubject = (subject: Subject): CatalogSubject => ({
   requiredTeacherCount: subject.requiredTeacherCount ?? 1,
   assignedClassIds: subject.assignedClassIds ?? [],
   pinnedTeacherByClassroom: subject.pinnedTeacherByClassroom ?? {},
+  notSameDayWith: subject.notSameDayWith ?? [],
 });
 
 const toCatalogFixedAssignment = (assignment: FixedAssignment): CatalogFixedAssignment => ({

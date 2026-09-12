@@ -48,6 +48,7 @@ export interface Subject {
   pinnedTeacherByClassroom?: { // Pin a specific teacher for this subject in a specific classroom
     [classroomId: string]: string[]; // teacherId array
   };
+  notSameDayWith?: string[]; // Bu derslerle aynı sınıfta aynı güne yerleşmesin (ders id listesi, simetrik uygulanır)
 }
 
 export interface FixedAssignment {
@@ -131,6 +132,7 @@ export interface SolverOptions {
   useRestarts?: boolean;                 // Süre boyunca çoklu yeniden başlatma
   randomSeed?: number;                   // Deterministik çalıştırma için RNG tohumu
   disableLNS?: boolean;                  // LNS (ruin&recreate) devre dışı
+  allowSameDaySplit?: boolean;           // true ise bir ders aynı gün içinde bölünebilir (varsayılan: false)
   disableTeacherEdgePenalty?: boolean;   // Öğretmen ilk/son saat ve tekil cezasını kapat
   // Opsiyonel kalite/rafinman parametreleri (yerel çözücüler isteğe bağlı kullanır)
   teacherSpreadWeight?: number;
@@ -155,6 +157,7 @@ export interface SolverStats {
     teacherBusy: number;
     locationBusy: number;
     blockBoundary: number;
+    sameDay?: number;                    // Aynı gün kuralları (bölünme / eşleşmiş ders)
   };
   hardestLessons: Array<{ key: string; failures: number }>; // Lessons that caused the most backtracks
   mrvDeadEnds: number;                   // Number of times MRV found no valid placements

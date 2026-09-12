@@ -198,11 +198,22 @@ def solve_cp_sat(
                         else:
                             model.Add(b == 0)
                         s_occ.append(b)
-                    # Enforce contiguity: forbid pattern 1,0,1 (no gaps)
-                    if len(s_occ) >= 3:
-                        for h in range(1, allowed_len - 1):
-                            # s_occ[h-1] + s_occ[h+1] - s_occ[h] <= 1
-                            model.Add(s_occ[h-1] + s_occ[h+1] - s_occ[h] <= 1)
+                    # Enforce a single contiguous run per day. The old "forbid 1,0,1"
+                    # check only caught one-hour gaps (1,0,0,1 slipped through), so
+                    # count run starts instead and allow at most one.
+                    if len(s_occ) >= 2:
+                        starts = []
+                        for h in range(allowed_len):
+                            st = model.NewBoolVar(f"sstart_{cid}_{sid}_{d}_{h}")
+                            if h == 0:
+                                model.Add(st == s_occ[0])
+                            else:
+                                # st == s_occ[h] AND NOT s_occ[h-1]
+                                model.Add(st >= s_occ[h] - s_occ[h-1])
+                                model.Add(st <= s_occ[h])
+                                model.Add(st <= 1 - s_occ[h-1])
+                            starts.append(st)
+                        model.Add(sum(starts) <= 1)
 
     # Link occupancy x to block starts y (coverage). For each slot, x == sum of covering starts.
     for (cid, sid, composite_tid, d, h), var in x.items():
@@ -233,6 +244,42 @@ def solve_cp_sat(
                 vars_slot = [v for (cc, ss, tt, dd, hh), v in x.items() if cc == cid and dd == d and hh == h]
                 if len(vars_slot) > 1:
                     model.Add(sum(vars_slot) <= 1)
+
+    # "Aynı gün olamaz": eşleştirilmiş iki ders aynı sınıfta aynı güne düşemez (hard).
+    # Kural simetrik uygulanır: A, B'yi listelemişse B için de geçerlidir.
+    subject_by_id = {s['id']: s for s in subjects}
+    not_same_day_pairs = set()
+    for s in subjects:
+        for other_id in (s.get('notSameDayWith') or []):
+            if other_id == s['id'] or other_id not in subject_by_id:
+                continue
+            not_same_day_pairs.add(tuple(sorted((s['id'], other_id))))
+    if not_same_day_pairs:
+        day_occ: Dict[Tuple[str, str, int], Any] = {}
+
+        def subject_day_occupancy(cid: str, sid: str, d: int):
+            key = (cid, sid, d)
+            if key in day_occ:
+                return day_occ[key]
+            vars_day = [v for (cc, ss, tt, dd, hh), v in x.items() if cc == cid and ss == sid and dd == d]
+            b = model.NewBoolVar(f"dayocc_{cid}_{sid}_{d}")
+            if vars_day:
+                for v in vars_day:
+                    model.Add(b >= v)
+                model.Add(sum(vars_day) >= b)
+            else:
+                model.Add(b == 0)
+            day_occ[key] = b
+            return b
+
+        for sid_a, sid_b in sorted(not_same_day_pairs):
+            classes_a = set(subject_by_id[sid_a].get('assignedClassIds', []) or [])
+            classes_b = set(subject_by_id[sid_b].get('assignedClassIds', []) or [])
+            for cid in sorted(classes_a & classes_b):
+                if cid not in classroom_by_id:
+                    continue
+                for d in range(5):
+                    model.Add(subject_day_occupancy(cid, sid_a, d) + subject_day_occupancy(cid, sid_b, d) <= 1)
 
     # Teacher no-overlap across classes per slot
     for t in teachers:

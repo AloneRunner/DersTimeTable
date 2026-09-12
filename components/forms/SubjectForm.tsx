@@ -22,6 +22,7 @@ export const SubjectForm: React.FC<{
       locationId: undefined,
       pinnedTeacherByClassroom: {},
       requiredTeacherCount: 1,
+      notSameDayWith: [],
     };
     // Ensure pinnedTeacherByClassroom values are arrays
     if (initial.pinnedTeacherByClassroom) {
@@ -132,6 +133,23 @@ export const SubjectForm: React.FC<{
         }
       }
     }
+  };
+
+  const otherSubjects = useMemo(() => {
+    const selfId = item?.id;
+    return data.subjects
+      .filter((s) => s.id !== selfId)
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  }, [data.subjects, item?.id]);
+
+  const handleNotSameDayToggle = (subjectId: string) => {
+    setSubject((prev: any) => {
+      const current: string[] = prev.notSameDayWith || [];
+      const next = current.includes(subjectId)
+        ? current.filter((id: string) => id !== subjectId)
+        : [...current, subjectId];
+      return { ...prev, notSameDayWith: next };
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -274,6 +292,28 @@ export const SubjectForm: React.FC<{
           ))}
         </div>
       </div>
+
+      {otherSubjects.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-slate-700">Aynı Güne Gelmesin (opsiyonel)</label>
+          <p className="text-xs text-slate-500 mt-1">
+            İşaretlenen dersler, bu dersle aynı sınıfta aynı güne yerleştirilmez. Örn. Matematik ile Seçmeli Matematik.
+          </p>
+          <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2 border p-3 rounded-md max-h-40 overflow-y-auto">
+            {otherSubjects.map((s) => (
+              <label key={s.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={((subject as any).notSameDayWith || []).includes(s.id)}
+                  onChange={() => handleNotSameDayToggle(s.id)}
+                  className="rounded"
+                />
+                <span className="truncate">{s.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {(subject as any).assignedClassIds.length > 0 && data.teachers.length > 0 && (
         <div className="mt-4 border rounded-md p-3">

@@ -43,6 +43,7 @@ class Subject(BaseModel):
     assignedClassIds: List[str]
     requiredTeacherCount: int = Field(default=1, ge=1)
     pinnedTeacherByClassroom: Dict[str, List[str]] = Field(default_factory=dict)
+    notSameDayWith: List[str] = Field(default_factory=list)
 
 
 class Location(BaseModel):

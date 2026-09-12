@@ -134,6 +134,7 @@ def _subject_from_row(row: Dict[str, Any]) -> SubjectRecord:
         requiredTeacherCount=int(row.get('required_teacher_count') or 1),
         assignedClassIds=row.get('assigned_class_keys') or [],
         pinnedTeacherByClassroom=_safe_json(row.get('pinned_teacher_map')) or {},
+        notSameDayWith=row.get('not_same_day_keys') or [],
         metadata=_safe_json(row.get('metadata')),
         isArchived=bool(row.get('is_archived', False)),
         createdAt=row.get('created_at'),
@@ -474,6 +475,7 @@ def list_subjects(school_id: int) -> List[SubjectRecord]:
             'required_teacher_count': rec.get('required_teacher_count', rec.get('requiredTeacherCount', 1)),
             'assigned_class_keys': rec.get('assigned_class_keys', rec.get('assignedClassIds', [])),
             'pinned_teacher_map': rec.get('pinned_teacher_map', rec.get('pinnedTeacherByClassroom', {})),
+            'not_same_day_keys': rec.get('not_same_day_keys', rec.get('notSameDayWith', [])),
             'metadata': rec.get('metadata'),
             'is_archived': rec.get('is_archived', rec.get('isArchived', False)),
             'created_at': rec.get('created_at'),
@@ -488,9 +490,9 @@ def upsert_subject(school_id: int, payload: SubjectPayload) -> SubjectRecord:
             """INSERT INTO school_subjects (
                    school_id, subject_key, name, weekly_hours, block_hours,
                    triple_block_hours, max_consec, location_key, required_teacher_count,
-                   assigned_class_keys, pinned_teacher_map, metadata, is_archived, updated_at
+                   assigned_class_keys, pinned_teacher_map, not_same_day_keys, metadata, is_archived, updated_at
                )
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
                ON CONFLICT (school_id, subject_key) DO UPDATE
                SET name = EXCLUDED.name,
                    weekly_hours = EXCLUDED.weekly_hours,
@@ -501,6 +503,7 @@ def upsert_subject(school_id: int, payload: SubjectPayload) -> SubjectRecord:
                    required_teacher_count = EXCLUDED.required_teacher_count,
                    assigned_class_keys = EXCLUDED.assigned_class_keys,
                    pinned_teacher_map = EXCLUDED.pinned_teacher_map,
+                   not_same_day_keys = EXCLUDED.not_same_day_keys,
                    metadata = EXCLUDED.metadata,
                    is_archived = EXCLUDED.is_archived,
                    updated_at = now()
@@ -517,6 +520,7 @@ def upsert_subject(school_id: int, payload: SubjectPayload) -> SubjectRecord:
                 payload.requiredTeacherCount,
                 payload.assignedClassIds,
                 Json(payload.pinnedTeacherByClassroom or {}),
+                payload.notSameDayWith,
                 Json(payload.metadata) if payload.metadata is not None else None,
                 payload.isArchived,
             ),
@@ -537,6 +541,7 @@ def upsert_subject(school_id: int, payload: SubjectPayload) -> SubjectRecord:
         'required_teacher_count': payload.requiredTeacherCount,
         'assigned_class_keys': payload.assignedClassIds,
         'pinned_teacher_map': payload.pinnedTeacherByClassroom,
+        'not_same_day_keys': payload.notSameDayWith,
         'metadata': payload.metadata,
         'is_archived': payload.isArchived,
     }
@@ -943,12 +948,12 @@ def replace_school_catalog(
                         """INSERT INTO school_subjects (
                                school_id, subject_key, name, weekly_hours, block_hours,
                                triple_block_hours, max_consec, location_key, required_teacher_count,
-                               assigned_class_keys, pinned_teacher_map, metadata, is_archived, updated_at
-                           ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())""",
+                               assigned_class_keys, pinned_teacher_map, not_same_day_keys, metadata, is_archived, updated_at
+                           ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())""",
                         [(
                             school_id, item.id, item.name, item.weeklyHours, item.blockHours,
                             item.tripleBlockHours, item.maxConsec, item.locationId, item.requiredTeacherCount,
-                            item.assignedClassIds, Json(item.pinnedTeacherByClassroom or {}),
+                            item.assignedClassIds, Json(item.pinnedTeacherByClassroom or {}), item.notSameDayWith,
                             Json(item.metadata) if item.metadata is not None else None, item.isArchived,
                         ) for item in subjects],
                     )

@@ -1776,7 +1776,8 @@ const App: React.FC = () => {
               disableTeacherEdgePenalty: classicMode ? true : optDisableEdge,
               teacherSpreadWeight: classicMode ? 0 : 1,
               teacherEdgeWeight: classicMode ? 0 : 1,
-              allowBlockRelaxation: relaxBlocksIfNeeded
+              allowBlockRelaxation: relaxBlocksIfNeeded,
+              allowSameDaySplit: cpUseCustom && cpAllowSplit,
               });
             }
             
@@ -2558,6 +2559,7 @@ case 'duties':
             teacherBusy: 'Öğretmen Meşgul',
             locationBusy: 'Mekan Meşgul',
             blockBoundary: 'Blok Ders Sınırı',
+            sameDay: 'Aynı gün kuralı (bölünme / eşleşmiş ders)',
         };
     
         const topReasons = (Object.entries(stats.invalidReasons) as Array<[keyof SolverStats['invalidReasons'], number]>)

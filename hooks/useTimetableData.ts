@@ -153,7 +153,19 @@ export const useTimetableData = (initialData?: TimetableData | null) => {
   const addSubject = (subject: Omit<Subject, 'id'>) =>
     addOrUpdateItem('subjects', { ...subject, id: `s${Date.now()}` });
   const updateSubject = (subject: Subject) => addOrUpdateItem('subjects', subject);
-  const removeSubject = (id: string) => removeItem('subjects', id);
+  const removeSubject = (id: string) => {
+    // Silinen dersin diğer derslerdeki "aynı güne gelmesin" referanslarını da temizle.
+    setData(prevData => ({
+      ...prevData,
+      subjects: prevData.subjects
+        .filter(subject => subject.id !== id)
+        .map(subject =>
+          subject.notSameDayWith?.includes(id)
+            ? { ...subject, notSameDayWith: subject.notSameDayWith.filter(other => other !== id) }
+            : subject,
+        ),
+    }));
+  };
 
   const addLocation = (location: Omit<Location, 'id'>) =>
     addOrUpdateItem('locations', { ...location, id: `l${Date.now()}` });

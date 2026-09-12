@@ -75,10 +75,11 @@ class SubjectPayload(BaseModel):
     requiredTeacherCount: int = 1
     assignedClassIds: List[str] = Field(default_factory=list)
     pinnedTeacherByClassroom: Dict[str, List[str]] = Field(default_factory=dict)
+    notSameDayWith: List[str] = Field(default_factory=list)
     metadata: Optional[Dict[str, Any]] = None
     isArchived: bool = False
 
-    @field_validator("assignedClassIds", mode="before")
+    @field_validator("assignedClassIds", "notSameDayWith", mode="before")
     @classmethod
     def _ensure_list(cls, value: Any) -> List[str]:
         if value is None:
