@@ -35,6 +35,7 @@ import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, u
 import { PreflightOverview } from './components/PreflightOverview';
 import { loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
 import { planMove } from './utils/moveValidation';
+import { recordAppOpen, recordSolve } from './services/usageClient';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
@@ -1544,6 +1545,9 @@ const App: React.FC = () => {
     const [isMobileAdvancedOpen, setIsMobileAdvancedOpen] = useState<boolean>(false);
     const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
 
+    // Anonim kullanım sayımı: en fazla 12 saatte bir; hata olursa sessizce geçer.
+    useEffect(() => { recordAppOpen(); }, []);
+
     // Uygulamanin bulundugu diger platformlar. Zaten uzerinde oldugun
     // platformun linkini gostermiyoruz.
     const platformLinks = useMemo(() => {
@@ -1798,6 +1802,12 @@ const App: React.FC = () => {
                 ],
             };
             setSolverStats(displayStats);
+            recordSolve({
+                solver: localFallbackNote ? 'local' : 'cpsat',
+                success: Boolean(result.schedule),
+                classrooms: data.classrooms.length,
+                teachers: data.teachers.length,
+            });
 
             if (result.schedule) {
                 setSchedule(result.schedule);

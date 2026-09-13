@@ -8,7 +8,9 @@ export default defineConfig(({ mode }) => {
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        // Istatistikte hangi dagitimin kullanildigini gormek icin derleme tarihi.
+        '__APP_BUILD__': JSON.stringify(new Date().toISOString().slice(0, 10)),
       },
       resolve: {
         alias: {

@@ -10,6 +10,7 @@ from schools import router as schools_router
 from subscriptions import router as subs_router
 from auth import router as auth_router, get_session_context, get_teacher_links_for_user
 from catalog_router import catalog_router
+from usage import router as usage_router
 from published_schedule_repository import get_published_schedule, upsert_published_schedule
 
 
@@ -123,6 +124,7 @@ app.include_router(schools_router)
 app.include_router(subs_router)
 app.include_router(auth_router)
 app.include_router(catalog_router)
+app.include_router(usage_router)
 
 try:
     _solver_concurrency = max(1, min(4, int(os.environ.get("SOLVER_MAX_CONCURRENCY", "2"))))
