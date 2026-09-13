@@ -11,7 +11,7 @@ import type {
 } from '../types';
 import { SchoolLevel, ClassGroup } from '../types';
 
-const createSimpleInitialData = (): TimetableData => {
+export const createSimpleInitialData = (): TimetableData => {
   const teachers: Teacher[] = [{
     id: 't1',
     name: 'Ali Yılmaz',

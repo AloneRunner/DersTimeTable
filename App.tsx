@@ -31,7 +31,7 @@ import { saveOrShareFile, saveTextFile, isNativeApp } from './services/fileSaver
 import { requestBridgeCode, verifyBridgeCode, loginWithGoogle, loginWithReviewPassword, createSchoolForSession, fetchSessionInfo, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 import { PreflightOverview } from './components/PreflightOverview';
-import { loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
+import { isEmptyOrStarterData, loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
 import { planMove } from './utils/moveValidation';
 import { recordAppOpen, recordSignIn, recordSolve } from './services/usageClient';
 import GoogleSignInButton from './components/GoogleSignInButton';
@@ -666,7 +666,8 @@ const App: React.FC = () => {
 
                 const firstReconcile = !cloudReconciledRef.current;
                 cloudReconciledRef.current = true;
-                const localHasData = firstReconcile && !isCatalogEmpty(dataRef.current);
+                // Varsayilan ornek veri (Ali Yilmaz / 5-A / Turkce) "bu cihazdaki veri" sayilmaz.
+                const localHasData = firstReconcile && !isEmptyOrStarterData(dataRef.current);
                 const schoolName = schoolNamesRef.current[activeSchoolId] || `Okul #${activeSchoolId}`;
 
                 if (localHasData) {
@@ -2357,7 +2358,7 @@ case 'duties':
     const needsSchoolOnboarding = Boolean(sessionInfo)
         && (sessionInfo?.schools?.length ?? 0) === 0
         && (sessionInfo?.user?.role ?? 'admin') !== 'teacher';
-    const hasLocalWorkspaceData = !isCatalogEmpty(data);
+    const hasLocalWorkspaceData = !isEmptyOrStarterData(data);
     const activeSessionUser = sessionInfo?.user;
     const schoolOptions = sessionInfo?.schools ?? [];
     schoolNamesRef.current = Object.fromEntries(

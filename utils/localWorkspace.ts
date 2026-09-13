@@ -63,14 +63,33 @@ const isEmptyData = (d: TimetableData | null | undefined): boolean => {
   );
 };
 
+/**
+ * Veri bos mu, ya da yalniz uygulamanin varsayilan baslangic ornegi mi
+ * (1 ogretmen "Ali Yilmaz", 1 sinif "5-A", 1 ders "Turkce")? Ornek veri
+ * kullanicinin gercek verisi sayilmamali: aksi halde yeni cihazda giris yapan
+ * birine "bu cihazda veri var" diye sorulup gercek bulut verisi ornekle ezilebiliyordu.
+ */
+export const isEmptyOrStarterData = (d: TimetableData | null | undefined): boolean => {
+  if (isEmptyData(d)) return true;
+  const data = d as TimetableData;
+  const onlyOne = <T,>(items: T[] | undefined) => (items?.length ?? 0) === 1;
+  const none = (items: unknown[] | undefined) => (items?.length ?? 0) === 0;
+  return (
+    onlyOne(data.teachers) && data.teachers[0].id === 't1' && data.teachers[0].name === 'Ali Yılmaz' &&
+    onlyOne(data.classrooms) && data.classrooms[0].id === 'c1' && data.classrooms[0].name === '5-A' &&
+    onlyOne(data.subjects) && data.subjects[0].id === 's1' && data.subjects[0].name === 'Türkçe' &&
+    none(data.locations) && none(data.fixedAssignments) && none(data.lessonGroups) && none(data.duties)
+  );
+};
+
 export const saveLocalWorkspace = (draft: Omit<LocalWorkspaceDraft, 'version'>): void => {
   if (typeof window === 'undefined') return;
 
   // Guvenlik kilidi: dolu bir yerel yedegin uzerine BOS veri yazma.
   // (Buluta girip cikinca ekran bosaliyordu ve yedek yok oluyordu.)
-  if (isEmptyData(draft.data)) {
+  if (isEmptyOrStarterData(draft.data)) {
     const existing = loadLocalWorkspace();
-    if (existing && !isEmptyData(existing.data)) {
+    if (existing && !isEmptyOrStarterData(existing.data)) {
       return;
     }
   }
