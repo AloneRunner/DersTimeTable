@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTimetableData } from './hooks/useTimetableData';
-import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats, Assignment, SubstitutionAssignment, PublishedScheduleRecord } from './types';
+import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats, Assignment, SubstitutionAssignment } from './types';
 import { SchoolLevel, ClassGroup, ViewType } from './types';
 import { solveTimetableLocally } from './services/localSolver';
 import { TimetableView } from './components/TimetableView';
@@ -26,11 +26,9 @@ import { assignRandomRestDays } from './utils/assignRandomRestDays';
 import TeacherActualLoadPanel from './components/TeacherActualLoadPanel';
 import TeacherAvailabilityHeatmap from './components/analysis/TeacherAvailabilityHeatmap';
 import MobileScheduleView from './components/mobile/MobileScheduleView';
-import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf, type PrintScope } from './services/pdfExporter';
 import { saveOrShareFile, saveTextFile, isNativeApp } from './services/fileSaver';
-import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
-import { requestBridgeCode, verifyBridgeCode, loginWithGoogle, createSchoolForSession, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, loginWithGoogle, createSchoolForSession, fetchSessionInfo, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 import { PreflightOverview } from './components/PreflightOverview';
 import { loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
@@ -457,20 +455,8 @@ const App: React.FC = () => {
     const [newSchoolStatus, setNewSchoolStatus] = useState<string>('');
     const [newSchoolLoading, setNewSchoolLoading] = useState<boolean>(false);
     const [webPortalStatus, setWebPortalStatus] = useState<string>('');
-    const [linkTeacherState, setLinkTeacherState] = useState<{ teacherId: string; teacherName: string } | null>(null);
-    const [linkTeacherEmail, setLinkTeacherEmail] = useState<string>('');
-    const [linkTeacherName, setLinkTeacherName] = useState<string>('');
-    const [linkTeacherStatus, setLinkTeacherStatus] = useState<string | null>(null);
-    const [isLinkingTeacher, setIsLinkingTeacher] = useState<boolean>(false);
-    const [linkTeacherPassword, setLinkTeacherPassword] = useState<string | null>(null);
-    const [customTeacherPassword, setCustomTeacherPassword] = useState<string>('');
-    const [isResettingTeacherPassword, setIsResettingTeacherPassword] = useState<boolean>(false);
-    const [showTeacherPassword, setShowTeacherPassword] = useState<boolean>(false);
-    const [publishedSchedule, setPublishedSchedule] = useState<PublishedScheduleRecord | null>(null);
     const [activeSchoolId, setActiveSchoolId] = useState<number | null>(null);
     const isRemoteMode = Boolean(sessionToken && activeSchoolId);
-    const [teacherLinksMap, setTeacherLinksMap] = useState<Record<string, TeacherLinkRecord>>({});
-    const [teacherLinksStatus, setTeacherLinksStatus] = useState<'idle' | 'loading' | 'error'>('idle');
     const [catalogStatus, setCatalogStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
     const [catalogError, setCatalogError] = useState<string | null>(null);
     const [catalogSyncStatus, setCatalogSyncStatus] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -490,22 +476,6 @@ const App: React.FC = () => {
     const justCreatedSchoolIdRef = useRef<number | null>(null);
     const schoolNamesRef = useRef<Record<number, string>>({});
     const schoolHoursRef = useRef<SchoolHours>(schoolHours);
-    const isAdminSession = useMemo(() => {
-        const role = (sessionInfo?.user?.role || '').toLowerCase();
-        return ['admin', 'owner', 'manager', 'super_admin'].includes(role);
-    }, [sessionInfo?.user?.role]);
-
-    const refreshTeacherLinks = useCallback(async (token: string, schoolId: number) => {
-        const items = await fetchTeacherLinksApi(token, schoolId);
-        const map: Record<string, TeacherLinkRecord> = {};
-        items.forEach(item => {
-            if (item.teacher_id) {
-                map[item.teacher_id] = item;
-            }
-        });
-        setTeacherLinksMap(map);
-    }, []);
-
     useEffect(() => {
         setSchoolHoursDraft(schoolHoursToDraft(schoolHours));
     }, [schoolHours]);
@@ -517,31 +487,6 @@ const App: React.FC = () => {
     useEffect(() => {
         schoolHoursRef.current = schoolHours;
     }, [schoolHours]);
-
-    useEffect(() => {
-        if (!isAdminSession || !sessionToken || !activeSchoolId) {
-            setTeacherLinksMap({});
-            setTeacherLinksStatus('idle');
-            return;
-        }
-        let cancelled = false;
-        setTeacherLinksStatus('loading');
-        refreshTeacherLinks(sessionToken, activeSchoolId)
-            .then(() => {
-                if (!cancelled) {
-                    setTeacherLinksStatus('idle');
-                }
-            })
-            .catch((err) => {
-                if (!cancelled) {
-                    console.error('teacher-links-load-failed', err);
-                    setTeacherLinksStatus('error');
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [isAdminSession, sessionToken, activeSchoolId, refreshTeacherLinks]);
 
     useEffect(() => () => {
         if (pendingSyncRef.current) {
@@ -746,7 +691,6 @@ const App: React.FC = () => {
         const timeout = setTimeout(() => setWebPortalStatus(''), 4000);
         return () => clearTimeout(timeout);
     }, [webPortalStatus]);
-    const currentTeacherLink = linkTeacherState ? teacherLinksMap[linkTeacherState.teacherId] : undefined;
 
     const persistSessionToken = useCallback((token: string | null) => {
         if (token) {
@@ -791,7 +735,6 @@ const App: React.FC = () => {
         setSessionStatus('idle');
         setSessionError(null);
         setActiveSchoolId(null);
-        setPublishedSchedule(null);
     }, [persistSessionToken]);
 
     const [substitutionAssignments, setSubstitutionAssignments] = useState<SubstitutionAssignment[]>(() => {
@@ -812,7 +755,6 @@ const App: React.FC = () => {
             // ignore persistence errors
         }
     }, [substitutionAssignments]);
-    const [isPublishing, setIsPublishing] = useState<boolean>(false);
 
     const handleAssignSubstitution = useCallback((assignment: SubstitutionAssignment) => {
         setSubstitutionAssignments((prev) => {
@@ -825,69 +767,6 @@ const App: React.FC = () => {
         setSubstitutionAssignments((prev) => prev.filter(item => item.id !== assignmentId));
     }, []);
 
-    const loadPublishedSchedule = useCallback(async (schoolId: number) => {
-        if (!sessionToken) return;
-        try {
-            const response = await fetchPublishedScheduleApi(sessionToken, schoolId);
-            setPublishedSchedule({
-                schoolId: response.school_id,
-                schedule: response.schedule,
-                data: response.data,
-                publishedAt: response.published_at,
-                publishedBy: response.published_by ?? null,
-                substitutionAssignments: (response.substitution_assignments ?? []),
-            });
-            setSubstitutionAssignments(response.substitution_assignments ?? []);
-        } catch (err: any) {
-            if (err?.code === 'schedule-not-found') {
-                setPublishedSchedule(null);
-            } else {
-                console.error('published-schedule-fetch-failed', err);
-            }
-        }
-    }, [sessionToken]);
-
-    const handlePublishSchedule = useCallback(async () => {
-        if (!schedule) {
-            alert('Önce ders programı oluşturun.');
-            return;
-        }
-        if (!sessionToken) {
-            alert('Önce oturum açın.');
-            return;
-        }
-        if (!activeSchoolId) {
-            alert('Lütfen bağlı olduğunuz okulu seçin.');
-            return;
-        }
-        setIsPublishing(true);
-        try {
-            const record = await publishScheduleApi(sessionToken, {
-                schoolId: activeSchoolId,
-                schedule: schedule as Schedule,
-                data,
-                substitutionAssignments: substitutionAssignments,
-            });
-            setPublishedSchedule({
-                schoolId: record.school_id,
-                schedule: record.schedule,
-                data: record.data,
-                publishedAt: record.published_at,
-                publishedBy: record.published_by ?? null,
-                substitutionAssignments: (record.substitution_assignments ?? []),
-            });
-            setSubstitutionAssignments(record.substitution_assignments ?? substitutionAssignments);
-            setWebPortalStatus('Program öğretmenlerle paylaşıldı.');
-        } catch (err) {
-            console.error('publish-schedule-failed', err);
-            const message = err instanceof Error ? err.message : 'Program yayınlanamadı';
-            setWebPortalStatus(message);
-            alert(message);
-        } finally {
-            setIsPublishing(false);
-        }
-    }, [schedule, data, activeSchoolId, sessionToken, substitutionAssignments]);
-
     useEffect(() => {
         const schools = sessionInfo?.schools;
         if (!schools || schools.length === 0) return;
@@ -899,11 +778,6 @@ const App: React.FC = () => {
             setActiveSchoolId(numericIds[0]);
         }
     }, [sessionInfo, activeSchoolId]);
-
-    useEffect(() => {
-        if (!sessionToken || !activeSchoolId) return;
-        loadPublishedSchedule(activeSchoolId);
-    }, [sessionToken, activeSchoolId, loadPublishedSchedule]);
 
     const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
     const [activeScheduleName, setActiveScheduleName] = useState<string | null>(() => initialSessionToken ? null : initialLocalWorkspace?.activeScheduleName || null);
@@ -930,14 +804,6 @@ const App: React.FC = () => {
         }, 400);
         return () => window.clearTimeout(timeout);
     }, [data, schedule, schoolHours, activeScheduleName, sessionToken]);
-    const publishedAtText = useMemo(() => {
-        if (!publishedSchedule?.publishedAt) return null;
-        try {
-            return new Date(publishedSchedule.publishedAt).toLocaleString('tr-TR');
-        } catch {
-            return publishedSchedule.publishedAt;
-        }
-    }, [publishedSchedule]);
     
     const maxDailyHours = useMemo(() => {
         const flat = (Object.values(schoolHours).flat() as number[]);
@@ -1068,191 +934,6 @@ const App: React.FC = () => {
 
         window.alert(`${teacher.name} için ${restCount} izin günü ayarlandı: ${chosenNames}.`);
     }, [data.teachers, updateTeacher, maxDailyHours]);
-
-    const handleOpenLinkTeacherModal = useCallback((teacher: Teacher) => {
-        const existingLink = teacherLinksMap[teacher.id];
-        setLinkTeacherState({ teacherId: teacher.id, teacherName: teacher.name });
-        setLinkTeacherEmail(existingLink?.email ?? '');
-        setLinkTeacherName(existingLink?.name || teacher.name || '');
-        setLinkTeacherStatus(existingLink ? 'Bu ogretmen su anda uygulamaya bagli.' : null);
-        setLinkTeacherPassword(null);
-        setCustomTeacherPassword('');
-        setShowTeacherPassword(false);
-    }, [teacherLinksMap]);
-
-    const closeLinkTeacherModal = useCallback(() => {
-        setLinkTeacherState(null);
-        setLinkTeacherEmail('');
-        setLinkTeacherName('');
-        setLinkTeacherStatus(null);
-        setIsLinkingTeacher(false);
-        setLinkTeacherPassword(null);
-        setCustomTeacherPassword('');
-        setShowTeacherPassword(false);
-        setIsResettingTeacherPassword(false);
-    }, []);
-
-    const handleLinkTeacherSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (!linkTeacherState) return;
-        const email = linkTeacherEmail.trim().toLowerCase();
-        if (!email) {
-            setLinkTeacherStatus('Ogretmen e-postasi gerekli');
-            return;
-        }
-        if (!sessionToken) {
-            setLinkTeacherStatus('Once yonetici olarak oturum acmalisiniz.');
-            return;
-        }
-        if (!activeSchoolId) {
-            setLinkTeacherStatus('Once bagli oldugunuz okulu secin.');
-            return;
-        }
-        setIsLinkingTeacher(true);
-        setLinkTeacherStatus(null);
-        try {
-            await linkTeacher(sessionToken, {
-                schoolId: activeSchoolId,
-                teacherId: linkTeacherState.teacherId,
-                email,
-                name: linkTeacherName.trim() || undefined,
-            });
-            await refreshTeacherLinks(sessionToken, activeSchoolId);
-            setLinkTeacherStatus('Ogretmen kaydedildi. Yeni sifre olusturabilirsiniz.');
-            setLinkTeacherPassword(null);
-            setCustomTeacherPassword('');
-            setShowTeacherPassword(false);
-            try {
-                const info = await fetchSessionInfo(sessionToken);
-                setSessionInfo(info);
-                setSessionStatus('ready');
-                setSessionError(null);
-            } catch (refreshErr) {
-                console.error('refresh session failed', refreshErr);
-            }
-        } catch (err: any) {
-            setLinkTeacherStatus(err instanceof Error ? err.message : 'Ogretmen baglantisi kurulamadı');
-        } finally {
-            setIsLinkingTeacher(false);
-        }
-    }, [linkTeacherState, linkTeacherEmail, linkTeacherName, sessionToken, activeSchoolId, refreshTeacherLinks]);
-
-    const handleUnlinkTeacher = useCallback(async () => {
-        if (!linkTeacherState) {
-            setLinkTeacherStatus('Once ogretmeni secin.');
-            return;
-        }
-        if (!sessionToken) {
-            setLinkTeacherStatus('Once yonetici olarak oturum acmalisiniz.');
-            return;
-        }
-        if (!activeSchoolId) {
-            setLinkTeacherStatus('Once bagli oldugunuz okulu secin.');
-            return;
-        }
-        const existingLink = teacherLinksMap[linkTeacherState.teacherId];
-        if (!existingLink) {
-            setLinkTeacherStatus('Bu ogretmen zaten baglantisiz.');
-            return;
-        }
-        setIsLinkingTeacher(true);
-        try {
-            await unlinkTeacherApi(sessionToken, {
-                schoolId: activeSchoolId,
-                teacherId: linkTeacherState.teacherId,
-            });
-            await refreshTeacherLinks(sessionToken, activeSchoolId);
-            setLinkTeacherEmail('');
-            setLinkTeacherStatus('Baglanti kaldirildi.');
-            setLinkTeacherPassword(null);
-            setCustomTeacherPassword('');
-            setShowTeacherPassword(false);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Baglanti kaldirma basarisiz';
-            setLinkTeacherStatus(message);
-        } finally {
-            setIsLinkingTeacher(false);
-        }
-    }, [linkTeacherState, teacherLinksMap, sessionToken, activeSchoolId, refreshTeacherLinks]);
-
-    const handleGenerateTeacherPassword = useCallback(async () => {
-        if (!linkTeacherState) {
-            setLinkTeacherStatus('Once ogretmeni secin.');
-            return;
-        }
-        if (!sessionToken) {
-            setLinkTeacherStatus('Once yonetici olarak oturum acmalisiniz.');
-            return;
-        }
-        if (!activeSchoolId) {
-            setLinkTeacherStatus('Once bagli oldugunuz okulu secin.');
-            return;
-        }
-        setIsResettingTeacherPassword(true);
-        setLinkTeacherStatus(null);
-        try {
-            const response = await resetTeacherPassword(sessionToken, {
-                schoolId: activeSchoolId,
-                teacherId: linkTeacherState.teacherId,
-            });
-            await refreshTeacherLinks(sessionToken, activeSchoolId);
-            setLinkTeacherPassword(response.password);
-            setCustomTeacherPassword('');
-            setShowTeacherPassword(true);
-            setLinkTeacherStatus('Yeni sifre olusturuldu. Ogretmenle paylasmayi unutmayin.');
-        } catch (err: any) {
-            setLinkTeacherStatus(err instanceof Error ? err.message : 'Sifre olusturma basarisiz');
-        } finally {
-            setIsResettingTeacherPassword(false);
-        }
-    }, [linkTeacherState, sessionToken, activeSchoolId, refreshTeacherLinks]);
-
-    const handleSetTeacherPassword = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (!linkTeacherState) {
-            setLinkTeacherStatus('Once ogretmeni secin.');
-            return;
-        }
-        if (!sessionToken) {
-            setLinkTeacherStatus('Once yonetici olarak oturum acmalisiniz.');
-            return;
-        }
-        if (!activeSchoolId) {
-            setLinkTeacherStatus('Once bagli oldugunuz okulu secin.');
-            return;
-        }
-        const password = customTeacherPassword.trim();
-        if (password.length < 4) {
-            setLinkTeacherStatus('Sifre en az 4 haneli olmali.');
-            return;
-        }
-        if (password.length > 32) {
-            setLinkTeacherStatus('Sifre en fazla 32 haneli olabilir.');
-            return;
-        }
-        if (!/^\d+$/.test(password)) {
-            setLinkTeacherStatus('Sifre sadece rakamlardan olusmalidir.');
-            return;
-        }
-        setIsResettingTeacherPassword(true);
-        setLinkTeacherStatus(null);
-        try {
-            const response = await resetTeacherPassword(sessionToken, {
-                schoolId: activeSchoolId,
-                teacherId: linkTeacherState.teacherId,
-                password,
-            });
-            await refreshTeacherLinks(sessionToken, activeSchoolId);
-            setLinkTeacherPassword(response.password);
-            setCustomTeacherPassword('');
-            setShowTeacherPassword(true);
-            setLinkTeacherStatus('Sifre guncellendi.');
-        } catch (err: any) {
-            setLinkTeacherStatus(err instanceof Error ? err.message : 'Sifre guncellenemedi');
-        } finally {
-            setIsResettingTeacherPassword(false);
-        }
-    }, [linkTeacherState, customTeacherPassword, sessionToken, activeSchoolId, refreshTeacherLinks]);
 
     const handleSchoolHoursChange = (level: SchoolLevel, dayIndex: number, value: string) => {
         const trimmed = value.trim();
@@ -1683,7 +1364,6 @@ const App: React.FC = () => {
     const [showHeatmapPanel, setShowHeatmapPanel] = useState<boolean>(false);
     const [showDutyWarnings, setShowDutyWarnings] = useState<boolean>(false);
     const [showDutyCoverage, setShowDutyCoverage] = useState<boolean>(false);
-    const [isTeacherAppOpen, setIsTeacherAppOpen] = useState<boolean>(false);
 
 
     // Load saved settings
@@ -2140,7 +1820,6 @@ case 'teachers':
                 <div className="flex flex-wrap items-center gap-1">
                     <button onClick={() => handleAssignRandomRestDays(item.id, 1)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 1 tam gün izin ayarla">1 Gün</button>
                     <button onClick={() => handleAssignRandomRestDays(item.id, 2)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100" title="Bu öğretmene rastgele 2 tam gün izin ayarla">2 Gün</button>
-                    <button onClick={() => handleOpenLinkTeacherModal(item)} className="px-2 py-1 text-xs font-medium rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50">Uygulamaya Bağla</button>
                     <button onClick={() => handleOpenModal(activeTab, item)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
                     <button onClick={() => onRemove(item.id)} className="p-1 text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
                 </div>
@@ -2179,7 +1858,6 @@ case 'teachers':
                 <div className="mt-3 flex flex-wrap gap-2">
                     <button onClick={() => handleAssignRandomRestDays(item.id, 1)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100">1 Gün İzin</button>
                     <button onClick={() => handleAssignRandomRestDays(item.id, 2)} className="px-2 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100">2 Gün İzin</button>
-                    <button onClick={() => handleOpenLinkTeacherModal(item)} className="px-2 py-1 text-xs font-medium rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50">Uygulamaya Bağla</button>
                     {item.canTeachMiddleSchool && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Ortaokul</span>}
                     {item.canTeachHighSchool && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">Lise</span>}
                 </div>
@@ -3657,30 +3335,11 @@ case 'duties':
                                         PDF indir
                                     </button>
                                 </div>
-                                <button
-                                    onClick={handlePublishSchedule}
-                                    className="px-3 py-1.5 rounded-md bg-sky-500 text-white text-sm font-medium shadow hover:bg-sky-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                    disabled={!schedule || !activeSchoolId || isPublishing}
-                                    title={
-                                        !schedule
-                                            ? 'Önce program oluştur'
-                                            : !activeSchoolId
-                                                ? 'Bağlı okul seçilmedi'
-                                                : 'Programı öğretmen uygulamasıyla paylaş'
-                                    }
-                                >
-                                    {isPublishing ? 'Paylaşılıyor…' : 'Programı Paylaş'}
-                                </button>
                                 <button onClick={handleSaveSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı Kaydet"><SaveIcon className="w-5 h-5" /></button>
                                 <button onClick={handleExportSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı ve Verileri İndir"><DownloadIcon className="w-5 h-5" /></button>
                                 <button onClick={handlePrint} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Yazdır"><PrintIcon className="w-5 h-5" /></button>
                             </div>
                         </div>
-                        {publishedAtText && (
-                            <p className="no-print text-xs text-slate-500 sm:text-right">
-                                Son paylaşılan program: {publishedAtText}
-                            </p>
-                        )}
                         {moveFeedback && (
                             <div
                                 role="status"
@@ -3778,150 +3437,6 @@ case 'duties':
                 {renderModalContent()}
             </Modal>
 
-            <Modal
-                isOpen={linkTeacherState !== null}
-                onClose={closeLinkTeacherModal}
-                title="Öğretmeni Uygulamaya Bağla"
-            >
-                {linkTeacherState && (
-                    <form onSubmit={handleLinkTeacherSubmit} className="space-y-4 text-sm">
-                        <div className="space-y-1">
-                            <span className="block text-xs uppercase tracking-wide text-slate-500">Öğretmen</span>
-                            <span className="font-semibold text-slate-700">{linkTeacherState.teacherName}</span>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-medium text-slate-600" htmlFor="link-teacher-email">Öğretmen e-postası</label>
-                            <input
-                                id="link-teacher-email"
-                                type="email"
-                                value={linkTeacherEmail}
-                                onChange={(event) => setLinkTeacherEmail(event.target.value)}
-                                required
-                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                placeholder="ogretmen@example.com"
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-medium text-slate-600" htmlFor="link-teacher-name">Ad (istege bagli)</label>
-                            <input
-                                id="link-teacher-name"
-                                type="text"
-                                value={linkTeacherName}
-                                onChange={(event) => setLinkTeacherName(event.target.value)}
-                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                placeholder="Ogretmen adi"
-                            />
-                        </div>
-                        {teacherLinksStatus === 'loading' && (
-                            <p className="text-xs text-slate-500">Baglanti durumu yukleniyor...</p>
-                        )}
-                        {currentTeacherLink && (
-                            <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
-                                <span className="font-medium text-slate-700">{currentTeacherLink.email}</span> adresi ile baglantili.
-                            </div>
-                        )}
-                        {linkTeacherStatus && (
-                            <p className="text-xs text-slate-600">{linkTeacherStatus}</p>
-                        )}
-                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 space-y-3 text-xs text-slate-600">
-                            <p>Bu ogretmeni uygulamaya almak icin e-postayi kaydedin ve asagidaki sifre aracini kullanin. Sifre en az 4 haneli ve sadece rakamlardan olusmalidir.</p>
-                            {linkTeacherPassword && (
-                                <div className="rounded-lg bg-slate-900 px-3 py-3 text-white">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="font-mono text-xl tracking-[0.3em]">
-                                            {showTeacherPassword ? linkTeacherPassword : '****'}
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowTeacherPassword((prev) => !prev)}
-                                                className="rounded border border-white/40 px-2 py-1 text-[11px] font-medium hover:bg-white/10"
-                                            >
-                                                {showTeacherPassword ? 'Gizle' : 'Goster'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (linkTeacherPassword && navigator?.clipboard) {
-                                                        navigator.clipboard
-                                                            .writeText(linkTeacherPassword)
-                                                            .then(() => setLinkTeacherStatus('Sifre panoya kopyalandi.'))
-                                                            .catch(() => setLinkTeacherStatus('Panoya kopyalanamadi.'));
-                                                    }
-                                                }}
-                                                className="rounded border border-white/40 px-2 py-1 text-[11px] font-medium hover:bg-white/10"
-                                            >
-                                                Kopyala
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <p className="mt-2 text-[11px] text-slate-200">Bu sifreyi ogretmenle paylasin. Sifre bu ekran kapandiginda yeniden gosterilmez.</p>
-                                </div>
-                            )}
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-slate-600" htmlFor="teacher-password-input">Manuel sifre belirle</label>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <input
-                                        id="teacher-password-input"
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="\\d*"
-                                        value={customTeacherPassword}
-                                        onChange={(event) => setCustomTeacherPassword(event.target.value.replace(/\D/g, ''))}
-                                        className="w-full min-w-[120px] flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                        placeholder="4+ haneli sifre"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleSetTeacherPassword}
-                                        disabled={isResettingTeacherPassword}
-                                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60"
-                                    >
-                                        {isResettingTeacherPassword ? 'Kaydediliyor...' : 'Sifreyi Kaydet'}
-                                    </button>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleGenerateTeacherPassword}
-                                disabled={isResettingTeacherPassword}
-                                className="w-full rounded-md border border-indigo-300 bg-white px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60"
-                            >
-                                {isResettingTeacherPassword ? 'Sifre uretiliyor...' : 'Rastgele sifre olustur'}
-                            </button>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            {currentTeacherLink && (
-                                <button
-                                    type="button"
-                                    onClick={handleUnlinkTeacher}
-                                    disabled={isLinkingTeacher}
-                                    className="rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
-                                >
-                                    Baglantiyi Kaldir
-                                </button>
-                            )}
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={closeLinkTeacherModal}
-                                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
-                                >
-                                    Iptal
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isLinkingTeacher}
-                                    className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 disabled:cursor-wait disabled:opacity-60"
-                                >
-                                    {isLinkingTeacher ? 'Baglaniyor...' : 'Baglantiyi Kaydet'}
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                )}
-            </Modal>
-
             {/* CP-SAT Help Modal */}
             <Modal isOpen={cpHelpOpen} onClose={()=>setCpHelpOpen(false)} title="CP-SAT Ayar Açıklamaları">
               <div className="space-y-3 text-sm text-slate-700">
@@ -3937,27 +3452,6 @@ case 'duties':
                 <p><span className="font-semibold">Aynı gün parçalanabilir</span>: Dersi gün içinde araya boşluk girerek bölebilir. Kapalı tutmak blok/bütünlüğü artırır.</p>
               </div>
             </Modal>
-
-            <button
-                onClick={() => setIsTeacherAppOpen(true)}
-                className="fixed bottom-4 right-4 flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700"
-                title="Ogretmen Panelini Ac"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                    <path d="M12 12a5 5 0 100-10 5 5 0 000 10zM2 20a10 10 0 0120 0H2z" />
-                </svg>
-                <span>Ogretmen Paneli</span>
-            </button>
-
-            <TeacherApp
-                publishedData={publishedSchedule?.data ?? null}
-                publishedSchedule={publishedSchedule?.schedule ?? null}
-                assignments={substitutionAssignments}
-                maxDailyHours={maxDailyHours}
-                isOpen={isTeacherAppOpen}
-                onClose={() => setIsTeacherAppOpen(false)}
-                publishedAt={publishedSchedule?.publishedAt}
-            />
 
         </div>
     );

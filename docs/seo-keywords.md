@@ -94,7 +94,7 @@ Uzun kuyruk (SSS ve özellik listesinde):
     • Sınıf, öğretmen ve toplu A4 çizelge olarak PDF çıktısı
     • Sürükle-bırak ile elle düzenleme
     • Program öncesi kontrol: eksik saat, öğretmensiz ders, yetmeyen müsaitlik
-    • Bulut senkronizasyonu, öğretmen paneli ve JSON yedekleme
+    • Bulut senkronizasyonu (web, Android, Windows) ve JSON yedekleme
 
     KİMLER İÇİN
     Ders programı hazırlamakla görevli okul müdürleri, müdür yardımcıları ve
@@ -105,7 +105,7 @@ Uzun kuyruk (SSS ve özellik listesinde):
     1. Öğretmenleri, sınıfları ve dersleri girin.
     2. Müsaitlikleri, blok dersleri ve günlük ders saatlerini belirleyin.
     3. "Program Oluştur" deyin; tüm kısıtları sağlayan program hazırlanır.
-    4. Gerekirse düzenleyin, PDF alın, öğretmenlerle paylaşın.
+    4. Gerekirse düzenleyin, PDF alıp öğretmenlerle WhatsApp veya e-postayla paylaşın.
 
     Aynı hesabı bilgisayarda web sürümünden (idare.ozarik.org) ve Microsoft
     Store'daki Windows uygulamasından da kullanabilirsiniz. Tamamen ücretsizdir;
