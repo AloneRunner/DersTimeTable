@@ -1,9 +1,22 @@
+import { registerPlugin } from '@capacitor/core';
+import { isNativeApp } from './fileSaver';
+
 /**
- * Google Identity Services (Google ile giriş) yükleyicisi.
+ * Google ile giriş.
  *
- * Betik yalnız giriş ekranı gösterildiğinde yüklenir. Android uygulamasında
- * kullanılmaz: Google, gömülü WebView içinden girişe izin vermiyor.
+ * Web ve Windows: Google Identity Services betiği, yalnız giriş ekranı
+ * gösterildiğinde yüklenir.
+ * Android: Google gömülü WebView içinden girişe izin vermediği için yerel
+ * GoogleSignInPlugin (Credential Manager) kullanılır. İkisi de sunucuya aynı
+ * web istemci kimliğine yazılmış bir Google ID tokeni verir.
  */
+
+interface NativeGoogleSignInPlugin {
+  signIn(options: { webClientId: string; nonce?: string }): Promise<{ idToken: string; email?: string; name?: string }>;
+  signOut(): Promise<void>;
+}
+
+const NativeGoogleSignIn = registerPlugin<NativeGoogleSignInPlugin>('GoogleSignIn');
 
 const DEFAULT_CLIENT_ID = '138011207344-nb82m06verjm5jmfdfr1unnsbcqg2o1v.apps.googleusercontent.com';
 
@@ -81,11 +94,23 @@ export const renderGoogleButton = async (
   });
 };
 
+/** Android: yerel hesap seçiciyi açar ve Google ID tokenini döndürür. */
+export const signInWithGoogleNative = async (): Promise<string> => {
+  const result = await NativeGoogleSignIn.signIn({ webClientId: GOOGLE_CLIENT_ID });
+  if (!result?.idToken) throw Object.assign(new Error('Google kimlik bilgisi alınamadı'), { code: 'invalid-response' });
+  return result.idToken;
+};
+
 /** Çıkışta Google'ın bir sonraki girişte hesabı kendiliğinden seçmesini engeller. */
 export const disableGoogleAutoSelect = () => {
   try {
     window.google?.accounts?.id?.disableAutoSelect?.();
   } catch {
     // Betik yüklenmemiş olabilir.
+  }
+  if (isNativeApp()) {
+    void NativeGoogleSignIn.signOut().catch(() => {
+      // Temizlenecek oturum yoksa sorun değil.
+    });
   }
 };

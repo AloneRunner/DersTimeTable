@@ -60,7 +60,7 @@ const WINDOWS_STORE_URL = 'https://apps.microsoft.com/detail/9N5Z8M82FSQ2';
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.ozarik.dersprogrami';
 const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
 // true: web ve Windows'ta giris zorunlu, "giris yapmadan devam et" gizlenir.
-// Android uygulamasi yerel Google girisi gelene kadar bu kuraldan muaftir.
+// Android'de giris yerel hesap seciciyle (GoogleSignInPlugin) yapilir.
 const REQUIRE_SIGN_IN = true;
 
 /** Katalogda hic anlamli kayit var mi? (bos bulut katalogunu tespit etmek icin) */
@@ -2572,9 +2572,9 @@ case 'duties':
     
     const sessionLoading = sessionStatus === 'loading';
     const nativeApp = isNativeApp();
-    const requiresWebAuth = !nativeApp && !sessionInfo && !sessionLoading
+    const requiresWebAuth = !sessionInfo && !sessionLoading
         && (REQUIRE_SIGN_IN || (!isSmallScreen && !guestWebMode));
-    const needsSchoolOnboarding = !nativeApp && Boolean(sessionInfo)
+    const needsSchoolOnboarding = Boolean(sessionInfo)
         && (sessionInfo?.schools?.length ?? 0) === 0
         && (sessionInfo?.user?.role ?? 'admin') !== 'teacher';
     const hasLocalWorkspaceData = !isCatalogEmpty(data);
@@ -3092,7 +3092,8 @@ case 'duties':
                                 </div>
                             )}
 
-                            <div className="border-t border-slate-200 pt-3 space-y-3">
+                            {/* Telefon kodu, telefondan web'e gecis icindir; Android'in kendisinde anlamsiz. */}
+                            <div className={nativeApp ? 'hidden' : 'border-t border-slate-200 pt-3 space-y-3'}>
                                 <button
                                     type="button"
                                     onClick={() => setShowCodeLogin((open) => !open)}
