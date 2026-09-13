@@ -666,16 +666,20 @@ const App: React.FC = () => {
 
                 const firstReconcile = !cloudReconciledRef.current;
                 cloudReconciledRef.current = true;
-                // Varsayilan ornek veri (Ali Yilmaz / 5-A / Turkce) "bu cihazdaki veri" sayilmaz.
-                const localHasData = firstReconcile && !isEmptyOrStarterData(dataRef.current);
+                const justCreated = justCreatedSchoolIdRef.current === activeSchoolId;
+                justCreatedSchoolIdRef.current = null;
+                // Varsayilan ornek veri (Ali Yilmaz / 5-A / Turkce), var olan bir okul icin
+                // "bu cihazdaki veri" sayilmaz; yoksa gercek bulut verisi ornekle ezilebilir.
+                // Az once olusturulan bos okula ise yeni kullaniciya ornek olsun diye aktarilir.
+                const localHasData = firstReconcile && (
+                    justCreated ? !isCatalogEmpty(dataRef.current) : !isEmptyOrStarterData(dataRef.current)
+                );
                 const schoolName = schoolNamesRef.current[activeSchoolId] || `Okul #${activeSchoolId}`;
 
                 if (localHasData) {
                     const local = dataRef.current;
                     const localSummary = `${local.teachers.length} öğretmen, ${local.classrooms.length} sınıf, ${local.subjects.length} ders`;
                     const cloudEmpty = isCatalogEmpty(result.data);
-                    const justCreated = justCreatedSchoolIdRef.current === activeSchoolId;
-                    justCreatedSchoolIdRef.current = null;
 
                     let keepLocal: boolean;
                     if (cloudEmpty && justCreated) {
