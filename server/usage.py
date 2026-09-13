@@ -169,8 +169,7 @@ def _storage_record(
 # --- İstatistik (yalnız sahibine) -------------------------------------------
 
 
-@router.get('/admin/stats')
-def admin_stats(x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+def _require_admin(x_admin_key: Optional[str]) -> None:
     expected = _admin_key()
     if not expected:
         raise HTTPException(status_code=503, detail='admin-stats-key-not-configured')
@@ -179,9 +178,64 @@ def admin_stats(x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, 
     if not USE_DB:
         raise HTTPException(status_code=503, detail='stats-require-database')
 
+
+@router.get('/admin/stats')
+def admin_stats(x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    _require_admin(x_admin_key)
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             return _collect_stats(cur)
+
+
+def _school_rows(cur: Any, school_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    where = 'WHERE s.id = %(id)s' if school_id is not None else ''
+    cur.execute(f"""
+        SELECT s.id, s.name, s.created_at,
+               COALESCE((
+                 SELECT json_agg(json_build_object('email', u.email, 'role', su.role) ORDER BY u.email)
+                 FROM school_users su JOIN users u ON u.id = su.user_id
+                 WHERE su.school_id = s.id
+               ), '[]'::json) AS members,
+               (SELECT COUNT(*) FROM school_teachers t WHERE t.school_id = s.id) AS teachers,
+               (SELECT COUNT(*) FROM school_classrooms c WHERE c.school_id = s.id) AS classrooms,
+               (SELECT COUNT(*) FROM school_subjects x WHERE x.school_id = s.id) AS subjects,
+               GREATEST(
+                 (SELECT MAX(updated_at) FROM school_teachers WHERE school_id = s.id),
+                 (SELECT MAX(updated_at) FROM school_classrooms WHERE school_id = s.id),
+                 (SELECT MAX(updated_at) FROM school_subjects WHERE school_id = s.id),
+                 (SELECT MAX(updated_at) FROM school_settings WHERE school_id = s.id)
+               ) AS data_updated_at,
+               EXISTS (SELECT 1 FROM published_schedules p WHERE p.school_id = s.id) AS published
+        FROM schools s
+        {where}
+        ORDER BY s.created_at DESC, s.id DESC
+        LIMIT 1000
+    """, {'id': school_id})
+    return list(cur.fetchall())
+
+
+@router.delete('/admin/schools/{school_id}')
+def admin_delete_school(school_id: int, x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Okulu ve okula bagli tum verileri kalici olarak siler (yalniz uygulama sahibine).
+
+    Katalog tablolari, uyelikler, ogretmen baglantilari ve yayinlanan programlar
+    ON DELETE CASCADE ile gider. Kullanilmayan students/attendance tablolarinda
+    kademeli silme olmadigi icin once onlar temizlenir.
+    """
+    _require_admin(x_admin_key)
+    with psycopg.connect(DATABASE_URL) as conn:  # tek islem: hata olursa hicbir sey silinmez
+        with conn.cursor(row_factory=dict_row) as cur:
+            rows = _school_rows(cur, school_id)
+            if not rows:
+                raise HTTPException(status_code=404, detail='school-not-found')
+            cur.execute(
+                'DELETE FROM attendance WHERE student_id IN (SELECT id FROM students WHERE school_id = %s)',
+                (school_id,),
+            )
+            cur.execute('DELETE FROM students WHERE school_id = %s', (school_id,))
+            cur.execute('DELETE FROM schools WHERE id = %s', (school_id,))
+    logger.warning('admin-deleted-school id=%s name=%s', school_id, rows[0].get('name'))
+    return {'ok': True, 'deleted': rows[0]}
 
 
 def _one(cur: Any, sql: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -295,4 +349,5 @@ def _collect_stats(cur: Any) -> Dict[str, Any]:
         'daily': daily,
         'accounts': accounts,
         'recentUsers': recent_users,
+        'schools': _school_rows(cur),
     }

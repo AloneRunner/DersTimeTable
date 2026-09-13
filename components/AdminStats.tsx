@@ -40,6 +40,17 @@ type Stats = {
     published_schedules: number;
     teacher_links: number;
   };
+  schools?: Array<{
+    id: number;
+    name: string;
+    created_at: string;
+    members: Array<{ email: string; role: string | null }>;
+    teachers: number;
+    classrooms: number;
+    subjects: number;
+    data_updated_at: string | null;
+    published: boolean;
+  }>;
   recentUsers: Array<{
     id: number;
     email: string;
@@ -251,6 +262,201 @@ const ColumnChart: React.FC<{ data: ColumnDatum[]; unit: string; ariaLabel: stri
         </div>
       </div>
     </div>
+  );
+};
+
+type SchoolRow = NonNullable<Stats['schools']>[number];
+
+const SchoolsCard: React.FC<{ schools: SchoolRow[]; adminKey: string; onChanged: () => void }> = ({
+  schools,
+  adminKey,
+  onChanged,
+}) => {
+  const [query, setQuery] = useState('');
+  const [onlyEmpty, setOnlyEmpty] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase('tr-TR');
+    return schools.filter((school) => {
+      if (onlyEmpty && school.teachers + school.classrooms + school.subjects > 0) return false;
+      if (!needle) return true;
+      const haystack = [String(school.id), school.name, ...school.members.map((m) => m.email)]
+        .join(' ')
+        .toLocaleLowerCase('tr-TR');
+      return haystack.includes(needle);
+    });
+  }, [schools, query, onlyEmpty]);
+
+  // Silinen okullar seçimde kalmasın.
+  useEffect(() => {
+    const existing = new Set(schools.map((school) => school.id));
+    setSelected((prev) => new Set([...prev].filter((id) => existing.has(id))));
+  }, [schools]);
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((school) => selected.has(school.id));
+
+  const toggle = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleAllFiltered = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      filtered.forEach((school) => (allFilteredSelected ? next.delete(school.id) : next.add(school.id)));
+      return next;
+    });
+
+  const deleteSelected = async () => {
+    const targets = schools.filter((school) => selected.has(school.id));
+    if (!targets.length) return;
+    const lines = targets
+      .slice(0, 12)
+      .map((school) => `#${school.id} ${school.name} — ${school.teachers} öğretmen, ${school.classrooms} sınıf, ${school.members.length} üye`);
+    const more = targets.length > 12 ? `\n… ve ${targets.length - 12} okul daha` : '';
+    const typed = window.prompt(
+      `${targets.length} okul ve bu okullara ait TÜM veriler kalıcı olarak silinecek: öğretmenler, sınıflar, dersler, ` +
+        `programlar, öğretmen bağlantıları ve üyelikler. Geri alınamaz.\n\n${lines.join('\n')}${more}\n\nOnaylamak için SİL yazın:`,
+    );
+    if ((typed ?? '').trim().toLocaleUpperCase('tr-TR').replace(/İ/g, 'I') !== 'SIL') {
+      setMessage({ kind: 'error', text: 'Silme iptal edildi; hiçbir şey silinmedi.' });
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    const failed: string[] = [];
+    for (const school of targets) {
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/api/admin/schools/${school.id}`, {
+          method: 'DELETE',
+          headers: { 'X-Admin-Key': adminKey },
+        });
+        if (!res.ok && res.status !== 404) failed.push(`#${school.id} (${res.status})`);
+      } catch {
+        failed.push(`#${school.id} (bağlantı hatası)`);
+      }
+    }
+    setBusy(false);
+    setSelected(new Set());
+    setMessage(
+      failed.length
+        ? { kind: 'error', text: `Silinemeyenler: ${failed.join(', ')}` }
+        : { kind: 'ok', text: `${targets.length} okul silindi.` },
+    );
+    onChanged();
+  };
+
+  return (
+    <Card title="Okullar" subtitle={`Toplam ${fmt(schools.length)} okul · üyeler, bulut verisi ve son güncelleme`}>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Okul adı, #numara veya e-posta ara"
+          className="min-w-[14rem] flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+        />
+        <label className="flex items-center gap-1.5 text-sm" style={{ color: C.ink2 }}>
+          <input type="checkbox" checked={onlyEmpty} onChange={(e) => setOnlyEmpty(e.target.checked)} />
+          Yalnız verisi olmayanlar
+        </label>
+        <button
+          type="button"
+          onClick={deleteSelected}
+          disabled={busy || selected.size === 0}
+          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {busy ? 'Siliniyor…' : `Seçilenleri sil (${selected.size})`}
+        </button>
+      </div>
+
+      {message && (
+        <p
+          role="status"
+          className={`mb-3 rounded-md px-3 py-2 text-sm ${message.kind === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}
+        >
+          {message.text}
+        </p>
+      )}
+
+      <div className="max-h-[32rem] overflow-auto">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="sticky top-0" style={{ background: C.surface }}>
+            <tr style={{ color: C.ink2 }}>
+              <th className="py-1.5 pr-2">
+                <input
+                  type="checkbox"
+                  aria-label="Listelenen tüm okulları seç"
+                  checked={allFilteredSelected}
+                  onChange={toggleAllFiltered}
+                />
+              </th>
+              <th className="py-1.5 pr-3 font-medium">#</th>
+              <th className="py-1.5 pr-3 font-medium">Okul</th>
+              <th className="py-1.5 pr-3 font-medium">Üyeler</th>
+              <th className="py-1.5 pr-3 font-medium">Bulut verisi</th>
+              <th className="py-1.5 pr-3 font-medium">Son veri güncellemesi</th>
+              <th className="py-1.5 font-medium">Oluşturulma</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-3" style={{ color: C.muted }}>Eşleşen okul yok.</td>
+              </tr>
+            )}
+            {filtered.map((school) => {
+              const empty = school.teachers + school.classrooms + school.subjects === 0;
+              return (
+                <tr key={school.id} className="border-t align-top" style={{ borderColor: C.grid }}>
+                  <td className="py-1.5 pr-2">
+                    <input
+                      type="checkbox"
+                      aria-label={`${school.name} okulunu seç`}
+                      checked={selected.has(school.id)}
+                      onChange={() => toggle(school.id)}
+                    />
+                  </td>
+                  <td className="py-1.5 pr-3" style={{ color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{school.id}</td>
+                  <td className="py-1.5 pr-3">
+                    <span className="font-medium">{school.name}</span>
+                    {school.members.length === 0 && (
+                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs" style={{ color: C.ink2 }}>üyesiz</span>
+                    )}
+                    {school.published && (
+                      <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-xs text-sky-800">yayında</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-3" style={{ color: C.ink2 }}>
+                    {school.members.length
+                      ? school.members.map((m) => (m.role === 'teacher' ? `${m.email} (öğretmen)` : m.email)).join(', ')
+                      : '—'}
+                  </td>
+                  <td className="py-1.5 pr-3 whitespace-nowrap" style={{ color: empty ? C.muted : C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                    {empty ? 'boş' : `${school.teachers} öğretmen · ${school.classrooms} sınıf · ${school.subjects} ders`}
+                  </td>
+                  <td className="py-1.5 pr-3 whitespace-nowrap" style={{ color: C.ink2, fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtDateTime(school.data_updated_at)}
+                  </td>
+                  <td className="py-1.5 whitespace-nowrap" style={{ color: C.ink2, fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtDateTime(school.created_at)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-xs" style={{ color: C.muted }}>
+        Silme kalıcıdır: okulun öğretmen, sınıf, ders ve programları, öğretmen bağlantıları ve üyelikleri birlikte silinir.
+      </p>
+    </Card>
   );
 };
 
@@ -509,6 +715,8 @@ const AdminStats: React.FC = () => {
                 </dl>
               </Card>
             </div>
+
+            <SchoolsCard schools={s.schools ?? []} adminKey={key} onChanged={() => void load(key)} />
 
             <Card title="Son kayıt olan kullanıcılar" subtitle="En yeni 25 hesap">
               <div className="overflow-x-auto">

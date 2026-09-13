@@ -61,7 +61,7 @@ const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.ozarik
 const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
 // true: web ve Windows'ta giris zorunlu, "giris yapmadan devam et" gizlenir.
 // Android uygulamasi yerel Google girisi gelene kadar bu kuraldan muaftir.
-const REQUIRE_SIGN_IN = false;
+const REQUIRE_SIGN_IN = true;
 
 /** Katalogda hic anlamli kayit var mi? (bos bulut katalogunu tespit etmek icin) */
 const isCatalogEmpty = (d: TimetableData | null | undefined): boolean => {
@@ -483,6 +483,12 @@ const App: React.FC = () => {
     const dirtyCatalogRef = useRef(false);
     const syncingCatalogRef = useRef(false);
     const dataRef = useRef<TimetableData>(data);
+    // "Bu cihazdaki veriyi koru / yukle" yalniz, sayfa girissiz acilip sonra
+    // giris yapildiginda ilk acilan okul icin sorulur. Kayitli oturumla acilista
+    // (eski yerel taslak) ve okul degistirirken ekrandaki veri hicbir okula yuklenmez.
+    const cloudReconciledRef = useRef<boolean>(Boolean(initialSessionToken));
+    const justCreatedSchoolIdRef = useRef<number | null>(null);
+    const schoolNamesRef = useRef<Record<number, string>>({});
     const schoolHoursRef = useRef<SchoolHours>(schoolHours);
     const isAdminSession = useMemo(() => {
         const role = (sessionInfo?.user?.role || '').toLowerCase();
@@ -649,56 +655,54 @@ const App: React.FC = () => {
                 }
                 dirtyCatalogRef.current = false;
 
-                // Bulutta bu okul icin hic veri yoksa, bu cihazdaki veriyi SILME.
-                // Aksi halde giris yapan kullanicinin yerel verisi sessizce kayboluyordu.
-                if (isCatalogEmpty(result.data) && !isCatalogEmpty(dataRef.current)) {
-                    setCatalogStatus('ready');
-                    setCatalogSyncStatus('saving');
-                    setCatalogSyncError(null);
-                    setCatalogNotice('Bulutta bu okul icin kayit yoktu. Bu cihazdaki veriler korundu ve buluta yukleniyor...');
-                    try {
-                        await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
-                        await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
-                        if (cancelled) return;
-                        setCatalogSyncStatus('idle');
-                        setCatalogNotice('Bu cihazdaki veriler buluta yuklendi.');
-                    } catch (uploadErr: any) {
-                        if (cancelled) return;
-                        setCatalogSyncStatus('error');
-                        setCatalogSyncError(
-                            uploadErr instanceof Error ? uploadErr.message : 'Veriler buluta yuklenemedi'
-                        );
-                        setCatalogNotice(null);
-                    }
-                    return;
-                }
+                const firstReconcile = !cloudReconciledRef.current;
+                cloudReconciledRef.current = true;
+                const localHasData = firstReconcile && !isCatalogEmpty(dataRef.current);
+                const schoolName = schoolNamesRef.current[activeSchoolId] || `Okul #${activeSchoolId}`;
 
-                // Hem bu cihazda hem bulutta veri varsa, kullaniciya sormadan
-                // yerel veriyi degistirme.
-                if (!isCatalogEmpty(dataRef.current)) {
+                if (localHasData) {
                     const local = dataRef.current;
-                    const useCloud = window.confirm(
-                        [
-                            'Bu cihazda kayitli veriler var ve bulutta da bu okula ait veriler bulundu.',
+                    const localSummary = `${local.teachers.length} öğretmen, ${local.classrooms.length} sınıf, ${local.subjects.length} ders`;
+                    const cloudEmpty = isCatalogEmpty(result.data);
+                    const justCreated = justCreatedSchoolIdRef.current === activeSchoolId;
+                    justCreatedSchoolIdRef.current = null;
+
+                    let keepLocal: boolean;
+                    if (cloudEmpty && justCreated) {
+                        // Kullanici okulu az once "bu cihazdaki veriler aktarilir" diyerek olusturdu.
+                        keepLocal = true;
+                    } else if (cloudEmpty) {
+                        keepLocal = window.confirm([
+                            `"${schoolName}" okulunun bulutta kaydı yok.`,
                             '',
-                            `Bu cihaz: ${local.teachers.length} ogretmen, ${local.classrooms.length} sinif, ${local.subjects.length} ders`,
-                            `Bulut: ${result.data.teachers.length} ogretmen, ${result.data.classrooms.length} sinif, ${result.data.subjects.length} ders`,
+                            `Bu cihazdaki verileri (${localSummary}) bu okula yüklemek ister misiniz?`,
                             '',
-                            'TAMAM = Bulut verilerini kullan (bu cihazdakinin yerine gecer)',
-                            'IPTAL = Bu cihazdaki verileri koru ve buluta yukle',
-                        ].join('\n')
-                    );
-                    if (!useCloud) {
+                            'TAMAM = Bu okula yükle',
+                            'İPTAL = Yükleme, okulu boş aç',
+                        ].join('\n'));
+                    } else {
+                        keepLocal = !window.confirm([
+                            `Bu cihazda kayıtlı veriler var ve bulutta da "${schoolName}" okuluna ait veriler bulundu.`,
+                            '',
+                            `Bu cihaz: ${localSummary}`,
+                            `Bulut: ${result.data.teachers.length} öğretmen, ${result.data.classrooms.length} sınıf, ${result.data.subjects.length} ders`,
+                            '',
+                            'TAMAM = Bulut verilerini kullan (bu cihazdakinin yerine geçer)',
+                            `İPTAL = Bu cihazdaki verileri koru ve "${schoolName}" okuluna yükle`,
+                        ].join('\n'));
+                    }
+
+                    if (keepLocal) {
                         setCatalogStatus('ready');
                         setCatalogSyncStatus('saving');
                         setCatalogSyncError(null);
-                        setCatalogNotice('Bu cihazdaki veriler korundu, buluta yukleniyor...');
+                        setCatalogNotice(`Bu cihazdaki veriler "${schoolName}" okuluna yükleniyor...`);
                         try {
                             await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
                             await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
                             if (cancelled) return;
                             setCatalogSyncStatus('idle');
-                            setCatalogNotice('Bu cihazdaki veriler buluta yuklendi.');
+                            setCatalogNotice(`Bu cihazdaki veriler "${schoolName}" okuluna yüklendi.`);
                         } catch (uploadErr: any) {
                             if (cancelled) return;
                             setCatalogSyncStatus('error');
@@ -1456,6 +1460,8 @@ const App: React.FC = () => {
         setSessionError(null);
         try {
             const info = await createSchoolForSession(sessionToken, name);
+            const createdIds = (info.schools ?? []).map((school) => Number(school.id)).filter((id) => !Number.isNaN(id));
+            justCreatedSchoolIdRef.current = createdIds.length ? Math.max(...createdIds) : null;
             setSessionInfo((prev) => ({ ...info, session_token: prev?.session_token ?? info.session_token }));
             setOnboardSchoolName('');
         } catch (err) {
@@ -2574,6 +2580,9 @@ case 'duties':
     const hasLocalWorkspaceData = !isCatalogEmpty(data);
     const activeSessionUser = sessionInfo?.user;
     const schoolOptions = sessionInfo?.schools ?? [];
+    schoolNamesRef.current = Object.fromEntries(
+        schoolOptions.map((school, index) => [Number(school.id), school.name || `Okul #${school.id ?? index + 1}`]),
+    );
     const bridgeCodeExpiryText = bridgeCodeInfo ? new Date(bridgeCodeInfo.expiresAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
 
     const viewOptions = useMemo(() => {
