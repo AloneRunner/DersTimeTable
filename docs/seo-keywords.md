@@ -20,6 +20,7 @@ Google Play / Microsoft Store listelerine yapıştırılacak metinler.
 
 Birincil (title / description / H2'lerde geçiyor):
 
+- ders dağıtım programı
 - ders programı hazırlama programı
 - otomatik ders programı
 - okul ders programı hazırlama
@@ -29,7 +30,6 @@ Birincil (title / description / H2'lerde geçiyor):
 
 İkincil (sayfa metninde geçiyor):
 
-- ders dağıtım programı
 - lise ders programı hazırlama
 - ortaokul ders programı hazırlama
 - öğretmen nöbet çizelgesi / nöbet programı hazırlama
@@ -69,18 +69,21 @@ Uzun kuyruk (SSS ve özellik listesinde):
 
 **Uygulama adı** (en fazla 30 karakter):
 
-    DersTimeTable: Ders Programı
+    Ders Dağıtım - DersTimeTable
 
 **Kısa açıklama** (en fazla 80 karakter):
 
-    Okullar için ücretsiz otomatik ders programı ve nöbet çizelgesi hazırlayıcı
+    Okullar için çakışmasız ders dağıtım ve haftalık ders programı hazırlama aracı
+
+(Kısa açıklamada "ücretsiz" yok: Play meta veri kuralları fiyat/tanıtım
+ifadelerini başlık ve kısa açıklamada hoş karşılamıyor.)
 
 **Uzun açıklama** (en fazla 4000 karakter):
 
-    DersTimeTable, okul idareleri için geliştirilmiş ücretsiz ders programı
-    hazırlama programıdır. Öğretmen müsaitliklerini, haftalık ders yüklerini,
-    blok dersleri ve sınıf kısıtlarını dikkate alarak çakışmasız haftalık ders
-    programını saniyeler içinde otomatik oluşturur.
+    DersTimeTable, okul idareleri için ücretsiz ders dağıtım programıdır.
+    Öğretmen müsaitliklerini, haftalık ders yüklerini, blok dersleri ve sınıf
+    kısıtlarını dikkate alarak çakışmasız haftalık ders programını saniyeler
+    içinde otomatik hazırlar.
 
     ÖZELLİKLER
     • Otomatik, çakışmasız ders dağıtımı (CP-SAT kısıt çözücü)
