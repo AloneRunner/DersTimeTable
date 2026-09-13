@@ -28,7 +28,7 @@ import TeacherAvailabilityHeatmap from './components/analysis/TeacherAvailabilit
 import MobileScheduleView from './components/mobile/MobileScheduleView';
 import { buildSchedulePdf, type PrintScope } from './services/pdfExporter';
 import { saveOrShareFile, saveTextFile, isNativeApp } from './services/fileSaver';
-import { requestBridgeCode, verifyBridgeCode, loginWithGoogle, createSchoolForSession, fetchSessionInfo, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, loginWithGoogle, loginWithReviewPassword, createSchoolForSession, fetchSessionInfo, getApiBaseUrl, type SessionInfo as AuthSessionInfo } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 import { PreflightOverview } from './components/PreflightOverview';
 import { loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
@@ -437,6 +437,10 @@ const App: React.FC = () => {
     const [onboardSchoolName, setOnboardSchoolName] = useState<string>('');
     const [onboardLoading, setOnboardLoading] = useState<boolean>(false);
     const [showCodeLogin, setShowCodeLogin] = useState<boolean>(false);
+    const [showPasswordLogin, setShowPasswordLogin] = useState<boolean>(false);
+    const [passwordLoginEmail, setPasswordLoginEmail] = useState<string>('');
+    const [passwordLoginSecret, setPasswordLoginSecret] = useState<string>('');
+    const [passwordLoginLoading, setPasswordLoginLoading] = useState<boolean>(false);
     const [guestWebMode, setGuestWebMode] = useState<boolean>(() => {
         if (typeof window === 'undefined') return false;
         try {
@@ -1127,6 +1131,33 @@ const App: React.FC = () => {
             setGoogleLoginLoading(false);
         }
     }, [persistSessionToken, persistGuestWebMode]);
+
+    // Magaza incelemecileri Google hesabi olusturamadigi icin admin panelinden
+    // acilan inceleme hesabiyla e-posta + sifre girisi.
+    const handleReviewPasswordLogin = useCallback(async () => {
+        const email = passwordLoginEmail.trim().toLowerCase();
+        if (!email || !passwordLoginSecret) {
+            setSessionError('E-posta ve şifreyi girin');
+            return;
+        }
+        setPasswordLoginLoading(true);
+        setSessionError(null);
+        try {
+            const info = await loginWithReviewPassword(email, passwordLoginSecret);
+            if (info.session_token) {
+                persistSessionToken(info.session_token);
+            }
+            persistGuestWebMode(false);
+            setSessionInfo(info);
+            setSessionStatus('ready');
+            setPasswordLoginSecret('');
+        } catch (err) {
+            setSessionError(err instanceof Error ? err.message : 'Giriş başarısız');
+            setSessionStatus('error');
+        } finally {
+            setPasswordLoginLoading(false);
+        }
+    }, [passwordLoginEmail, passwordLoginSecret, persistSessionToken, persistGuestWebMode]);
 
     // Okulu olmayan hesap: okul olusturulup hesaba baglanir; bulut esitlemesi
     // (ve bu cihazdaki verinin yuklenmesi) okul secilince kendiliginden baslar.
@@ -2769,6 +2800,47 @@ case 'duties':
                                     .
                                 </div>
                             )}
+
+                            <div className="border-t border-slate-200 pt-3 space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPasswordLogin((open) => !open)}
+                                    aria-expanded={showPasswordLogin}
+                                    className="text-xs text-slate-500 hover:text-slate-700"
+                                >
+                                    {showPasswordLogin ? '▾' : '▸'} E-posta ve şifreyle giriş (inceleme hesabı)
+                                </button>
+                                {showPasswordLogin && (
+                                    <form
+                                        className="space-y-2"
+                                        onSubmit={(e) => { e.preventDefault(); handleReviewPasswordLogin(); }}
+                                    >
+                                        <input
+                                            type="email"
+                                            autoComplete="username"
+                                            value={passwordLoginEmail}
+                                            onChange={(e) => setPasswordLoginEmail(e.target.value)}
+                                            placeholder="E-posta"
+                                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                        />
+                                        <input
+                                            type="password"
+                                            autoComplete="current-password"
+                                            value={passwordLoginSecret}
+                                            onChange={(e) => setPasswordLoginSecret(e.target.value)}
+                                            placeholder="Şifre"
+                                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={passwordLoginLoading || !passwordLoginEmail.trim() || !passwordLoginSecret}
+                                            className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                                        >
+                                            {passwordLoginLoading ? 'Giriş yapılıyor…' : 'Giriş yap'}
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
 
                             {/* Telefon kodu, telefondan web'e gecis icindir; Android'in kendisinde anlamsiz. */}
                             <div className={nativeApp ? 'hidden' : 'border-t border-slate-200 pt-3 space-y-3'}>

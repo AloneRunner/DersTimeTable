@@ -265,6 +265,127 @@ const ColumnChart: React.FC<{ data: ColumnDatum[]; unit: string; ariaLabel: stri
   );
 };
 
+const REVIEW_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
+const generatePassword = (length = 18): string => {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => REVIEW_ALPHABET[b % REVIEW_ALPHABET.length]).join('');
+};
+
+/** Mağaza incelemecileri için Google'sız, e-posta + şifreli hesap. */
+const ReviewAccountCard: React.FC<{ adminKey: string; onChanged: () => void }> = ({ adminKey, onChanged }) => {
+  const [email, setEmail] = useState('inceleme@ozarik.org');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ email: string; password: string; schoolName: string; schoolId: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    setCopied(false);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/review-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const detail = typeof body?.detail === 'string' ? body.detail : '';
+        setError(
+          detail === 'email-in-use'
+            ? 'Bu e-posta gerçek bir hesaba ait. İnceleme için ayrı, hayali bir e-posta kullanın.'
+            : res.status === 422
+              ? 'E-posta geçersiz ya da şifre 12 karakterden kısa.'
+              : `Kaydedilemedi (${res.status}).`,
+        );
+        return;
+      }
+      const body = await res.json();
+      setResult({ email: body.email, password, schoolName: body.schoolName, schoolId: body.schoolId });
+      setPassword('');
+      onChanged();
+    } catch {
+      setError('Sunucuya ulaşılamadı.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <Card title="İnceleme hesabı" subtitle="Google Play ve Microsoft incelemecileri için Google'sız giriş">
+      <div className="space-y-3 text-sm">
+        <p style={{ color: C.ink2 }}>
+          E-posta hayali olabilir. Hesap yalnız kendi demo okuluna bağlanır. Kaydetmek önceki şifreyi ve açık inceleme
+          oturumlarını geçersiz kılar.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="inceleme@ozarik.org"
+            className="rounded-md border border-slate-300 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Şifre (en az 12 karakter)"
+              autoComplete="off"
+              className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-1.5 font-mono focus:outline-none focus:ring-2 focus:ring-sky-500"
+            />
+            <button
+              type="button"
+              onClick={() => setPassword(generatePassword())}
+              className="whitespace-nowrap rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50"
+            >
+              Üret
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy || password.length < 12 || !email.trim()}
+            className="rounded-md bg-sky-600 px-4 py-1.5 font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+          >
+            {busy ? 'Kaydediliyor…' : 'Kaydet'}
+          </button>
+        </div>
+        {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-red-700">{error}</p>}
+        {result && (
+          <div role="status" className="space-y-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-900">
+            <p className="font-medium">Hesap hazır — bu bilgileri mağaza formlarına yapıştırın:</p>
+            <p>E-posta: <span className="font-mono">{result.email}</span></p>
+            <p className="flex flex-wrap items-center gap-2">
+              Şifre: <span className="font-mono">{result.password}</span>
+              <button type="button" onClick={() => copy(result.password)} className="rounded border border-emerald-300 bg-white px-2 py-0.5 text-xs">
+                {copied ? 'Kopyalandı' : 'Kopyala'}
+              </button>
+            </p>
+            <p>Okul: {result.schoolName} (#{result.schoolId})</p>
+            <p className="text-xs">Şifre bu sayfadan çıkınca tekrar gösterilmez; unutursanız yeni şifre kaydedin.</p>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+};
+
 type SchoolRow = NonNullable<Stats['schools']>[number];
 
 const SchoolsCard: React.FC<{ schools: SchoolRow[]; adminKey: string; onChanged: () => void }> = ({
@@ -715,6 +836,8 @@ const AdminStats: React.FC = () => {
                 </dl>
               </Card>
             </div>
+
+            <ReviewAccountCard adminKey={key} onChanged={() => void load(key)} />
 
             <SchoolsCard schools={s.schools ?? []} adminKey={key} onChanged={() => void load(key)} />
 

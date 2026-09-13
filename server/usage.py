@@ -187,6 +187,58 @@ def admin_stats(x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, 
             return _collect_stats(cur)
 
 
+REVIEW_ROLE = 'reviewer'
+REVIEW_SCHOOL_NAME = 'İnceleme Demo Okulu'
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$')
+
+
+class ReviewAccountPayload(BaseModel):
+    email: str = Field(min_length=6, max_length=120)
+    password: str = Field(min_length=12, max_length=64)
+
+
+@router.post('/admin/review-account')
+def admin_review_account(payload: ReviewAccountPayload, x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Magaza incelemecileri icin e-posta + sifreli hesap olusturur veya sifresini yeniler.
+
+    Incelemeciler Google hesabi olusturamaz ve kendi hesaplarini kullanamaz; bu hesap
+    Google'siz girer ve yalniz kendi demo okuluna baglidir. Gercek bir kullaniciya ait
+    e-posta reddedilir; aksi halde o hesaba sifreyle girilebilir hale gelirdi.
+    """
+    _require_admin(x_admin_key)
+    import auth  # yerel içe aktarma: döngüsel bağımlılığı önler
+
+    email = payload.email.strip().lower()
+    if not _EMAIL_RE.match(email):
+        raise HTTPException(status_code=422, detail='invalid-email')
+
+    existing = auth._db_query('SELECT id, role FROM users WHERE email = %s', (email,))
+    if existing and (existing[0].get('role') or '').lower() != REVIEW_ROLE:
+        raise HTTPException(status_code=409, detail='email-in-use')
+
+    user = auth._upsert_user(email, 'App Review', default_role=REVIEW_ROLE)
+    auth._db_update_user_password(user['id'], auth._hash_password(payload.password))
+
+    memberships = auth._get_school_memberships(user['id'])
+    if memberships:
+        school_id = int(memberships[0]['id'])
+        school_name = memberships[0].get('name') or REVIEW_SCHOOL_NAME
+    else:
+        created = auth._db_execute(
+            'INSERT INTO schools (name) VALUES (%s) RETURNING id', (REVIEW_SCHOOL_NAME,), returning=True
+        )
+        if not created:
+            raise HTTPException(status_code=500, detail='school-create-failed')
+        school_id = int(created['id'])
+        school_name = REVIEW_SCHOOL_NAME
+        auth._attach_school(user['id'], school_id, role='admin')
+
+    # Sifre degisince onceki inceleme oturumlari da gecersiz olsun.
+    auth._db_execute('DELETE FROM login_tokens WHERE user_id = %s', (user['id'],))
+    logger.warning('admin-review-account-set user_id=%s school_id=%s', user['id'], school_id)
+    return {'ok': True, 'email': email, 'userId': user['id'], 'schoolId': school_id, 'schoolName': school_name}
+
+
 def _school_rows(cur: Any, school_id: Optional[int] = None) -> List[Dict[str, Any]]:
     where = 'WHERE s.id = %(id)s' if school_id is not None else ''
     cur.execute(f"""

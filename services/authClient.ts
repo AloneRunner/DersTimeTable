@@ -165,6 +165,22 @@ async function failure(response: Response, messages: Record<string, string>, fal
   return new Error(fallback);
 }
 
+const PASSWORD_LOGIN_ERRORS: Record<string, string> = {
+  'invalid-credentials': 'E-posta veya şifre hatalı.',
+  'no-school-memberships': 'Bu hesaba bağlı bir okul yok.',
+};
+
+/** E-posta + şifre girişi. Yalnız admin panelinden oluşturulan inceleme hesabı içindir. */
+export async function loginWithReviewPassword(email: string, password: string): Promise<SessionInfo> {
+  const response = await fetch(`${API_BASE}/api/auth/login-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) throw await failure(response, PASSWORD_LOGIN_ERRORS, 'Giriş başarısız');
+  return (await response.json()) as SessionInfo;
+}
+
 export async function loginWithGoogle(credential: string): Promise<SessionInfo> {
   const response = await fetch(`${API_BASE}/api/auth/google`, {
     method: 'POST',
