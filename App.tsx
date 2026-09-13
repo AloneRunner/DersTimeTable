@@ -33,7 +33,7 @@ import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, u
 import { PreflightOverview } from './components/PreflightOverview';
 import { loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
 import { planMove } from './utils/moveValidation';
-import { recordAppOpen, recordSolve } from './services/usageClient';
+import { recordAppOpen, recordSignIn, recordSolve } from './services/usageClient';
 import GoogleSignInButton from './components/GoogleSignInButton';
 import { disableGoogleAutoSelect } from './services/googleAuth';
 
@@ -1093,6 +1093,7 @@ const App: React.FC = () => {
             if (info.session_token) {
                 persistSessionToken(info.session_token);
             }
+            recordSignIn();
             persistGuestWebMode(false);
             setSessionInfo(info);
             setSessionStatus('ready');
@@ -1121,6 +1122,7 @@ const App: React.FC = () => {
             if (info.session_token) {
                 persistSessionToken(info.session_token);
             }
+            recordSignIn();
             persistGuestWebMode(false);
             setSessionInfo(info);
             setSessionStatus('ready');
@@ -1147,6 +1149,7 @@ const App: React.FC = () => {
             if (info.session_token) {
                 persistSessionToken(info.session_token);
             }
+            recordSignIn();
             persistGuestWebMode(false);
             setSessionInfo(info);
             setSessionStatus('ready');

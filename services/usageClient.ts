@@ -115,6 +115,16 @@ export const recordAppOpen = () => {
   send({ event: 'app_open' });
 };
 
+/**
+ * Girişten hemen sonra çağrılır: oturum başlığıyla gönderilen olay, bu cihazın
+ * geçmiş anonim sayımlarını hesaba bağlar. 12 saatlik açılış sınırını beklemez.
+ */
+export const recordSignIn = () => {
+  if (typeof window === 'undefined') return;
+  safeSet(LAST_OPEN_KEY, String(Date.now()));
+  send({ event: 'app_open' });
+};
+
 export const recordSolve = (info: {
   solver: 'cpsat' | 'local';
   success: boolean;

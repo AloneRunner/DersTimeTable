@@ -383,7 +383,11 @@ def _collect_stats(cur: Any) -> Dict[str, Any]:
     recent_users = _all(cur, """
         SELECT u.id, u.email, u.name, u.role, u.created_at,
                COALESCE(string_agg(DISTINCT s.name, ', '), '') AS schools,
-               (SELECT MAX(e.created_at) FROM usage_events e WHERE e.user_id = u.id) AS last_seen
+               GREATEST(
+                 u.last_seen_at,
+                 u.last_login_at,
+                 (SELECT MAX(e.created_at) FROM usage_events e WHERE e.user_id = u.id)
+               ) AS last_seen
         FROM users u
         LEFT JOIN school_users su ON su.user_id = u.id
         LEFT JOIN schools s ON s.id = su.school_id

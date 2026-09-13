@@ -876,7 +876,7 @@ const AdminStats: React.FC = () => {
                 </table>
               </div>
               <p className="mt-3 text-xs" style={{ color: C.muted }}>
-                "Son görülme" yalnız oturum açıkken uygulamayı kullananlar için dolar.
+                "Son görülme": son giriş ya da oturum açıkken uygulamanın son açılışı (5 dakika hassasiyetle).
               </p>
             </Card>
 

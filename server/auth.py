@@ -680,6 +680,20 @@ def _session_payload(user: Dict[str, Any], school_memberships: List[Dict[str, An
     )
 
 
+def _touch_last_seen(user_id: int) -> None:
+    """Son gorulme zamanini en fazla 5 dakikada bir yazar; giris akisini asla bozmaz."""
+    if not USE_DB:
+        return
+    try:
+        _db_execute(
+            "UPDATE users SET last_seen_at = now() WHERE id = %s "
+            "AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes')",
+            (user_id,),
+        )
+    except Exception:  # pylint: disable=broad-except
+        pass
+
+
 # -- Routes ------------------------------------------------------------------
 
 
@@ -709,6 +723,7 @@ def login_with_password(payload: PasswordLoginPayload) -> SessionResponse:
         expires_at=expires_at,
         metadata={'login_method': 'password'},
     )
+    _touch_last_seen(user['id'])
     user.pop('password_hash', None)
     return _session_payload(user, memberships, session_token=session_token, expires_at=expires_at)
 
@@ -894,6 +909,7 @@ def verify_code(payload: VerifyPayload) -> SessionResponse:
         raise HTTPException(status_code=404, detail='user-not-found')
 
     memberships = _get_school_memberships(user['id'])
+    _touch_last_seen(user['id'])
     teacher_roles = {'teacher'}
     is_teacher = (user.get('role') or '').lower() in teacher_roles or any(
         (m.get('role') or '').lower() in teacher_roles for m in memberships
@@ -1007,6 +1023,7 @@ def login_with_google(payload: GoogleLoginPayload) -> SessionResponse:
     name = str(claims.get('name') or '').strip() or None
 
     user = _db_google_user(sub, email, name) if USE_DB else _upsert_user(email, name)
+    _touch_last_seen(user['id'])
     memberships = _get_school_memberships(user['id'])
     is_teacher = _is_teacher_role(user.get('role')) or any(_is_teacher_role(m.get('role')) for m in memberships)
     session_lifetime = TEACHER_SESSION_LIFETIME if is_teacher else GOOGLE_SESSION_LIFETIME
@@ -1063,6 +1080,7 @@ def create_own_school(payload: CreateOwnSchoolPayload, request: Request) -> Sess
 @router.get('/me', response_model=SessionResponse)
 def session_info(request: Request) -> SessionResponse:
     user, memberships, record = get_session_context(request)
+    _touch_last_seen(user['id'])
     return _session_payload(user, memberships, session_token=record.get('token'), expires_at=record.get('expires_at'))
 
 
