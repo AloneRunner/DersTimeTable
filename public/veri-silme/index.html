@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hesap ve Veri Silme | DersTimeTable</title>
+  <meta name="description" content="DersTimeTable hesabınızı ve okul verilerinizi nasıl sildirebileceğiniz: başvuru adımları, silinen ve saklanan veriler, süre." />
+  <link rel="canonical" href="https://idare.ozarik.org/veri-silme" />
+  <link rel="icon" type="image/png" href="/assets/icons/icon-192.png" />
+  <meta name="theme-color" content="#b91c1c" />
+  <style>
+    :root { --ink:#1e293b; --ink2:#475569; --muted:#64748b; --line:#e2e8f0; --bg:#f8fafc; --card:#ffffff; --link:#0369a1; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+    .wrap { max-width:46rem; margin:0 auto; padding:1.5rem 1rem 4rem; }
+    header { display:flex; align-items:center; gap:.75rem; padding-bottom:1rem; border-bottom:1px solid var(--line); }
+    header img { height:2.25rem; width:auto; border-radius:.375rem; }
+    header a { color:var(--ink); text-decoration:none; font-weight:700; font-size:1.125rem; }
+    main { background:var(--card); border:1px solid var(--line); border-radius:.75rem; padding:1.5rem 1.25rem; margin-top:1.5rem; }
+    h1 { font-size:1.75rem; line-height:1.25; margin:0 0 .25rem; }
+    .meta { color:var(--muted); font-size:.875rem; margin:0 0 1.5rem; }
+    h2 { font-size:1.2rem; margin:2rem 0 .5rem; padding-top:1rem; border-top:1px solid var(--line); }
+    p, li { color:var(--ink2); }
+    ol, ul { padding-left:1.25rem; }
+    li { margin:.35rem 0; }
+    strong { color:var(--ink); }
+    a { color:var(--link); }
+    .btn { display:inline-block; margin:.5rem 0 .25rem; padding:.6rem 1.1rem; background:#0369a1; color:#fff; text-decoration:none; border-radius:.5rem; font-weight:600; }
+    .btn:hover { background:#075985; }
+    .warn { background:#fffbeb; border:1px solid #fde68a; border-radius:.5rem; padding:.75rem 1rem; }
+    .warn p { color:#78350f; margin:0; }
+    pre { background:#f1f5f9; border:1px solid var(--line); border-radius:.5rem; padding:.75rem 1rem; white-space:pre-wrap; font:inherit; color:var(--ink2); }
+    footer { color:var(--muted); font-size:.85rem; margin-top:1.5rem; display:flex; flex-wrap:wrap; gap:.25rem 1rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <img src="/assets/icons/icon-192.png" alt="" />
+      <a href="https://idare.ozarik.org/">DersTimeTable</a>
+    </header>
+
+    <main>
+      <h1>Hesap ve veri silme</h1>
+      <p class="meta">Uygulama: DersTimeTable (Okul Ders Programı) · Geliştirici: Kaan Özarık · Son güncelleme: 13 Eylül 2026</p>
+
+      <p>
+        DersTimeTable hesabınızın ve buluta kaydettiğiniz okul verilerinin silinmesini aşağıdaki adımlarla talep
+        edebilirsiniz. Bu sayfa web, Android (Google Play) ve Windows (Microsoft Store) uygulamaları için geçerlidir.
+      </p>
+
+      <h2>Nasıl başvurulur?</h2>
+      <ol>
+        <li><strong>Hesabınıza kayıtlı e-posta adresinden</strong> <a href="mailto:kaanozarik@gmail.com">kaanozarik@gmail.com</a> adresine e-posta gönderin. Güvenliğiniz için başka bir adresten gelen talepler, kimlik doğrulaması yapılmadan işleme alınmaz.</li>
+        <li>Konu satırına <strong>Veri silme talebi</strong> yazın.</li>
+        <li>İçerikte hesabınızın e-posta adresini, okul adını ve tüm hesabın mı yoksa yalnız belirli bir okulun mu silineceğini belirtin.</li>
+      </ol>
+      <a class="btn" href="mailto:kaanozarik@gmail.com?subject=Veri%20silme%20talebi&amp;body=Hesap%20e-posta%20adresi%3A%20%0AOkul%20ad%C4%B1%3A%20%0ASilinecek%3A%20(t%C3%BCm%20hesap%20%2F%20yaln%C4%B1z%20bu%20okul)%0A">E-posta ile talep gönder</a>
+      <p>Talebiniz <strong>en geç 30 gün içinde</strong> sonuçlandırılır ve size e-postayla bilgi verilir.</p>
+
+      <h2>Neler silinir?</h2>
+      <ul>
+        <li>Hesap bilgileriniz (ad, e-posta adresi, Google hesap kimliği)</li>
+        <li>Okulunuza ait tüm veriler: öğretmenler, sınıflar, dersler, mekanlar, sabit dersler, nöbetler ve kayıtlı ayarlar</li>
+        <li>Öğretmen hesap bağlantıları ve okulunuzdaki öğretmen hesaplarının okulla ilişkisi</li>
+        <li>Öğretmenlerle paylaşılan (yayınlanan) ders programları</li>
+        <li>Oturum ve giriş kayıtları</li>
+      </ul>
+
+      <h2>Neler saklanır?</h2>
+      <ul>
+        <li><strong>Kullanım istatistikleri:</strong> rastgele cihaz kimliğiyle tutulan uygulama açılışı ve program oluşturma sayımları hesabınızdan ayrılır ve yalnız anonim sayım olarak kalır. İsim, e-posta veya okul verisi içermez.</li>
+        <li>Yasal bir saklama yükümlülüğü doğarsa, yalnız ilgili kayıtlar bu yükümlülüğün gerektirdiği süre boyunca saklanır.</li>
+      </ul>
+
+      <h2>Cihazınızdaki veriler</h2>
+      <p>
+        Giriş yapmadan veya çevrimdışı çalışırken oluşan veriler yalnız cihazınızda durur ve sunucumuzda bulunmaz; bu yüzden
+        bizim tarafımızdan silinemez. Silmek için:
+      </p>
+      <ul>
+        <li><strong>Android:</strong> Ayarlar → Uygulamalar → DersTimeTable → Depolama → Verileri temizle (veya uygulamayı kaldırın)</li>
+        <li><strong>Windows:</strong> Ayarlar → Uygulamalar → DersTimeTable → Gelişmiş seçenekler → Sıfırla (veya kaldırın)</li>
+        <li><strong>Web:</strong> Tarayıcı ayarlarından idare.ozarik.org için site verilerini temizleyin</li>
+      </ul>
+      <div class="warn">
+        <p><strong>Dikkat:</strong> Cihaz verilerini silmek geri alınamaz. Programınızı kaybetmemek için önce uygulamadaki indir düğmesiyle JSON yedeği alın.</p>
+      </div>
+
+      <h2>Öğretmen hesapları</h2>
+      <p>
+        Öğretmenler kendi hesaplarının silinmesini aynı yöntemle talep edebilir. Okul yöneticisi de öğretmenin okulla
+        bağlantısını uygulama içinden kaldırabilir.
+      </p>
+
+      <p style="margin-top:2rem">Ayrıntılı bilgi için <a href="https://idare.ozarik.org/gizlilik">Gizlilik Politikası</a>'nı inceleyebilirsiniz.</p>
+    </main>
+
+    <footer>
+      <a href="https://idare.ozarik.org/">Uygulamaya dön</a>
+      <a href="https://idare.ozarik.org/gizlilik">Gizlilik Politikası</a>
+      <span>© Kaan Özarık — DersTimeTable</span>
+    </footer>
+  </div>
+</body>
+</html>

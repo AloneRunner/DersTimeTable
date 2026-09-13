@@ -15,6 +15,27 @@
 [functions]
   directory = "netlify/functions"
 
+# Statik hukuki sayfalar (SPA yonlendirmesinden once gelmeli)
+[[redirects]]
+  from = "/gizlilik"
+  to = "/gizlilik/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/veri-silme"
+  to = "/veri-silme/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/privacy"
+  to = "/gizlilik"
+  status = 301
+
+[[redirects]]
+  from = "/data-deletion"
+  to = "/veri-silme"
+  status = 301
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -3050,7 +3050,7 @@ case 'duties':
                 </div>
                 <div className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <a
-                        href="https://sites.google.com/view/derstimetable"
+                        href="https://idare.ozarik.org/gizlilik"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:text-slate-700 underline"
@@ -3059,7 +3059,7 @@ case 'duties':
                     </a>
                     <span className="text-slate-300">|</span>
                     <a
-                        href="https://sites.google.com/view/derstimetable/data-deletion"
+                        href="https://idare.ozarik.org/veri-silme"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:text-slate-700 underline"
