@@ -924,6 +924,142 @@ def verify_code(payload: VerifyPayload) -> SessionResponse:
     return _session_payload(user, memberships, session_token=session_token, expires_at=expires_at)
 
 
+# -- Google ile giriş ----------------------------------------------------------
+
+GOOGLE_SESSION_LIFETIME = timedelta(days=30)
+# Istemci kimligi gizli degildir; ortam degiskeniyle (virgulle ayrilmis) degistirilebilir.
+_DEFAULT_GOOGLE_CLIENT_IDS = '138011207344-nb82m06verjm5jmfdfr1unnsbcqg2o1v.apps.googleusercontent.com'
+
+
+def _google_client_ids() -> List[str]:
+    raw = os.environ.get('GOOGLE_CLIENT_IDS') or _DEFAULT_GOOGLE_CLIENT_IDS
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
+class GoogleLoginPayload(BaseModel):
+    credential: str
+
+
+def _verify_google_credential(credential: str) -> Dict[str, Any]:
+    """Google ID tokenini imza, sure, yayinci ve istemci kimligine gore dogrular."""
+    from google.auth import exceptions as google_exceptions
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token as google_id_token
+
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            audience=_google_client_ids(),
+            clock_skew_in_seconds=10,
+        )
+    except google_exceptions.TransportError as exc:
+        # Google'in imza anahtarlarina ulasilamadi: kullanicinin hatasi degil.
+        raise HTTPException(status_code=503, detail='google-unreachable') from exc
+    except (ValueError, google_exceptions.GoogleAuthError) as exc:
+        raise HTTPException(status_code=401, detail='invalid-google-credential') from exc
+    return dict(claims)
+
+
+def _db_google_user(sub: str, email: str, name: Optional[str]) -> Dict[str, Any]:
+    """Google kimligini hesaba baglar: once sub, sonra e-posta ile eslestirir, yoksa olusturur."""
+    rows = _db_query('SELECT id, email, name, role, google_sub FROM users WHERE google_sub = %s', (sub,))
+    if rows:
+        user = dict(rows[0])
+    else:
+        rows = _db_query('SELECT id, email, name, role, google_sub FROM users WHERE email = %s', (email,))
+        if rows:
+            user = dict(rows[0])
+            if user.get('google_sub') and user['google_sub'] != sub:
+                raise HTTPException(status_code=409, detail='google-account-mismatch')
+            _db_execute('UPDATE users SET google_sub = %s WHERE id = %s', (sub, user['id']))
+        else:
+            created = _db_execute(
+                'INSERT INTO users (email, name, role, google_sub) VALUES (%s, %s, %s, %s) '
+                'RETURNING id, email, name, role, google_sub',
+                (email, name, 'admin', sub),
+                returning=True,
+            )
+            if not created:
+                raise HTTPException(status_code=500, detail='user-create-failed')
+            user = dict(created)
+    if name and not user.get('name'):
+        _db_execute('UPDATE users SET name = %s WHERE id = %s', (name, user['id']))
+        user['name'] = name
+    _db_execute('UPDATE users SET last_login_at = now() WHERE id = %s', (user['id'],))
+    user.pop('google_sub', None)
+    return user
+
+
+@router.post('/google', response_model=SessionResponse)
+def login_with_google(payload: GoogleLoginPayload) -> SessionResponse:
+    credential = (payload.credential or '').strip()
+    if not 20 <= len(credential) <= 4096:
+        raise HTTPException(status_code=400, detail='invalid-google-credential')
+
+    claims = _verify_google_credential(credential)
+    sub = str(claims.get('sub') or '')
+    email = str(claims.get('email') or '').strip().lower()
+    if not sub or not email:
+        raise HTTPException(status_code=401, detail='invalid-google-credential')
+    if claims.get('email_verified') not in (True, 'true'):
+        raise HTTPException(status_code=403, detail='google-email-not-verified')
+    name = str(claims.get('name') or '').strip() or None
+
+    user = _db_google_user(sub, email, name) if USE_DB else _upsert_user(email, name)
+    memberships = _get_school_memberships(user['id'])
+    is_teacher = _is_teacher_role(user.get('role')) or any(_is_teacher_role(m.get('role')) for m in memberships)
+    session_lifetime = TEACHER_SESSION_LIFETIME if is_teacher else GOOGLE_SESSION_LIFETIME
+
+    session_token = _generate_token()
+    expires_at = _now() + session_lifetime
+    _insert_login_token(
+        user['id'],
+        token=session_token,
+        code=None,
+        purpose=SESSION_PURPOSE,
+        expires_at=expires_at,
+        metadata={'login_method': 'google'},
+    )
+    return _session_payload(user, memberships, session_token=session_token, expires_at=expires_at)
+
+
+class CreateOwnSchoolPayload(BaseModel):
+    name: str
+
+
+MAX_SCHOOLS_PER_USER = 10
+
+
+@router.post('/schools', response_model=SessionResponse)
+def create_own_school(payload: CreateOwnSchoolPayload, request: Request) -> SessionResponse:
+    """Oturum sahibi icin okul olusturur ve kullaniciyi okula yonetici olarak baglar.
+
+    Eski POST /api/schools ucu kimlik dogrulamasi istemiyor ve olusturani okula
+    baglamiyor; Android uygulamasi hala onu kullandigi icin dokunulmadi.
+    """
+    user, memberships, record = get_session_context(request)
+    name = ' '.join((payload.name or '').split())
+    if not 2 <= len(name) <= 120:
+        raise HTTPException(status_code=400, detail='invalid-school-name')
+    if _is_teacher_role(user.get('role')):
+        raise HTTPException(status_code=403, detail='teachers-cannot-create-schools')
+    if len(memberships) >= MAX_SCHOOLS_PER_USER:
+        raise HTTPException(status_code=429, detail='too-many-schools')
+
+    if USE_DB:
+        created = _db_execute('INSERT INTO schools (name) VALUES (%s) RETURNING id', (name,), returning=True)
+        if not created:
+            raise HTTPException(status_code=500, detail='school-create-failed')
+        school_id = int(created['id'])
+    else:  # pragma: no cover - yerel gelistirme
+        school_id = int(db.create_school(name, None)['id'])  # type: ignore[attr-defined]
+
+    _attach_school(user['id'], school_id, role='admin')
+    memberships = _get_school_memberships(user['id'])
+    return _session_payload(user, memberships, session_token=record.get('token'), expires_at=record.get('expires_at'))
+
+
 @router.get('/me', response_model=SessionResponse)
 def session_info(request: Request) -> SessionResponse:
     user, memberships, record = get_session_context(request)

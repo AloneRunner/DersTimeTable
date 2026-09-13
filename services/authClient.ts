@@ -355,3 +355,45 @@ export async function resetTeacherPassword(
   return (await response.json()) as ResetTeacherPasswordResponse;
 }
 
+
+const GOOGLE_LOGIN_ERRORS: Record<string, string> = {
+  'invalid-google-credential': 'Google girişi doğrulanamadı. Lütfen tekrar deneyin.',
+  'google-email-not-verified': 'Google hesabınızın e-posta adresi doğrulanmamış.',
+  'google-account-mismatch': 'Bu e-posta adresi başka bir Google hesabına bağlı. Destek: kaanozarik@gmail.com',
+  'google-unreachable': 'Google şu an yanıt vermiyor. Biraz sonra tekrar deneyin.',
+};
+
+const SCHOOL_ERRORS: Record<string, string> = {
+  'invalid-school-name': 'Okul adı 2 ile 120 karakter arasında olmalı.',
+  'teachers-cannot-create-schools': 'Öğretmen hesapları okul oluşturamaz.',
+  'too-many-schools': 'Bir hesaba en fazla 10 okul eklenebilir.',
+  'invalid-session-token': 'Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.',
+};
+
+async function failure(response: Response, messages: Record<string, string>, fallback: string): Promise<Error> {
+  const data = await parseJson(response).catch(() => ({}));
+  const detail = (data as any)?.detail;
+  if (typeof detail === 'string') return new Error(messages[detail] ?? detail);
+  return new Error(fallback);
+}
+
+export async function loginWithGoogle(credential: string): Promise<SessionInfo> {
+  const response = await fetch(`${API_BASE}/api/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential }),
+  });
+  if (!response.ok) throw await failure(response, GOOGLE_LOGIN_ERRORS, 'Google ile giriş başarısız');
+  return (await response.json()) as SessionInfo;
+}
+
+/** Oturum sahibi için okul oluşturur ve güncel oturum bilgisini döndürür. */
+export async function createSchoolForSession(token: string, name: string): Promise<SessionInfo> {
+  const response = await fetch(`${API_BASE}/api/auth/schools`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) throw await failure(response, SCHOOL_ERRORS, 'Okul kaydedilemedi');
+  return (await response.json()) as SessionInfo;
+}

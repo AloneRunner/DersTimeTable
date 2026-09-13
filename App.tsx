@@ -30,12 +30,14 @@ import TeacherApp from './components/mobile/TeacherApp';
 import { buildSchedulePdf, type PrintScope } from './services/pdfExporter';
 import { saveOrShareFile, saveTextFile, isNativeApp } from './services/fileSaver';
 import { publishSchedule as publishScheduleApi, fetchPublishedSchedule as fetchPublishedScheduleApi } from './services/scheduleClient';
-import { requestBridgeCode, verifyBridgeCode, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
+import { requestBridgeCode, verifyBridgeCode, loginWithGoogle, createSchoolForSession, fetchSessionInfo, linkTeacher, fetchTeacherLinks as fetchTeacherLinksApi, unlinkTeacher as unlinkTeacherApi, resetTeacherPassword, getApiBaseUrl, type SessionInfo as AuthSessionInfo, type TeacherLinkRecord } from './services/authClient';
 import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, updateSchoolSettings } from './services/catalogClient';
 import { PreflightOverview } from './components/PreflightOverview';
 import { loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
 import { planMove } from './utils/moveValidation';
 import { recordAppOpen, recordSolve } from './services/usageClient';
+import GoogleSignInButton from './components/GoogleSignInButton';
+import { disableGoogleAutoSelect } from './services/googleAuth';
 
 type Tab = 'teachers' | 'classrooms' | 'subjects' | 'locations' | 'fixedAssignments' | 'lessonGroups' | 'duties';
 type ModalState = { type: Tab; item: any | null } | { type: null; item: null };
@@ -57,6 +59,9 @@ const WEB_PORTAL_URL = 'https://idare.ozarik.org';
 const WINDOWS_STORE_URL = 'https://apps.microsoft.com/detail/9N5Z8M82FSQ2';
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.ozarik.dersprogrami';
 const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
+// true: web ve Windows'ta giris zorunlu, "giris yapmadan devam et" gizlenir.
+// Android uygulamasi yerel Google girisi gelene kadar bu kuraldan muaftir.
+const REQUIRE_SIGN_IN = false;
 
 /** Katalogda hic anlamli kayit var mi? (bos bulut katalogunu tespit etmek icin) */
 const isCatalogEmpty = (d: TimetableData | null | undefined): boolean => {
@@ -425,10 +430,15 @@ const App: React.FC = () => {
     const [modalState, setModalState] = useState<ModalState>({ type: null, item: null });
     const [sessionToken, setSessionToken] = useState<string | null>(initialSessionToken);
     const [sessionInfo, setSessionInfo] = useState<AuthSessionInfo | null>(null);
-    const [sessionStatus, setSessionStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+    // Kayitli oturum varsa ilk karede giris penceresi yanip sonmesin.
+    const [sessionStatus, setSessionStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(initialSessionToken ? 'loading' : 'idle');
     const [sessionError, setSessionError] = useState<string | null>(null);
     const [codeInput, setCodeInput] = useState<string>('');
     const [verifyLoading, setVerifyLoading] = useState<boolean>(false);
+    const [googleLoginLoading, setGoogleLoginLoading] = useState<boolean>(false);
+    const [onboardSchoolName, setOnboardSchoolName] = useState<string>('');
+    const [onboardLoading, setOnboardLoading] = useState<boolean>(false);
+    const [showCodeLogin, setShowCodeLogin] = useState<boolean>(false);
     const [guestWebMode, setGuestWebMode] = useState<boolean>(() => {
         if (typeof window === 'undefined') return false;
         try {
@@ -771,6 +781,7 @@ const App: React.FC = () => {
     }, []);
 
     const clearSession = useCallback(() => {
+        disableGoogleAutoSelect();
         persistSessionToken(null);
         setSessionInfo(null);
         setSessionStatus('idle');
@@ -1412,6 +1423,47 @@ const App: React.FC = () => {
         setSessionStatus('idle');
         persistGuestWebMode(true);
     }, [persistGuestWebMode]);
+
+    const handleGoogleCredential = useCallback(async (credential: string) => {
+        setGoogleLoginLoading(true);
+        setSessionError(null);
+        try {
+            const info = await loginWithGoogle(credential);
+            if (info.session_token) {
+                persistSessionToken(info.session_token);
+            }
+            persistGuestWebMode(false);
+            setSessionInfo(info);
+            setSessionStatus('ready');
+        } catch (err) {
+            setSessionError(err instanceof Error ? err.message : 'Google ile giriş başarısız');
+            setSessionStatus('error');
+        } finally {
+            setGoogleLoginLoading(false);
+        }
+    }, [persistSessionToken, persistGuestWebMode]);
+
+    // Okulu olmayan hesap: okul olusturulup hesaba baglanir; bulut esitlemesi
+    // (ve bu cihazdaki verinin yuklenmesi) okul secilince kendiliginden baslar.
+    const handleOnboardSchool = useCallback(async () => {
+        const name = onboardSchoolName.trim();
+        if (name.length < 2) {
+            setSessionError('Okulunuzun adını yazın');
+            return;
+        }
+        if (!sessionToken) return;
+        setOnboardLoading(true);
+        setSessionError(null);
+        try {
+            const info = await createSchoolForSession(sessionToken, name);
+            setSessionInfo((prev) => ({ ...info, session_token: prev?.session_token ?? info.session_token }));
+            setOnboardSchoolName('');
+        } catch (err) {
+            setSessionError(err instanceof Error ? err.message : 'Okul kaydedilemedi');
+        } finally {
+            setOnboardLoading(false);
+        }
+    }, [onboardSchoolName, sessionToken]);
 
     const handleOpenWebPortal = useCallback(() => {
         if (typeof window !== 'undefined') {
@@ -2513,7 +2565,13 @@ case 'duties':
     }
     
     const sessionLoading = sessionStatus === 'loading';
-    const requiresWebAuth = !isSmallScreen && !sessionInfo && !sessionLoading && !guestWebMode;
+    const nativeApp = isNativeApp();
+    const requiresWebAuth = !nativeApp && !sessionInfo && !sessionLoading
+        && (REQUIRE_SIGN_IN || (!isSmallScreen && !guestWebMode));
+    const needsSchoolOnboarding = !nativeApp && Boolean(sessionInfo)
+        && (sessionInfo?.schools?.length ?? 0) === 0
+        && (sessionInfo?.user?.role ?? 'admin') !== 'teacher';
+    const hasLocalWorkspaceData = !isCatalogEmpty(data);
     const activeSessionUser = sessionInfo?.user;
     const schoolOptions = sessionInfo?.schools ?? [];
     const bridgeCodeExpiryText = bridgeCodeInfo ? new Date(bridgeCodeInfo.expiresAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
@@ -2954,70 +3012,123 @@ case 'duties':
                 </div>
             </div>
         )}
-        {requiresWebAuth && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75">
-                <div className="bg-white rounded-xl shadow-2xl px-6 py-6 w-full max-w-md space-y-5">
-                    <div>
-                        <h2 className="text-xl font-semibold text-slate-900">Web'e basla</h2>
-                        <p className="text-sm text-slate-500 mt-1">Programi hemen yerelde kullanabilir veya mobil uygulamada olusturulan 6 haneli kod ile bulut hesabina baglanabilirsin.</p>
-                    </div>
-                    <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-800">Kod ile hizli erisim</h3>
-                            <p className="mt-1 text-xs text-slate-500">Telefon uygulamasindan uretilen kodu kullan. Bu secenek bulut esitleme ve ogretmen paylasimi icindir.</p>
-                        </div>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            value={codeInput}
-                            onChange={(e) => setCodeInput(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleVerifyBridgeCode(); } }}
-                            placeholder="Orn: 123456"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            maxLength={6}
-                        />
-                        <div className="flex items-center justify-between gap-3">
+        {(requiresWebAuth || needsSchoolOnboarding) && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 px-4">
+                <div className="bg-white rounded-xl shadow-2xl px-6 py-6 w-full max-w-md space-y-5 max-h-[92vh] overflow-y-auto">
+                    {needsSchoolOnboarding ? (
+                        <>
+                            <div>
+                                <h2 className="text-xl font-semibold text-slate-900">Okulunuzu ekleyin</h2>
+                                <p className="text-sm text-slate-500 mt-1">
+                                    Hoş geldiniz{sessionInfo?.user?.name ? `, ${sessionInfo.user.name}` : ''}. Verilerinizin buluta
+                                    kaydedilmesi için okulunuzun adını yazın. Bu cihazda kayıtlı veriler varsa okulunuza aktarılır.
+                                </p>
+                            </div>
+                            <input
+                                type="text"
+                                value={onboardSchoolName}
+                                onChange={(e) => setOnboardSchoolName(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleOnboardSchool(); } }}
+                                placeholder="Örn: Atatürk Ortaokulu"
+                                maxLength={120}
+                                autoFocus
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            />
                             <button
                                 type="button"
-                                onClick={handleVerifyBridgeCode}
-                                disabled={verifyLoading || !codeInput.trim()}
-                                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white font-medium shadow hover:bg-blue-700 disabled:opacity-60"
+                                onClick={handleOnboardSchool}
+                                disabled={onboardLoading || onboardSchoolName.trim().length < 2}
+                                className="w-full rounded-lg bg-sky-600 px-4 py-2 text-white font-medium shadow hover:bg-sky-700 disabled:opacity-60"
                             >
-                                {verifyLoading ? 'Dogrulaniyor...' : 'Kodu dogrula'}
+                                {onboardLoading ? 'Kaydediliyor…' : 'Devam et'}
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { setCodeInput(''); setSessionError(null); }}
-                                className="px-3 py-2 text-sm text-slate-500 hover:text-slate-700"
+                                onClick={clearSession}
+                                className="w-full text-sm text-slate-500 hover:text-slate-700"
                             >
-                                Temizle
+                                Farklı bir hesapla giriş yap
                             </button>
-                        </div>
-                        <p className="text-xs text-slate-400">Mobil uygulamada "Web erisim kodu" bolumunden yeni kod olusturabilirsiniz.</p>
-                    </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="text-center">
+                                <img src="/assets/logo.png" alt="" className="mx-auto h-12 w-auto rounded-md" />
+                                <h2 className="mt-3 text-xl font-semibold text-slate-900">DersTimeTable'a giriş yapın</h2>
+                                <p className="text-sm text-slate-500 mt-1">
+                                    Verileriniz hesabınıza kaydedilir; bilgisayardan, telefondan ve Windows uygulamasından aynı programa ulaşırsınız.
+                                </p>
+                            </div>
 
-                    <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
-                        <span className="h-px flex-1 bg-slate-200"></span>
-                        <span>veya</span>
-                        <span className="h-px flex-1 bg-slate-200"></span>
-                    </div>
+                            <div className="flex flex-col items-center gap-2">
+                                <GoogleSignInButton onCredential={handleGoogleCredential} />
+                                {googleLoginLoading && <p className="text-sm text-slate-500">Giriş yapılıyor…</p>}
+                            </div>
 
-                    <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                        <div>
-                            <h3 className="text-sm font-semibold text-emerald-900">Sifresiz yerel kullanim</h3>
-                            <p className="mt-1 text-xs text-emerald-700">Hicbir bilgi girmeden programa gec. Veriler bu cihazda tutulur.</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleContinueWithoutLogin}
-                            className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-white font-medium shadow hover:bg-emerald-700"
-                        >
-                            Giris yapmadan devam et
-                        </button>
-                        <p className="text-xs text-emerald-700">Not: Buluta kaydetme, ogretmen baglama ve program paylasimi icin kodlu giris gerekir.</p>
-                    </div>
+                            <p className="text-center text-xs text-slate-500">
+                                Giriş yaparak{' '}
+                                <a href="https://idare.ozarik.org/gizlilik/" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-700">
+                                    Gizlilik Politikası
+                                </a>
+                                'nı kabul etmiş olursunuz.
+                            </p>
+
+                            {hasLocalWorkspaceData && (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                                    Bu cihazda kayıtlı verileriniz var; giriş yaptığınızda hesabınıza aktarılır. İsterseniz önce{' '}
+                                    <button type="button" onClick={handleExportData} className="font-medium underline">
+                                        yedek indirin (JSON)
+                                    </button>
+                                    .
+                                </div>
+                            )}
+
+                            <div className="border-t border-slate-200 pt-3 space-y-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCodeLogin((open) => !open)}
+                                    aria-expanded={showCodeLogin}
+                                    className="text-xs text-slate-500 hover:text-slate-700"
+                                >
+                                    {showCodeLogin ? '▾' : '▸'} Telefon uygulamasındaki kodla giriş
+                                </button>
+                                {showCodeLogin && (
+                                    <div className="space-y-2">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={codeInput}
+                                            onChange={(e) => setCodeInput(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleVerifyBridgeCode(); } }}
+                                            placeholder="Örn: 123456"
+                                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            maxLength={6}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleVerifyBridgeCode}
+                                            disabled={verifyLoading || !codeInput.trim()}
+                                            className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                                        >
+                                            {verifyLoading ? 'Doğrulanıyor…' : 'Kodu doğrula'}
+                                        </button>
+                                        <p className="text-xs text-slate-400">Kodu mobil uygulamada "Web erişim kodu" bölümünden oluşturabilirsiniz.</p>
+                                    </div>
+                                )}
+                                {!REQUIRE_SIGN_IN && (
+                                    <button
+                                        type="button"
+                                        onClick={handleContinueWithoutLogin}
+                                        className="block text-xs text-slate-400 hover:text-slate-600"
+                                    >
+                                        Şimdilik giriş yapmadan devam et (veriler yalnız bu cihazda kalır)
+                                    </button>
+                                )}
+                            </div>
+                        </>
+                    )}
                     {sessionError && (
-                        <p className="text-sm text-red-600">{sessionError}</p>
+                        <p role="alert" className="text-sm text-red-600">{sessionError}</p>
                     )}
                 </div>
             </div>
