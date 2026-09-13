@@ -470,6 +470,7 @@ const App: React.FC = () => {
     const scheduleFileInputRef = useRef<HTMLInputElement>(null);
     const skipSyncCounterRef = useRef<number>(0);
     const pendingSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const retrySyncRef = useRef<(() => void) | null>(null);
     const dirtyCatalogRef = useRef(false);
     const syncingCatalogRef = useRef(false);
     const dataRef = useRef<TimetableData>(data);
@@ -530,10 +531,20 @@ const App: React.FC = () => {
             setCatalogSyncStatus('error');
             setCatalogSyncError(message);
             dirtyCatalogRef.current = true;
+            // Gecici ag hatasi vb.: kullanici yeni degisiklik yapmasa da kendiliginden yeniden dene.
+            if (!pendingSyncRef.current) {
+                pendingSyncRef.current = setTimeout(() => {
+                    pendingSyncRef.current = null;
+                    if (!dirtyCatalogRef.current) return;
+                    dirtyCatalogRef.current = false;
+                    retrySyncRef.current?.();
+                }, 5000);
+            }
         } finally {
             syncingCatalogRef.current = false;
         }
     }, [isRemoteMode, sessionToken, activeSchoolId, catalogStatus]);
+    retrySyncRef.current = performCatalogSync;
 
     const scheduleCatalogSync = useCallback(() => {
         if (!isRemoteMode || !sessionToken || !activeSchoolId || catalogStatus !== 'ready') {
@@ -552,6 +563,55 @@ const App: React.FC = () => {
             performCatalogSync();
         }, 1000);
     }, [isRemoteMode, sessionToken, activeSchoolId, catalogStatus, performCatalogSync]);
+
+    // Cikista bekleyen (1 sn gecikmeli) ya da basarisiz kalmis kaydi hemen gonderir.
+    // Onceden cikis bekleyen kaydi iptal ediyordu ve son degisiklikler buluta hic gitmiyordu.
+    const flushCatalogSync = useCallback(async (): Promise<boolean> => {
+        if (!isRemoteMode || !sessionToken || !activeSchoolId || catalogStatus !== 'ready') {
+            return true;
+        }
+        for (let i = 0; i < 100 && syncingCatalogRef.current; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        if (!pendingSyncRef.current && !dirtyCatalogRef.current) {
+            return true;
+        }
+        if (pendingSyncRef.current) {
+            clearTimeout(pendingSyncRef.current);
+            pendingSyncRef.current = null;
+        }
+        dirtyCatalogRef.current = false;
+        syncingCatalogRef.current = true;
+        setCatalogSyncStatus('saving');
+        setCatalogSyncError(null);
+        try {
+            await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
+            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
+            setCatalogSyncStatus('idle');
+            return true;
+        } catch (err: any) {
+            dirtyCatalogRef.current = true;
+            setCatalogSyncStatus('error');
+            setCatalogSyncError(err instanceof Error ? err.message : 'Bulut kaydi basarisiz');
+            return false;
+        } finally {
+            syncingCatalogRef.current = false;
+        }
+    }, [isRemoteMode, sessionToken, activeSchoolId, catalogStatus]);
+
+    // Kaydedilmemis degisiklik varken sekme/pencere kapatilirsa tarayici uyarsin.
+    const catalogSyncStatusRef = useRef(catalogSyncStatus);
+    catalogSyncStatusRef.current = catalogSyncStatus;
+    useEffect(() => {
+        const onBeforeUnload = (event: BeforeUnloadEvent) => {
+            if (pendingSyncRef.current || dirtyCatalogRef.current || catalogSyncStatusRef.current === 'saving') {
+                event.preventDefault();
+                event.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', onBeforeUnload);
+        return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    }, []);
 
     useEffect(() => {
         if (!isRemoteMode) {
@@ -740,6 +800,14 @@ const App: React.FC = () => {
         setSessionError(null);
         setActiveSchoolId(null);
     }, [persistSessionToken]);
+
+    const handleSignOut = useCallback(async () => {
+        const saved = await flushCatalogSync();
+        if (!saved && !window.confirm('Son değişiklikler buluta kaydedilemedi. Yine de çıkış yapılsın mı? (Kaydedilmeyen değişiklikler kaybolur.)')) {
+            return;
+        }
+        clearSession();
+    }, [flushCatalogSync, clearSession]);
 
     const [substitutionAssignments, setSubstitutionAssignments] = useState<SubstitutionAssignment[]>(() => {
         if (typeof window === 'undefined') return [];
@@ -2765,7 +2833,7 @@ case 'duties':
                             </button>
                             <button
                                 type="button"
-                                onClick={clearSession}
+                                onClick={handleSignOut}
                                 className="w-full text-sm text-slate-500 hover:text-slate-700"
                             >
                                 Farklı bir hesapla giriş yap
@@ -2958,7 +3026,7 @@ case 'duties':
                         </span>
                         <button
                             type="button"
-                            onClick={clearSession}
+                            onClick={handleSignOut}
                             className={`text-red-600 ${isSmallScreen ? 'mt-1 inline-flex items-center text-sm font-medium' : 'ml-2 text-xs'}`}
                         >
                             Cikis
@@ -3156,7 +3224,7 @@ case 'duties':
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={clearSession}
+                                                onClick={handleSignOut}
                                                 className="text-[11px] text-red-600"
                                             >
                                                 Cikis yap
