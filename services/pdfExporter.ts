@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import * as autoTableModule from 'jspdf-autotable';
-import type { Assignment, Schedule, SchoolHours, TimetableData } from '../types';
+import type { Assignment, PrintInfo, Schedule, SchoolHours, TimetableData } from '../types';
 import { SchoolLevel, ViewType } from '../types';
 
 export type PrintScope = 'selected' | 'classes' | 'teachers' | 'classMatrix' | 'teacherMatrix';
@@ -36,9 +36,64 @@ interface ExportOptions {
   viewType: ViewType;
   selectedHeaderId: string | null;
   viewMode: ViewMode;
+  printInfo?: PrintInfo | null;
 }
 
 const DAY_LABELS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+
+// Resmi cerceve: ustte "okul adi · egitim-ogretim yili", sag altta mudur adi.
+// Alanlar bos ise hicbir sey cizilmez ve sayfa duzeni eskisi gibi kalir.
+const trim = (value: string | undefined | null) => (value ?? '').trim();
+
+const officialHeaderText = (printInfo?: PrintInfo | null): string => {
+  const school = trim(printInfo?.schoolName).toLocaleUpperCase('tr-TR');
+  const year = trim(printInfo?.academicYear);
+  const yearText = year ? `${year} Eğitim-Öğretim Yılı` : '';
+  return [school, yearText].filter(Boolean).join('  •  ');
+};
+
+const officialPrincipalText = (printInfo?: PrintInfo | null): string => trim(printInfo?.principalName);
+
+type OfficialFrame = {
+  headerText: string;
+  principalText: string;
+  headerHeight: number; // Baslik satirinin ustteki icerigi ne kadar asagi ittigi (mm)
+  footerHeight: number; // Mudur blogunun alttan ayirdigi yer (mm)
+};
+
+const officialFrame = (printInfo: PrintInfo | null | undefined, headerFontSize: number): OfficialFrame => {
+  const headerText = officialHeaderText(printInfo);
+  const principalText = officialPrincipalText(printInfo);
+  return {
+    headerText,
+    principalText,
+    headerHeight: headerText ? headerFontSize * 0.55 : 0,
+    footerHeight: principalText ? 7 : 0,
+  };
+};
+
+const drawOfficialFrame = (
+  doc: jsPDF,
+  frame: OfficialFrame,
+  options: { headerFontSize: number; footerFontSize: number; margin: number; footerBaseline: number },
+) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFont(FONT_NAME, 'normal');
+  if (frame.headerText) {
+    doc.setFontSize(options.headerFontSize);
+    doc.setTextColor(15, 23, 42);
+    doc.text(frame.headerText, pageWidth / 2, options.headerFontSize * 0.45 + 1.5, { align: 'center' });
+  }
+  if (frame.principalText) {
+    const lineGap = options.footerFontSize * 0.42;
+    doc.setFontSize(options.footerFontSize);
+    doc.setTextColor(15, 23, 42);
+    doc.text(frame.principalText, pageWidth - options.margin, options.footerBaseline - lineGap, { align: 'right' });
+    doc.setTextColor(71, 85, 105);
+    doc.setFontSize(options.footerFontSize * 0.85);
+    doc.text('Okul Müdürü', pageWidth - options.margin, options.footerBaseline, { align: 'right' });
+  }
+};
 const FONT_NAME = 'Atkinson';
 const FONT_FILE_NAME = 'AtkinsonHyperlegibleNext.ttf';
 const FONT_URL = '/assets/fonts/AtkinsonHyperlegibleNext.ttf';
@@ -444,8 +499,10 @@ const buildMatrixSchedulePdf = async (options: ExportOptions) => {
   const tableWidth = pageWidth - (horizontalMargin * 2);
   const firstColumnWidth = kind === 'class' ? 15 : 25;
   const slotWidth = (tableWidth - firstColumnWidth) / totalHourCount;
-  const startY = 12;
-  const bottomMargin = 6;
+  const frame = officialFrame(options.printInfo, 6.5);
+  const titleY = 6.5 + frame.headerHeight;
+  const startY = 12 + frame.headerHeight;
+  const bottomMargin = 6 + frame.footerHeight;
   const availableBodyHeight = pageHeight - startY - bottomMargin - 12;
   const rowHeight = Math.max(4.2, Math.min(8, availableBodyHeight / targets.length));
   const bodyFontSize = totalHourCount > 45 ? 2.7 : totalHourCount > 40 ? 3 : 3.4;
@@ -517,21 +574,28 @@ const buildMatrixSchedulePdf = async (options: ExportOptions) => {
       doc.setFont(FONT_NAME, 'normal');
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(7.5);
-      doc.text(title, horizontalMargin, 6.5);
+      doc.text(title, horizontalMargin, titleY);
       doc.setTextColor(71, 85, 105);
       doc.setFontSize(4.5);
       doc.text(
         kind === 'class' ? 'Hücre: ders / öğretmen' : 'Hücre: ders / sınıf',
         pageWidth - horizontalMargin,
-        6.5,
+        titleY,
         { align: 'right' },
       );
+      // Mudur adi sag alt koseyi alinca sayfa numarasi sol alta gecer.
       doc.text(
         `Sayfa ${doc.getCurrentPageInfo().pageNumber}`,
-        pageWidth - horizontalMargin,
+        frame.principalText ? horizontalMargin : pageWidth - horizontalMargin,
         pageHeight - 2,
-        { align: 'right' },
+        { align: frame.principalText ? 'left' : 'right' },
       );
+      drawOfficialFrame(doc, frame, {
+        headerFontSize: 6.5,
+        footerFontSize: 5.5,
+        margin: horizontalMargin,
+        footerBaseline: pageHeight - 2,
+      });
     },
   });
 
@@ -561,6 +625,7 @@ export const buildSchedulePdf = async (options: ExportOptions) => {
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   await addTurkishFont(doc);
+  const frame = officialFrame(options.printInfo, 9);
 
   targets.forEach((target, targetIndex) => {
     if (targetIndex > 0) {
@@ -570,16 +635,22 @@ export const buildSchedulePdf = async (options: ExportOptions) => {
 
     const grid = createWeeklyGrid(target, options.schedule, options.data, options.schoolHours, options.maxDailyHours);
     const descriptor = target.kind === 'class' ? 'Sınıf' : 'Öğretmen';
+    const pageHeight = doc.internal.pageSize.getHeight();
+    drawOfficialFrame(doc, frame, {
+      headerFontSize: 9,
+      footerFontSize: 8,
+      margin: 8,
+      footerBaseline: pageHeight - 4,
+    });
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(15);
-    doc.text(`${target.name} Haftalık Ders Programı`, 8, 10);
+    doc.text(`${target.name} Haftalık Ders Programı`, 8, 10 + frame.headerHeight);
     doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
-    doc.text(`${descriptor}: ${target.name}  •  Her renk aynı dersi gösterir`, 8, 16);
+    doc.text(`${descriptor}: ${target.name}  •  Her renk aynı dersi gösterir`, 8, 16 + frame.headerHeight);
 
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const startY = 21;
-    const bottomMargin = 8;
+    const startY = 21 + frame.headerHeight;
+    const bottomMargin = 8 + frame.footerHeight;
     const headerHeight = 9;
     const minCellHeight = Math.max(8, Math.min(20, (pageHeight - startY - bottomMargin - headerHeight) / grid.length));
     const fontSize = grid.length > 11 ? 6.1 : grid.length > 8 ? 6.7 : 7.3;

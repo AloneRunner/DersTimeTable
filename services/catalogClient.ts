@@ -8,8 +8,10 @@ import type {
   LessonGroup,
   Duty,
   SchoolHours,
+  PrintInfo,
 } from '../types';
 import { getApiBaseUrl } from './authClient';
+import { parsePrintInfo } from '../utils/localWorkspace';
 
 const API_BASE = getApiBaseUrl();
 
@@ -86,7 +88,7 @@ type CatalogExportResponse = {
   duties?: CatalogDuty[];
   settings?: {
     schoolHours?: Record<string, number[]>;
-    preferences?: Record<string, unknown> | null;
+    preferences?: { printInfo?: unknown } | null;
   } | null;
 };
 
@@ -245,6 +247,7 @@ const defaultSchoolHours = (): SchoolHours => ({
 export type CatalogFetchResult = {
   data: TimetableData;
   schoolHours: SchoolHours;
+  printInfo: PrintInfo | null;
 };
 
 const parseSchoolHours = (raw: Record<string, number[]> | undefined | null): SchoolHours => {
@@ -279,7 +282,9 @@ export async function fetchCatalog(token: string, schoolId: number): Promise<Cat
     duties: (body.duties ?? []).map(toDuty),
   };
   const schoolHours = parseSchoolHours(body.settings?.schoolHours);
-  return { data, schoolHours };
+  // Resmi PDF basligi settings.preferences altinda saklanir (sunucuda serbest JSON alani).
+  const printInfo = parsePrintInfo(body.settings?.preferences?.printInfo);
+  return { data, schoolHours, printInfo };
 }
 
 export async function replaceCatalog(
@@ -314,6 +319,7 @@ export async function updateSchoolSettings(
   token: string,
   schoolId: number,
   settings: SchoolHours,
+  printInfo: PrintInfo | null,
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/api/catalog/${schoolId}/settings`, {
     method: 'PUT',
@@ -323,6 +329,7 @@ export async function updateSchoolSettings(
     },
     body: JSON.stringify({
       schoolHours: settings,
+      preferences: printInfo ? { printInfo } : null,
     }),
   });
   if (!response.ok) {

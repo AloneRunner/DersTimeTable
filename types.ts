@@ -115,6 +115,14 @@ export type SchoolHours = {
   [SchoolLevel.High]: number[];   // Array of 5 for Mon-Fri
 };
 
+// PDF ciktisinin resmi basligi: ustte egitim-ogretim yili + okul adi, sag altta mudur adi.
+// Bos birakilan alan ciktida hic gorunmez.
+export interface PrintInfo {
+  schoolName: string;
+  academicYear: string;
+  principalName: string;
+}
+
 // --- Solver Reporting Interfaces ---
 
 export interface SolverOptions {

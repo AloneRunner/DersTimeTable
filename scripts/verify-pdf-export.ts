@@ -25,6 +25,10 @@ const common = {
   maxDailyHours: 8,
   selectedHeaderId: null,
   viewMode: 'master' as const,
+  // PDF_PRINT_INFO=1 ile resmi baslik/mudur cercevesi de cizilir.
+  printInfo: process.env.PDF_PRINT_INFO
+    ? { schoolName: 'Yıldırım Beyazıt Ortaokulu', academicYear: '2026-2027', principalName: 'Ahmet Yılmaz' }
+    : null,
 };
 
 const { doc } = await buildSchedulePdf({ ...common, mode: 'classes', viewType: ViewType.Class });
@@ -39,6 +43,7 @@ const previewDir = process.env.PDF_PREVIEW_DIR;
 if (previewDir) {
   await fs.mkdir(previewDir, { recursive: true });
   await Promise.all([
+    fs.writeFile(path.join(previewDir, 'siniflar.pdf'), bytes),
     fs.writeFile(path.join(previewDir, 'toplu-sinif.pdf'), classMatrixBytes),
     fs.writeFile(path.join(previewDir, 'toplu-ogretmen.pdf'), teacherMatrixBytes),
   ]);

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTimetableData } from './hooks/useTimetableData';
-import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats, Assignment, SubstitutionAssignment } from './types';
+import type { Schedule, Teacher, Classroom, Subject, Location, TimetableData, FixedAssignment, LessonGroup, Duty, SavedSchedule, SchoolHours, SolverStats, Assignment, SubstitutionAssignment, PrintInfo } from './types';
 import { SchoolLevel, ClassGroup, ViewType } from './types';
 import { solveTimetableLocally } from './services/localSolver';
 import { TimetableView } from './components/TimetableView';
@@ -88,6 +88,18 @@ const schoolHoursToDraft = (hours: SchoolHours): SchoolHoursDraft => ({
 });
 
 const clampSchoolHour = (value: number) => Math.max(4, Math.min(16, value));
+
+// Egitim-ogretim yili eylulde baslar: 14 Eylul 2026 -> "2026-2027", Mart 2027 -> "2026-2027".
+const currentAcademicYear = (now = new Date()): string => {
+    const start = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    return `${start}-${start + 1}`;
+};
+
+const createDefaultPrintInfo = (): PrintInfo => ({
+    schoolName: '',
+    academicYear: currentAcademicYear(),
+    principalName: '',
+});
 
 const explainSolverNote = (note: string): string => {
     if (/^status=INFEASIBLE$/i.test(note)) {
@@ -425,6 +437,7 @@ const App: React.FC = () => {
     const [selectedHeaderId, setSelectedHeaderId] = useState<string>('');
     const [schoolHours, setSchoolHours] = useState<SchoolHours>(() => initialSessionToken ? createDefaultSchoolHours() : initialLocalWorkspace?.schoolHours || createDefaultSchoolHours());
     const [schoolHoursDraft, setSchoolHoursDraft] = useState<SchoolHoursDraft>(() => schoolHoursToDraft(initialSessionToken ? createDefaultSchoolHours() : initialLocalWorkspace?.schoolHours || createDefaultSchoolHours()));
+    const [printInfo, setPrintInfo] = useState<PrintInfo>(() => (initialSessionToken ? null : initialLocalWorkspace?.printInfo) || createDefaultPrintInfo());
     const [modalState, setModalState] = useState<ModalState>({ type: null, item: null });
     const [sessionToken, setSessionToken] = useState<string | null>(initialSessionToken);
     const [sessionInfo, setSessionInfo] = useState<AuthSessionInfo | null>(null);
@@ -493,6 +506,11 @@ const App: React.FC = () => {
         schoolHoursRef.current = schoolHours;
     }, [schoolHours]);
 
+    const printInfoRef = useRef<PrintInfo>(printInfo);
+    useEffect(() => {
+        printInfoRef.current = printInfo;
+    }, [printInfo]);
+
     useEffect(() => () => {
         if (pendingSyncRef.current) {
             clearTimeout(pendingSyncRef.current);
@@ -524,7 +542,7 @@ const App: React.FC = () => {
         setCatalogSyncError(null);
         try {
             await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
-            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
+            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current, printInfoRef.current);
             setCatalogSyncStatus('idle');
         } catch (err: any) {
             const message = err instanceof Error ? err.message : 'Bulut kaydi basarisiz';
@@ -586,7 +604,7 @@ const App: React.FC = () => {
         setCatalogSyncError(null);
         try {
             await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
-            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
+            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current, printInfoRef.current);
             setCatalogSyncStatus('idle');
             return true;
         } catch (err: any) {
@@ -637,6 +655,17 @@ const App: React.FC = () => {
         }
         scheduleCatalogSync();
     }, [schoolHours, isRemoteMode, scheduleCatalogSync]);
+
+    useEffect(() => {
+        if (!isRemoteMode) {
+            return;
+        }
+        if (skipSyncCounterRef.current > 0) {
+            skipSyncCounterRef.current = Math.max(0, skipSyncCounterRef.current - 1);
+            return;
+        }
+        scheduleCatalogSync();
+    }, [printInfo, isRemoteMode, scheduleCatalogSync]);
 
     useEffect(() => {
         if (!isRemoteMode) {
@@ -713,7 +742,7 @@ const App: React.FC = () => {
                         setCatalogNotice(`Bu cihazdaki veriler "${schoolName}" okuluna yükleniyor...`);
                         try {
                             await replaceCatalogApi(sessionToken, activeSchoolId, dataRef.current);
-                            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current);
+                            await updateSchoolSettings(sessionToken, activeSchoolId, schoolHoursRef.current, printInfoRef.current);
                             if (cancelled) return;
                             setCatalogSyncStatus('idle');
                             setCatalogNotice(`Bu cihazdaki veriler "${schoolName}" okuluna yüklendi.`);
@@ -729,9 +758,10 @@ const App: React.FC = () => {
                     }
                 }
 
-                skipSyncCounterRef.current += 2;
+                skipSyncCounterRef.current += 3;
                 replaceData(result.data);
                 setSchoolHours(result.schoolHours);
+                setPrintInfo(result.printInfo || createDefaultPrintInfo());
                 setSchedule(null);
                 setSolverStats(null);
                 setActiveScheduleName(null);
@@ -871,7 +901,7 @@ const App: React.FC = () => {
         const timeout = window.setTimeout(() => {
             const savedAt = new Date().toISOString();
             try {
-                saveLocalWorkspace({ data, schedule, schoolHours, activeScheduleName, savedAt });
+                saveLocalWorkspace({ data, schedule, schoolHours, activeScheduleName, printInfo, savedAt });
                 setLocalWorkspaceSavedAt(savedAt);
                 setLocalWorkspaceStatus('saved');
             } catch (saveError) {
@@ -880,7 +910,7 @@ const App: React.FC = () => {
             }
         }, 400);
         return () => window.clearTimeout(timeout);
-    }, [data, schedule, schoolHours, activeScheduleName, sessionToken]);
+    }, [data, schedule, schoolHours, activeScheduleName, printInfo, sessionToken]);
     
     const maxDailyHours = useMemo(() => {
         const flat = (Object.values(schoolHours).flat() as number[]);
@@ -971,6 +1001,7 @@ const App: React.FC = () => {
                     replaceData(initialLocalWorkspace.data);
                     setSchedule(initialLocalWorkspace.schedule);
                     setSchoolHours(initialLocalWorkspace.schoolHours);
+                    setPrintInfo(initialLocalWorkspace.printInfo || createDefaultPrintInfo());
                     setActiveScheduleName(initialLocalWorkspace.activeScheduleName);
                 }
                 persistSessionToken(null);
@@ -1074,6 +1105,10 @@ const App: React.FC = () => {
         });
     };
     
+    const handlePrintInfoChange = (field: keyof PrintInfo, value: string) => {
+        setPrintInfo(prev => ({ ...prev, [field]: value }));
+    };
+
     const handleClearAllData = () => {
         if (window.confirm("Mevcut tüm değişiklikleri atıp varsayılan örnek verilere geri dönmek istediğinizden emin misiniz? Kayıtlı versiyonlar da dahil olmak üzere tüm veriler silinecektir. Bu işlem geri alınamaz.")) {
             clearData();
@@ -1699,6 +1734,7 @@ const App: React.FC = () => {
                 viewType,
                 selectedHeaderId,
                 viewMode,
+                printInfo: effectivePrintInfo,
             });
             const blob = doc.output('blob') as Blob;
             await saveOrShareFile({ blob, fileName, title: 'Ders Programi' });
@@ -2368,6 +2404,12 @@ case 'duties':
     schoolNamesRef.current = Object.fromEntries(
         schoolOptions.map((school, index) => [Number(school.id), school.name || `Okul #${school.id ?? index + 1}`]),
     );
+    // Okul adi bos birakilirsa PDF'te buluttaki okul adi kullanilir.
+    const cloudSchoolName = activeSchoolId ? (sessionInfo?.schools ?? []).find(s => Number(s.id) === activeSchoolId)?.name ?? '' : '';
+    const effectivePrintInfo: PrintInfo = {
+        ...printInfo,
+        schoolName: printInfo.schoolName.trim() || cloudSchoolName,
+    };
     const bridgeCodeExpiryText = bridgeCodeInfo ? new Date(bridgeCodeInfo.expiresAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
 
     const viewOptions = useMemo(() => {
@@ -3145,6 +3187,38 @@ case 'duties':
                                     ))}
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-slate-500 block mb-2">PDF Başlığı (resmî çıktı)</label>
+                        <div className="space-y-2">
+                            <input
+                                type="text"
+                                value={printInfo.schoolName}
+                                onChange={(e) => handlePrintInfoChange('schoolName', e.target.value)}
+                                placeholder={cloudSchoolName ? `Okul adı (boşsa: ${cloudSchoolName})` : 'Okul adı'}
+                                title="Her sayfanın en üstünde yazar"
+                                className="w-full rounded-md border-slate-300 text-sm p-1"
+                            />
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={printInfo.academicYear}
+                                    onChange={(e) => handlePrintInfoChange('academicYear', e.target.value)}
+                                    placeholder="2026-2027"
+                                    title="Eğitim-öğretim yılı; her sayfanın en üstünde okul adının yanında yazar"
+                                    className="w-28 rounded-md border-slate-300 text-sm p-1"
+                                />
+                                <input
+                                    type="text"
+                                    value={printInfo.principalName}
+                                    onChange={(e) => handlePrintInfoChange('principalName', e.target.value)}
+                                    placeholder="Okul müdürü adı"
+                                    title="Her sayfanın sağ alt köşesinde 'Okul Müdürü' imza yeri olarak yazar"
+                                    className="flex-1 rounded-md border-slate-300 text-sm p-1"
+                                />
+                            </div>
+                            <p className="text-[11px] text-slate-500">Boş bırakılan alan çıktıda görünmez.</p>
                         </div>
                     </div>
                 </div>

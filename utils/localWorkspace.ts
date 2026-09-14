@@ -1,4 +1,4 @@
-import type { Schedule, SchoolHours, TimetableData } from '../types';
+import type { PrintInfo, Schedule, SchoolHours, TimetableData } from '../types';
 import { SchoolLevel } from '../types';
 
 export const LOCAL_WORKSPACE_KEY = 'ozarik.timetable.current.v1';
@@ -10,7 +10,19 @@ export interface LocalWorkspaceDraft {
   schedule: Schedule | null;
   schoolHours: SchoolHours;
   activeScheduleName: string | null;
+  printInfo: PrintInfo | null;
 }
+
+export const parsePrintInfo = (value: unknown): PrintInfo | null => {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Partial<Record<keyof PrintInfo, unknown>>;
+  const text = (v: unknown) => (typeof v === 'string' ? v : '');
+  return {
+    schoolName: text(raw.schoolName),
+    academicYear: text(raw.academicYear),
+    principalName: text(raw.principalName),
+  };
+};
 
 const hasValidSchoolHours = (value: unknown): value is SchoolHours => {
   if (!value || typeof value !== 'object') return false;
@@ -44,6 +56,7 @@ export const loadLocalWorkspace = (): LocalWorkspaceDraft | null => {
       schedule: parsed.schedule && typeof parsed.schedule === 'object' ? parsed.schedule : null,
       schoolHours: parsed.schoolHours,
       activeScheduleName: typeof parsed.activeScheduleName === 'string' ? parsed.activeScheduleName : null,
+      printInfo: parsePrintInfo(parsed.printInfo),
     };
   } catch {
     return null;
