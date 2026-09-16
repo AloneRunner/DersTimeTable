@@ -264,6 +264,18 @@ console.log('19. Yarım kalan satır uyarısı');
   check('kalan kısım için uyarı var', !!r.lines[0].warning, r.lines[0]);
 }
 
+// 20 — Hazır listede olmayan ders adı (meslek lisesi dersleri)
+console.log('20. Listede olmayan ders adı');
+{
+  const r = parseCommands('10/A kuyumculuk atölyesi dersi 4 saat', baseData());
+  const subject = find(r.actions, 'addSubject');
+  const teacher = find(r.actions, 'addTeacher');
+  check('ders olarak eklendi', subject?.name === 'Kuyumculuk Atölyesi', subject);
+  check('öğretmen sanılmadı', !teacher, teacher);
+  check('haftalık saat 4', subject?.weeklyHours === 4, subject?.weeklyHours);
+  check('10/A açıldı ve derse bağlandı', subject?.classroomIds.length === 1, subject?.classroomIds);
+}
+
 console.log('');
 if (failures) {
   console.log(`${failures} kontrol BAŞARISIZ`);

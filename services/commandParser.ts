@@ -603,7 +603,23 @@ const parseLineInner = (
     return line;
   }
 
-  // 5) Sınıf ekleme: "6. sınıf 4 şube" ya da "5/A 5/B 5/C ekle"
+  // 5) Listede olmayan ders adı: "10/A kuyumculuk atölyesi dersi 4 saat".
+  // Meslek liselerinin ders adları hazır listede yok; cümlede ders/saat geçiyorsa
+  // artakalan kelimeler öğretmen adı değil, yeni bir ders adıdır.
+  if (!subjectName && !hasKeyword(toks, used, KEYWORDS.teacher)) {
+    const mentionsLesson = hasKeyword(toks, used, KEYWORDS.lesson) || hours !== null;
+    const custom = mentionsLesson ? leftoverName(toks, used) : null;
+    if (custom) {
+      markUsed(used, custom.start, custom.end);
+      pushNewClassrooms();
+      const subjectId = newId('s');
+      line.actions.push({ kind: 'addSubject', id: subjectId, name: custom.name, weeklyHours: hours || 0, classroomIds: classIds });
+      line.summaries.push(`Ders eklenecek: ${custom.name}${hours !== null ? ` — haftada ${hours} saat` : ' — haftalık saati sonra girilmeli'}${classIds.length ? ` (${nameOf(classIds)})` : ''}`);
+      return line;
+    }
+  }
+
+  // 6) Sınıf ekleme: "6. sınıf 4 şube" ya da "5/A 5/B 5/C ekle"
   const shubeMatch = trLower(text).match(/(\d{1,2})\s*\.?\s*sınıf\w*\s+(\d{1,2})\s*şube/);
   if (shubeMatch) {
     const grade = Number(shubeMatch[1]);
@@ -623,7 +639,7 @@ const parseLineInner = (
     return line;
   }
 
-  // 6) Öğretmen ekleme: "Kaan Özarık fen bilimleri öğretmeni ekle"
+  // 7) Öğretmen ekleme: "Kaan Özarık fen bilimleri öğretmeni ekle"
   const leftover = leftoverName(toks, used);
   if (leftover && (subjectName || wantsAdd || hasKeyword(toks, used, KEYWORDS.teacher))) {
     const branches = subjectName ? [subjectName] : [];
