@@ -102,6 +102,15 @@ const createDefaultPrintInfo = (): PrintInfo => ({
 });
 
 const explainSolverNote = (note: string): string => {
+    // Basarili sonuclarin notu da cevrilir. Onceden yalnizca hata durumlari
+    // cevriliyordu ve kullanici programi olusunca sari kutuda ham
+    // "status=OPTIMAL" goruyordu.
+    if (/^status=OPTIMAL$/i.test(note)) {
+        return 'Program oluşturuldu. Çözücü verilen kurallara uyan en iyi yerleşimi buldu.';
+    }
+    if (/^status=FEASIBLE$/i.test(note)) {
+        return 'Program oluşturuldu. Süre dolduğu için daha iyisi aranmadı; süreyi artırıp yeniden deneyerek boşlukları azaltabilirsiniz.';
+    }
     if (/^status=INFEASIBLE$/i.test(note)) {
         return 'Bu kurallarla program oluşturmak mümkün değil. Program Öncesi Kontrol bölümündeki kırmızı uyarıları düzeltin veya müsaitlik/blok kurallarını esnetin.';
     }
@@ -2456,15 +2465,25 @@ case 'duties':
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                     <div className="bg-slate-50 p-4 rounded-lg">
                         <p className="text-slate-500 font-medium">Süre</p>
-                        <p className="text-2xl font-bold text-sky-600">{stats.elapsedSeconds} s</p>
+                        {/* Ham deger 1.6799871921539307 gibi geliyordu; tek hane yeter. */}
+                        <p className="text-2xl font-bold text-sky-600">{Number(stats.elapsedSeconds ?? 0).toFixed(1)} s</p>
                         {typeof stats.firstSolutionSeconds === 'number' && stats.firstSolutionSeconds! > 0 && (
-                          <p className="text-slate-600">Ilk cozum: {stats.firstSolutionSeconds} s</p>
+                          <p className="text-slate-600">İlk çözüm: {stats.firstSolutionSeconds.toFixed(1)} s</p>
                         )}
                     </div>
                     <div className="bg-slate-50 p-4 rounded-lg">
                         <p className="text-slate-500 font-medium">Performans</p>
-                        <p className="text-slate-700"><span className="font-semibold">{stats.attempts.toLocaleString('tr-TR')}</span> deneme</p>
-                        <p className="text-slate-700"><span className="font-semibold">{stats.backtracks.toLocaleString('tr-TR')}</span> geri dönüş</p>
+                        {/* Sunucudaki CP-SAT deneme/geri donus saymiyor; o durumda kutu
+                            "0 deneme 0 geri dönüş" diye bozuk gorunuyordu. Anlamli olan
+                            yerlesen ders sayisini gosteriyoruz. */}
+                        {(stats.attempts > 0 || stats.backtracks > 0) ? (
+                            <>
+                                <p className="text-slate-700"><span className="font-semibold">{stats.attempts.toLocaleString('tr-TR')}</span> deneme</p>
+                                <p className="text-slate-700"><span className="font-semibold">{stats.backtracks.toLocaleString('tr-TR')}</span> geri dönüş</p>
+                            </>
+                        ) : (
+                            <p className="text-slate-700"><span className="font-semibold">{(stats.placements ?? 0).toLocaleString('tr-TR')}</span> ders yerleştirildi</p>
+                        )}
                     </div>
                     <div className="md:col-span-2 bg-slate-50 p-4 rounded-lg">
                         <p className="text-slate-500 font-medium mb-2">En Çok Zorlayan Kısıtlar</p>
