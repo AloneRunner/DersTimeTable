@@ -482,9 +482,9 @@ buildTeacherCombos(subject: Subject | undefined, classroomId: string): Teacher[]
               if (this.options.strategy === 'tabu') {
                 this.tabuOptimize();
                 this.compactSchedule();
-                this.stats.notes.push('Tabu Search: relocate+swap ile boşluk/ardışık iyileştirildi.');
+                this.stats.notes.push('Yedek çözücü: dersler yer değiştirilerek boşluklar ve art arda dersler iyileştirildi.');
               } else {
-                this.stats.notes.push('Strateji: Min-Conflicts (repair) + yerel onarım.');
+                this.stats.notes.push('Yedek çözücü: çakışan dersler tek tek onarılarak yerleştirildi.');
               }
 
               // Optional LNS hops while time remains
@@ -493,9 +493,9 @@ buildTeacherCombos(subject: Subject | undefined, classroomId: string): Teacher[]
                 if (!this.isTimedOut()) this.ruinAndRecreate(25);
               }
               // Additional strategy-specific improvements
-              if (this.options.strategy === "sa") { this.simulatedAnnealing(); this.compactSchedule(); this.stats.notes.push("Simulated Annealing: kabul/ret ile yerel iyileştirme."); }
-              else if (this.options.strategy === "alns") { this.alnsOptimize(); this.compactSchedule(); this.stats.notes.push("ALNS: uyarlamalı ruin & recreate adımları."); }
-              else if (this.options.strategy === "vns") { this.vnsOptimize(); this.compactSchedule(); this.stats.notes.push("VNS: farklı komşuluklarda sistematik arama."); }
+              if (this.options.strategy === "sa") { this.simulatedAnnealing(); this.compactSchedule(); this.stats.notes.push("Yedek çözücü: yerleşim küçük değişikliklerle iyileştirildi."); }
+              else if (this.options.strategy === "alns") { this.alnsOptimize(); this.compactSchedule(); this.stats.notes.push("Yedek çözücü: program parça parça bozulup yeniden kuruldu."); }
+              else if (this.options.strategy === "vns") { this.vnsOptimize(); this.compactSchedule(); this.stats.notes.push("Yedek çözücü: farklı yerleşim seçenekleri sırayla denendi."); }
 
               const score = this.objectiveScore();
               if (score < bestScore) { bestScore = score; bestSnapshot = JSON.stringify(this.schedule); bestNotes = this.stats.notes.slice(); foundAny = true; }
@@ -1671,7 +1671,7 @@ export const solveTimetableLocally = (
 
     worker.onerror = (err) => {
       const stats = defaultEmptyStats();
-      stats.notes.push('Çözücü çalıştırılırken bir worker hatası oluştu: ' + err.message);
+      stats.notes.push('Tarayıcıdaki yedek çözücü çalışamadı. Sayfayı yenileyip tekrar deneyin. (Teknik ayrıntı: ' + err.message + ')');
       stats.endedAt = Date.now();
       resolve({ schedule: null, stats });
       worker.terminate();

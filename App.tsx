@@ -1670,9 +1670,19 @@ const App: React.FC = () => {
               // Sunucuya ulaşılamadı / meşgul: tarayıcı içi yedek çözücüye düş.
               const detail = cpErr instanceof Error ? cpErr.message : String(cpErr ?? '');
               const busy = /solver-busy/i.test(detail);
+              // Ham hata metni İngilizce geliyordu ("Failed to fetch" gibi) ve
+              // kullanıcıya olduğu gibi gösteriliyordu. Bilinen durumları Türkçe
+              // karşılıklarıyla anlatıyoruz.
+              const sebep = /failed to fetch|networkerror|load failed/i.test(detail)
+                ? 'internet bağlantısı kurulamadı'
+                : /timeout|zaman/i.test(detail)
+                  ? 'sunucu zamanında cevap vermedi'
+                  : /\b5\d\d\b/.test(detail)
+                    ? 'sunucu hata verdi'
+                    : 'bağlantı kurulamadı';
               localFallbackNote = busy
                 ? 'Sunucu çözücüsü şu an meşgul; program tarayıcıdaki yedek çözücüyle oluşturuldu. Daha iyi sonuç için biraz sonra tekrar deneyin.'
-                : `Sunucu çözücüsüne ulaşılamadı (${detail || 'bağlantı hatası'}); program tarayıcıdaki yedek çözücüyle oluşturuldu.`;
+                : `Sunucu çözücüsüne ulaşılamadı (${sebep}); program tarayıcıdaki yedek çözücüyle oluşturuldu.`;
             }
             if (localFallbackNote) {
               result = await solveTimetableLocally(data, { 
@@ -1721,7 +1731,21 @@ const App: React.FC = () => {
                 setError(errorMsg);
             }
         } catch (err: any) {
-            setError(err.message || 'Program oluşturulurken bilinmeyen bir hata oluştu.');
+            // Buraya program üretimi başlamadan düşen hatalar geliyor ve eskiden
+            // kullanıcıya JavaScript'in İngilizce metni gösteriliyordu. Ayrıca bu
+            // çökmeler sayıma hiç yazılmıyordu, yani kaç kez olduğu bilinmiyordu.
+            const detay = err?.message ? String(err.message) : '';
+            setError(
+                'Program oluşturulurken beklenmeyen bir hata oldu. Tekrar deneyin; sorun sürerse ekran görüntüsüyle bize yazın.'
+                + (detay ? ` (Teknik ayrıntı: ${detay})` : '')
+            );
+            recordSolve({
+                solver: 'cpsat',
+                success: false,
+                classrooms: data.classrooms.length,
+                teachers: data.teachers.length,
+                reason: 'crash',
+            });
         } finally {
             setIsLoading(false);
         }

@@ -41,6 +41,8 @@ _FAIL_REASONS = {
     'availability_teacher', 'availability', 'blocks', 'fixed', 'pinned_teacher',
     'daily_max', 'max_consec', 'weekly_max', 'not_same_day', 'same_day_split',
     'gap_limit', 'unknown',
+    # Program uretimi baslamadan dusen beklenmeyen hata (istemci tarafi cokme).
+    'crash',
 }
 
 
