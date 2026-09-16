@@ -5,6 +5,7 @@ import { SchoolLevel, ClassGroup, ViewType } from './types';
 import { solveTimetableLocally } from './services/localSolver';
 import { TimetableView } from './components/TimetableView';
 import { AutocompleteInput } from './components/AutocompleteInput';
+import { QuickCommandBar } from './components/QuickCommandBar';
 import { subjectSuggestions } from './data/suggestions';
 import { PlusIcon, TrashIcon, PencilIcon, DownloadIcon, PrintIcon, UploadIcon, SaveIcon, WarningIcon } from './components/icons';
 import { useDataValidation } from './hooks/useDataValidation';
@@ -2382,6 +2383,7 @@ case 'duties':
                 <strong>Bilgi:</strong> Eklediğiniz görevler (nöbet vb.), program oluşturulduktan sonra **"Öğretmene Göre"** görünümünde ilgili öğretmenin zaman çizelgesinde gösterilir.
               </div>
             )}
+            <QuickCommandBar data={data} onApply={replaceData} />
             <div className="mt-4">{renderTable()}</div>
         </div>
       );

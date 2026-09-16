@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "pwa:check": "node scripts/verify-pwa.mjs",
+    "verify:commands": "node scripts/verify-commands.mjs",
     "cp-solver:install": "python -m pip install -r server/requirements.txt",
     "cp-solver:start": "python -m uvicorn server.main:app --host 0.0.0.0 --port 8000",
     "cp-solver:start:py": "py -m uvicorn server.main:app --host 0.0.0.0 --port 8000"
