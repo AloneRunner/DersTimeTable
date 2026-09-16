@@ -305,6 +305,30 @@ console.log('21. Önceki satırdaki dersi hatırlama');
   check('"dersi sil" devralıp silmiyor', del.actions.length === 0, kinds(del.actions));
 }
 
+// 22 — "bir şube daha ekle": var olanların üstüne ekleme
+console.log('22. Şube daha ekleme');
+{
+  const oda = (id: string, name: string) => ({
+    id, name, level: SchoolLevel.Middle, group: ClassGroup.None, sessionType: 'full' as const,
+  });
+  const okul: TimetableData = {
+    teachers: [], subjects: [],
+    classrooms: [oda('c1', '7/A'), oda('c2', '7/B'), oda('c3', '7/C')],
+    locations: [], fixedAssignments: [], lessonGroups: [], duties: [],
+  };
+  const r = parseCommands('7. Sınıflara bir şube daha ekle', okul);
+  const rooms = r.actions.filter(a => a.kind === 'addClassroom') as Extract<CommandAction, { kind: 'addClassroom' }>[];
+  check('tek şube eklendi', rooms.length === 1, rooms.map(x => x.name));
+  check('sıradaki harf seçildi (7/D)', rooms[0]?.name === '7/D', rooms[0]?.name);
+  check('"daha" öğretmen sanılmadı', !find(r.actions, 'addTeacher'), r.actions);
+
+  const iki = parseCommands('7. sınıfa 2 şube daha aç', okul);
+  check('iki şube isteyince iki tane', iki.actions.length === 2, kinds(iki.actions));
+
+  const toplam = parseCommands('7. sınıf 3 şube', okul);
+  check('"daha" yoksa toplam sayı hedeflenir', toplam.actions.length === 0 && !!toplam.lines[0].problem, toplam.lines[0]);
+}
+
 console.log('');
 if (failures) {
   console.log(`${failures} kontrol BAŞARISIZ`);

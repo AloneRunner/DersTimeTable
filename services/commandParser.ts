@@ -241,10 +241,16 @@ const KEYWORDS = {
  */
 const FILLERS = [
   'bir', 'bu', 'şu', 'var', 'diye', 'adında', 'adlı', 'isimli', 'olarak', 'lütfen',
-  'bey', 'hanım', 'sayın', 'öğretmenimiz',
+  'bey', 'hanım', 'sayın', 'öğretmenimiz', 'daha', 'adet', 'kadar', 'tekrar',
   'tane', 'ile', 've', 'ya', 'veya', 'ki', 'için', 'artık', 'ayrıca', 'sonra', 'önce',
   'gün', 'günü', 'günleri', 'haftada', 'haftalık', 'olsun', 'olacak', 'lazım', 'gerek',
 ];
+
+/** "bir şube daha" gibi cümleler için yazıyla sayılar. */
+const WORD_NUMBERS: Record<string, number> = {
+  bir: 1, iki: 2, üç: 3, uc: 3, dört: 4, dort: 4, beş: 5, bes: 5,
+  altı: 6, alti: 6, yedi: 7, sekiz: 8, dokuz: 9, on: 10,
+};
 
 const ALL_KEYWORDS = [...Object.values(KEYWORDS).flat(), ...FILLERS].map(normWord).filter(Boolean);
 
@@ -645,19 +651,40 @@ const parseLineInner = (
     }
   }
 
-  // 6) Sınıf ekleme: "6. sınıf 4 şube" ya da "5/A 5/B 5/C ekle"
-  const shubeMatch = trLower(text).match(/(\d{1,2})\s*\.?\s*sınıf\w*\s+(\d{1,2})\s*şube/);
-  if (shubeMatch) {
-    const grade = Number(shubeMatch[1]);
-    const count = Math.min(Number(shubeMatch[2]), 12);
+  // 6) Şube açma. İki ayrı anlam var:
+  //    "6. sınıf 4 şube"            -> o sınıfta toplam 4 şube olsun
+  //    "7. sınıflara bir şube daha" -> var olanların üstüne 1 tane daha aç
+  const lower = trLower(text);
+  if (/şube/.test(lower)) {
+    const gradeMatch = lower.match(/(\d{1,2})\s*\.?\s*sınıf/);
+    const refGrade = classRefs.find(r => !r.all && r.branch === null);
+    const grade = gradeMatch ? Number(gradeMatch[1]) : (refGrade ? refGrade.grade : 0);
+    if (!grade) {
+      line.problem = 'Hangi sınıf seviyesine şube açılacağı anlaşılmadı. Örnek: "7. sınıfa bir şube daha ekle".';
+      return line;
+    }
+    const countMatch = lower.match(/(\d{1,2}|bir|iki|üç|dört|beş|altı|yedi|sekiz|dokuz|on)\s*(?:\w+\s+)?şube/);
+    const raw = countMatch ? countMatch[1] : '1';
+    const count = Math.min(/^\d+$/.test(raw) ? Number(raw) : (WORD_NUMBERS[raw] || 1), 12);
     const letters = 'ABCDEFGHIJKL';
-    for (let i = 0; i < count; i++) {
-      const name = `${grade}${sep}${letters[i]}`;
-      if (draft.classrooms.some(c => classKey(c.name) === classKey(name))) continue;
+    const taken = new Set(
+      draft.classrooms
+        .filter(c => classKey(c.name).startsWith(String(grade)))
+        .map(c => classKey(c.name).slice(String(grade).length)),
+    );
+    // "daha" varsa mevcutların üstüne eklenir, yoksa toplam sayı hedeflenir.
+    const addMore = /\bdaha\b|\bilave\b|\bek\s/.test(lower);
+    const hedef = addMore ? taken.size + count : count;
+    for (const letter of letters) {
+      if (taken.size >= hedef) break;
+      const key = trLower(letter);
+      if (taken.has(key)) continue;
+      taken.add(key);
+      const name = `${grade}${sep}${letter}`;
       line.actions.push({ kind: 'addClassroom', id: newId('c'), name, level: levelForGrade(grade) });
       line.summaries.push(`Sınıf eklenecek: ${name} (${levelForGrade(grade)})`);
     }
-    if (!line.actions.length) line.problem = 'Bu şubeler zaten var.';
+    if (!line.actions.length) line.problem = `${grade}. sınıfta zaten ${taken.size} şube var, yeni şube gerekmedi.`;
     return line;
   }
   if (toCreate.length) {
@@ -667,7 +694,12 @@ const parseLineInner = (
 
   // 7) Öğretmen ekleme: "Kaan Özarık fen bilimleri öğretmeni ekle"
   const leftover = leftoverName(toks, used);
-  if (leftover && (subjectName || wantsAdd || hasKeyword(toks, used, KEYWORDS.teacher))) {
+  // Sınıf/şube cümlesinde branş da öğretmen sözcüğü de yoksa, artan kelimeyi
+  // öğretmen adı saymak yanlış olur ("bir şube daha ekle" -> "Daha" öğretmeni).
+  const aboutClasses = hasKeyword(toks, used, KEYWORDS.classWord) || classRefs.length > 0;
+  const teacherWord = hasKeyword(toks, used, KEYWORDS.teacher);
+  if (leftover && !(aboutClasses && !subjectName && !teacherWord)
+      && (subjectName || wantsAdd || teacherWord)) {
     const branches = subjectName ? [subjectName] : [];
     const existing = draft.teachers.find(t => trLower(t.name) === trLower(leftover.name));
     if (existing) {
