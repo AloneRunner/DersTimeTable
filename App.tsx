@@ -2842,7 +2842,8 @@ case 'duties':
                         Program her zaman sunucudaki CP-SAT çözücüsüyle oluşturulur; Süre, StopFirst, blok esnetme ve CP-SAT Özel Ayarlar buna aittir. Sunucuya ulaşılamazsa veya meşgulse tarayıcıdaki yedek çözücü kendiliğinden devreye girer ve bu, sonuç notunda belirtilir.
                     </p>
                     <p><strong>Yedek yerel çözücü:</strong> Seed, Tenure, Iter, RNG, Deterministik, LNS, Kenar cezası ve Hızlı/Dengeli/Maks/Klasik profilleri yalnız bu yedek aramayı yönetir.</p>
-                    <p><strong>Süre:</strong> Çözücünün arama için kullanabileceği azami saniyedir. Süre dolmadan iyi bir sonuç bulursa daha erken bitebilir.</p>
+                    <p><strong>Süre:</strong> Çözücünün arama için kullanabileceği azami saniyedir; varsayılan 60 saniyedir. Süre dolmadan iyi bir sonuç bulursa daha erken biter. Kurallar birbiriyle çelişiyorsa süreyi artırmak sonucu değiştirmez, çözücü yine "mümkün değil" der.</p>
+                    <p><strong>Program oluşmazsa:</strong> Çözücü "bu kurallarla mümkün değil" dediğinde uygulama kuralları tek tek gevşetip hangisinin engellediğini arar ve sonucu düz bir cümleyle söyler; örneğin "Ayşe Yılmaz'ın müsait saatleri açılırsa program oluşuyor" ya da "2'li blok kuralları kaldırılınca program oluşuyor". Bu arama yalnız çözüm bulunamadığında çalışır ve birkaç saniye sürer.</p>
                     <p><strong>StopFirst:</strong> İlk geçerli programda durur. Açıkken hızlıdır; kapalıyken kalan sürede daha az boşluklu program arar.</p>
                     <p><strong>Yer bulamazsa blokları esnet:</strong> Kapalıysa 3+2 gibi tanımladığınız bloklar zorunludur. Açarsanız çözücü önce 3+2'yi dener; program çıkmazsa 3+1+1 veya 2+1+1+1 gibi bölerek yeniden dener.</p>
                     <p><strong>Seed / Tenure / Iter:</strong> Yalnız yerel Tabu/ALNS yöntemlerinin başlangıç oranı, hamle hafızası ve deneme sayısıdır.</p>
