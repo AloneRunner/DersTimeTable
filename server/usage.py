@@ -36,6 +36,12 @@ _BUILD_RE = re.compile(r'^[0-9A-Za-z.\-]{1,32}$')
 _EVENTS = {'app_open', 'solve'}
 _PLATFORMS = {'web', 'windows', 'android'}
 _SOLVERS = {'cpsat', 'local'}
+# Program olusmadiginda tesihsin bulabilecegi engel turleri (server/diagnose.py).
+_FAIL_REASONS = {
+    'availability_teacher', 'availability', 'blocks', 'fixed', 'pinned_teacher',
+    'daily_max', 'max_consec', 'weekly_max', 'not_same_day', 'same_day_split',
+    'gap_limit', 'unknown',
+}
 
 
 class ActivityPayload(BaseModel):
@@ -45,6 +51,9 @@ class ActivityPayload(BaseModel):
     appBuild: Optional[str] = Field(default=None, max_length=32)
     solver: Optional[str] = Field(default=None, max_length=16)
     success: Optional[bool] = None
+    # Basarisiz denemede engelin turu (kural etiketi). Okul/ogretmen/ders adi
+    # tasimaz; hangi kuralin kullanicilari en cok tikadigini gormek icin.
+    reason: Optional[str] = Field(default=None, max_length=32)
     classrooms: Optional[int] = Field(default=None, ge=0, le=5000)
     teachers: Optional[int] = Field(default=None, ge=0, le=5000)
 
@@ -93,6 +102,10 @@ def record_activity(payload: ActivityPayload, request: Request) -> Response:
             detail['classrooms'] = payload.classrooms
         if payload.teachers is not None:
             detail['teachers'] = payload.teachers
+        # Engel turu yalnizca BILINEN etiketlerden biriyse yazilir; serbest metin
+        # kabul edilmez ki sayimlar temiz kalsin ve kazara veri sizmasin.
+        if payload.reason in _FAIL_REASONS:
+            detail['reason'] = payload.reason
 
     user_id = _session_user_id(request)
 
@@ -347,6 +360,19 @@ def _collect_stats(cur: Any) -> Dict[str, Any]:
         WHERE event = 'solve'
     """, tz)
 
+    # Basarisiz denemelerin sebep dagilimi. "Hangi kural kullanicilari en cok
+    # tikiyor" sorusunun cevabi; tesihs eklenmeden once bu bilgi hic yoktu.
+    fail_reasons = _all(cur, """
+        SELECT COALESCE(detail->>'reason', 'kaydedilmemis') AS reason,
+               COUNT(*) AS count
+        FROM usage_events
+        WHERE event = 'solve'
+          AND created_at > now() - interval '30 days'
+          AND detail->>'success' = 'false'
+        GROUP BY 1
+        ORDER BY 2 DESC
+    """)
+
     daily = _all(cur, """
         WITH days AS (
           SELECT generate_series(
@@ -402,6 +428,7 @@ def _collect_stats(cur: Any) -> Dict[str, Any]:
         'devices': {**devices, **new_devices},
         'platforms': platforms,
         'solves': solves,
+        'failReasons': fail_reasons,
         'daily': daily,
         'accounts': accounts,
         'recentUsers': recent_users,

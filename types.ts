@@ -170,6 +170,20 @@ export interface SolverStats {
   hardestLessons: Array<{ key: string; failures: number }>; // Lessons that caused the most backtracks
   mrvDeadEnds: number;                   // Number of times MRV found no valid placements
   notes: string[];                       // Explanatory notes (e.g., timeout)
+  diagnosis?: SolverDiagnosis;           // Çözüm çıkmadıysa: hangi kural engelliyor
+}
+
+/**
+ * Çözücü "bu kurallarla mümkün değil" dediğinde sunucunun bulduğu sebep.
+ * Sunucu kuralları tek tek gevşetip hangisinin engel olduğunu arıyor;
+ * `message` doğrudan kullanıcıya gösterilecek Türkçe cümledir.
+ */
+export interface SolverDiagnosis {
+  found: boolean;
+  blocker: string;            // availability_teacher, blocks, fixed, pinned_teacher, daily_max, ...
+  teacher?: string | null;    // engel bir öğretmene bağlıysa adı
+  message: string;
+  tried?: string[];           // denenen gevşetmeler (ölçüm için)
 }
 
 export type SolveResult = { 

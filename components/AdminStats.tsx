@@ -29,6 +29,8 @@ type Stats = {
     failed_30d: number;
     devices_30d: number;
   };
+  /** Son 30 günde program oluşturulamayan denemelerin sebep dağılımı. */
+  failReasons?: Array<{ reason: string; count: number }>;
   daily: Array<{ day: string; devices: number; solves: number }>;
   accounts: {
     users: number;
@@ -132,6 +134,26 @@ const Card: React.FC<{ title?: string; subtitle?: string; children: React.ReactN
     {children}
   </section>
 );
+
+/**
+ * Sunucudaki teşhisin bulduğu engel türlerinin okunur karşılıkları.
+ * Etiketler server/diagnose.py içindeki `blocker` değerleriyle birebir aynı.
+ */
+const FAIL_REASON_LABELS: Record<string, string> = {
+  availability_teacher: 'Bir öğretmenin müsaitliği',
+  availability: 'Öğretmen müsaitlikleri (birkaç öğretmen)',
+  blocks: "2'li / 3'lü blok dersler",
+  fixed: 'Saate sabitlenmiş dersler',
+  pinned_teacher: 'Derse sabitlenen öğretmen',
+  daily_max: 'Öğretmen günlük ders sınırı',
+  max_consec: 'Art arda ders sınırı',
+  weekly_max: 'Öğretmen haftalık ders sınırı',
+  not_same_day: '"Aynı gün olamaz" kuralı',
+  same_day_split: 'Ders aynı gün bölünemiyor',
+  gap_limit: 'Öğretmen boşluk sınırı',
+  unknown: 'Teşhis sebebi bulamadı',
+  kaydedilmemis: 'Teşhis eklenmeden önceki denemeler',
+};
 
 const StatTile: React.FC<{ label: string; value: number; hint?: string }> = ({ label, value, hint }) => (
   <div
@@ -758,6 +780,22 @@ const AdminStats: React.FC = () => {
                 hint={`${fmt(s.solves.local_fallback_30d)} kez yedek çözücü devreye girdi`}
               />
             </div>
+
+            {(s.failReasons?.length ?? 0) > 0 && (
+              <Card
+                title="Program neden oluşmadı"
+                subtitle="Son 30 gün · başarısız denemelerde çözücüyü engelleyen kural"
+              >
+                <ul className="space-y-2">
+                  {(s.failReasons ?? []).map((r) => (
+                    <li key={r.reason} className="flex items-center justify-between gap-3 text-sm">
+                      <span style={{ color: C.ink }}>{FAIL_REASON_LABELS[r.reason] ?? r.reason}</span>
+                      <span className="font-semibold tabular-nums" style={{ color: C.ink }}>{fmt(r.count)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
 
             <div className="grid gap-5 lg:grid-cols-2">
               <Card title="Günlük aktif cihaz" subtitle="Son 30 gün, uygulamayı açan farklı cihaz sayısı">

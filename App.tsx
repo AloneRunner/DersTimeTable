@@ -1395,7 +1395,12 @@ const App: React.FC = () => {
             setBridgeLoading(false);
         }
     }, [bridgeEmail, bridgeName, bridgeSchoolId]);
-    const [optTime, setOptTime] = useState<number>(150);
+    // Varsayilan cozum suresi. Onceden 150 saniyeydi: hic ayar yapmayan kullanici
+    // dogrudan en uzun sureyle basliyordu. Imkansiz kurallarda cozucu sureyi sonuna
+    // kadar kullandigi icin en pahali denemeler basarisiz olanlardi (deneme basina
+    // ~20 vCPU-dakika). 60 saniye ayni cevabi veriyor; daha uzun sure isteyen
+    // "En iyi" profilini secebilir.
+    const [optTime, setOptTime] = useState<number>(60);
     const [optSeedRatio, setOptSeedRatio] = useState<number>(0.15);
     const [optTabuTenure, setOptTabuTenure] = useState<number>(50);
     const [optTabuIter, setOptTabuIter] = useState<number>(2000);
@@ -1614,7 +1619,10 @@ const App: React.FC = () => {
                 strictTime,
                 { maxConsec: defaultMaxConsec },
                 cpPrefs,
-                optStopFirst
+                optStopFirst,
+                // Teşhis yalnız son denemede istenir. Blok esnetmeli ikinci deneme
+                // yapılacaksa sebebi orada ararız, yoksa iki kez koşar.
+                !shouldTryRelaxedBlocks
               );
               if (!result.schedule && shouldTryRelaxedBlocks) {
                 const relaxedData: TimetableData = {
@@ -1632,7 +1640,8 @@ const App: React.FC = () => {
                   relaxedTime,
                   { maxConsec: defaultMaxConsec },
                   cpPrefs,
-                  optStopFirst
+                  optStopFirst,
+                  true
                 );
                 if (relaxedResult.schedule) {
                   relaxedResult.stats.notes = [
@@ -1687,12 +1696,19 @@ const App: React.FC = () => {
                 success: Boolean(result.schedule),
                 classrooms: data.classrooms.length,
                 teachers: data.teachers.length,
+                reason: result.schedule ? undefined : (displayStats.diagnosis?.blocker || undefined),
             });
 
             if (result.schedule) {
                 setSchedule(result.schedule);
             } else {
-                const errorMsg = displayStats.notes.join(' | ') || "Çözüm bulunamadı. Kısıtlar çok sıkı olabilir.";
+                // Teşhis varsa EN BAŞA alınır. Kullanıcı ilk satırda ne yapacağını
+                // görmeli; "status=INFEASIBLE" çevirisi ve teknik notlar arkada kalsın.
+                const tani = displayStats.diagnosis;
+                const digerNotlar = (displayStats.notes ?? []).filter((n) => n !== tani?.message);
+                const errorMsg = tani?.message
+                  ? [tani.message, ...digerNotlar].join(' | ')
+                  : (digerNotlar.join(' | ') || "Çözüm bulunamadı. Kısıtlar çok sıkı olabilir.");
                 setError(errorMsg);
             }
         } catch (err: any) {

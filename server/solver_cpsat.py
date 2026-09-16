@@ -1,6 +1,7 @@
 from ortools.sat.python import cp_model
 from typing import Dict, List, Tuple, Any, Optional
 from itertools import combinations
+import os
 import time
 
 
@@ -354,7 +355,16 @@ def solve_cp_sat(
     # No explicit objective for now (feasibility focus). Could add spread/edge minimization later.
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(max(1, time_limit_sec))
-    solver.parameters.num_search_workers = 8
+    # Arama is parcacigi sayisi. Railway Hobby planinda servis basina 8 vCPU var ve
+    # ayni anda 2 cozum kosabiliyor (SOLVER_MAX_CONCURRENCY), yani 8 parcacik iki
+    # cozumde 16 thread demekti ve 8 vCPU'yu asiyordu. Maliyet de dogrudan buna
+    # bagli: vCPU-dakika = sure x parcacik. Varsayilan 4; ortam degiskeniyle
+    # 1-8 arasinda ayarlanabilir, kod degistirmeye gerek yok.
+    try:
+        _workers = int(os.environ.get("SOLVER_SEARCH_WORKERS", "4"))
+    except ValueError:
+        _workers = 4
+    solver.parameters.num_search_workers = max(1, min(8, _workers))
 
     started = time.time()
     # Build soft objective: minimize teacher edge usage and heavy-days-without-gap

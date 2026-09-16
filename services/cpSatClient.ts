@@ -10,11 +10,14 @@ export async function solveTimetableCP(
   defaults?: { maxConsec?: number },
   preferences?: { edgeWeight?: number; nogapWeight?: number },
   stopAtFirst?: boolean,
+  // Çözüm çıkmazsa sunucu sebebini arasın mı. Yalnızca SON denemede true
+  // gönderilir; blok esnetmeli ikinci deneme varsa teşhis orada çalışır.
+  diagnose?: boolean,
 ): Promise<SolveResult> {
   const res = await fetch(`${BASE_URL}/solve/cpsat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data, schoolHours, timeLimitSeconds, defaults, preferences, stopAtFirst })
+    body: JSON.stringify({ data, schoolHours, timeLimitSeconds, defaults, preferences, stopAtFirst, diagnose })
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');

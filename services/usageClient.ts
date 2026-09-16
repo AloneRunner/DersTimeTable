@@ -130,6 +130,12 @@ export const recordSolve = (info: {
   success: boolean;
   classrooms: number;
   teachers: number;
+  /**
+   * Başarısızsa engelin türü: availability_teacher, blocks, fixed, daily_max ...
+   * Okul, öğretmen ya da ders adı DEĞİL; yalnızca kural etiketi gönderilir.
+   * Hangi kuralın kullanıcıları en çok tıkadığını görmek için.
+   */
+  reason?: string;
 }) => {
   send({ event: 'solve', ...info });
 };

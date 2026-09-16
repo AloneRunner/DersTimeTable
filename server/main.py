@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import os
 from threading import BoundedSemaphore
 from solver_cpsat import solve_cp_sat
+from diagnose import diagnose_infeasible
 from schools import router as schools_router
 from subscriptions import router as subs_router
 from auth import router as auth_router, get_session_context, get_teacher_links_for_user
@@ -99,6 +100,9 @@ class SolveRequest(BaseModel):
     defaults: dict | None = None
     preferences: dict | None = None
     stopAtFirst: bool | None = None
+    # Cozum cikmazsa sebebini ara. Istemci bunu yalnizca SON denemede true
+    # gonderiyor; yoksa blok esnetmeli ikinci deneme yuzunden tesihs iki kez kosar.
+    diagnose: bool = False
 
 
 app = FastAPI()
@@ -132,6 +136,14 @@ except (TypeError, ValueError):
     _solver_concurrency = 2
 _solver_slots = BoundedSemaphore(_solver_concurrency)
 
+# Tesihs butcesi. Cozum cikmayinca sebep aranirken cozucu yuvasi mesgul kalir,
+# yani bu sure dogrudan "mesgul" cevabi riskini artirir. Ortam degiskeniyle
+# ayarlanabilir; 0 yazilirsa tesihs tamamen kapanir.
+try:
+    _diagnose_budget = max(0, min(120, int(os.environ.get("SOLVER_DIAGNOSE_BUDGET", "30"))))
+except (TypeError, ValueError):
+    _diagnose_budget = 30
+
 
 @app.get("/health")
 def health():
@@ -145,7 +157,7 @@ def solve_cpsat(req: SolveRequest) -> Any:
     defaults = req.defaults or {}
     prefs = req.preferences or {}
     try:
-        return solve_cp_sat(
+        result = solve_cp_sat(
             req.data.model_dump(),
             req.schoolHours.model_dump(),
             req.timeLimitSeconds,
@@ -153,6 +165,28 @@ def solve_cpsat(req: SolveRequest) -> Any:
             preferences=prefs,
             stop_at_first=bool(req.stopAtFirst) if req.stopAtFirst is not None else False,
         )
+        # TESHIS. Cozucu "mumkun degil" dediginde kullaniciya duzeltecek bir sey
+        # soylemek gerekiyor; ekrandaki on kontrol yesilken bu mesaj tek basina
+        # cikmaz sokak oluyordu. Kurallari tek tek gevsetip hangisinin engel
+        # oldugunu buluyoruz. Yalnizca INFEASIBLE'da kosar: sure asiminda
+        # (UNKNOWN) gevsetme denemek zaten anlamsiz, cunku sorun zaman olabilir.
+        if req.diagnose and _diagnose_budget > 0 and not result.get('schedule'):
+            stats = result.get('stats') or {}
+            notes = list(stats.get('notes') or [])
+            if any(str(n).strip() == 'status=INFEASIBLE' for n in notes):
+                tani = diagnose_infeasible(
+                    req.data.model_dump(),
+                    req.schoolHours.model_dump(),
+                    defaults.get('maxConsec'),
+                    prefs,
+                    probe_seconds=8,
+                    budget_seconds=30,
+                )
+                stats['diagnosis'] = tani
+                if tani.get('message'):
+                    stats['notes'] = notes + [tani['message']]
+                result['stats'] = stats
+        return result
     finally:
         _solver_slots.release()
 
