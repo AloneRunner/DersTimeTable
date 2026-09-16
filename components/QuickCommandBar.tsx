@@ -15,6 +15,11 @@ interface Props {
   onApply: (next: TimetableData) => void;
 }
 
+const FEEDBACK_MAIL = 'kaanozarik@gmail.com';
+
+/** Son uygulanan komutun geri alınabileceği süre. */
+const UNDO_WINDOW_MS = 90_000;
+
 const EXAMPLES = [
   '6. sınıf 4 şube',
   'Kaan Özarık fen bilimleri öğretmeni ekle',
@@ -49,7 +54,10 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
   const [listening, setListening] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  /** Uygulamadan önceki veri; "Geri al" bunu geri yükler. */
+  const [undoSnapshot, setUndoSnapshot] = useState<TimetableData | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
   const micSupported = useMemo(() => getSpeechRecognition() !== null, []);
 
   const result = useMemo(() => parseCommands(text, data), [text, data]);
@@ -57,8 +65,9 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
   const failed = result.lines.filter(l => l.problem);
 
   useEffect(() => () => {
-    // Bileşen kapanırsa mikrofon açık kalmasın.
+    // Bileşen kapanırsa mikrofon açık kalmasın, zamanlayıcı da düşsün.
     try { recognitionRef.current?.stop(); } catch { /* yoksay */ }
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
   }, []);
 
   const toggleMic = () => {
@@ -108,11 +117,54 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
 
   const handleApply = () => {
     if (!result.hasActions) return;
+    setUndoSnapshot(data);
     onApply(applyActions(data, result.actions));
     setDone(`${result.actions.length} işlem uygulandı.`);
     setText('');
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = window.setTimeout(() => {
+      setUndoSnapshot(null);
+      setDone(null);
+    }, UNDO_WINDOW_MS);
+  };
+
+  const handleUndo = () => {
+    if (!undoSnapshot) return;
+    onApply(undoSnapshot);
+    setUndoSnapshot(null);
+    setDone('Geri alındı.');
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
     window.setTimeout(() => setDone(null), 4000);
   };
+
+  /** Anlaşılmayan cümleleri hazır bir e-postaya koyar; kullanıcı göndermeden görür. */
+  const feedbackHref = () => {
+    const lines = failed.map(l => `- ${l.text}  →  ${l.problem}`).join('\n');
+    const body = [
+      'Merhaba,',
+      '',
+      'Komut kutusuyla ilgili geri bildirimim:',
+      '',
+      lines || '(cümlenizi buraya yazın)',
+      '',
+      '---',
+      'Beklediğim sonuç: ',
+    ].join('\n');
+    return `mailto:${FEEDBACK_MAIL}?subject=${encodeURIComponent('DersTimeTable — komut kutusu geri bildirimi')}&body=${encodeURIComponent(body)}`;
+  };
+
+  const undoBar = undoSnapshot ? (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-emerald-700">{done}</span>
+      <button
+        onClick={handleUndo}
+        title="Komutun yaptığı değişiklikleri geri alır. Komuttan sonra formdan yaptığınız değişiklikler varsa onlar da geri gider."
+        className="px-2 py-1 rounded border border-emerald-300 bg-white text-emerald-700 text-xs font-medium hover:bg-emerald-50"
+      >
+        ↩ Geri al
+      </button>
+    </div>
+  ) : (done ? <p className="mt-2 text-sm text-emerald-700">{done}</p> : null);
 
   if (!open) {
     return (
@@ -121,9 +173,10 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
           onClick={() => setOpen(true)}
           className="w-full sm:w-auto px-4 py-2 rounded-md border border-sky-200 bg-sky-50 text-sky-700 text-sm font-medium hover:bg-sky-100"
         >
-          ⌨️ Yazarak / konuşarak ekle {micSupported ? '🎤' : ''}
+          ⌨️ Yazarak {micSupported ? 've konuşarak 🎤 ' : ''}ekle
+          <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold align-middle">BETA</span>
         </button>
-        {done && <p className="mt-2 text-sm text-emerald-700">{done}</p>}
+        {undoBar}
       </div>
     );
   }
@@ -132,9 +185,13 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
     <div className="mt-4 border border-sky-200 rounded-lg bg-sky-50/60 p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">Yazarak veya konuşarak ekle</h3>
+          <h3 className="text-sm font-semibold text-slate-800">
+            Yazarak veya konuşarak ekle
+            <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold align-middle">BETA</span>
+          </h3>
           <p className="text-xs text-slate-600 mt-0.5">
             Cümleyi kendi kelimelerinizle yazın. Her satır ayrı bir işlemdir; hiçbir şey onayınız olmadan değişmez.
+            Var olan kayıtlarınıza dokunulmaz, yalnız cümlede adı geçenler değişir.
           </p>
         </div>
         <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 text-sm px-2">Kapat</button>
@@ -160,8 +217,21 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
         )}
       </div>
 
-      {listening && <p className="mt-2 text-xs text-red-600">Dinliyorum... Söyleyip bekleyin.</p>}
+      {listening && (
+        <p className="mt-2 text-xs text-red-600">
+          Dinliyorum... Söyleyip bekleyin.
+          <span className="block text-slate-500">
+            Sesiniz, tarayıcınızın konuşma tanıma servisine gönderilip yazıya çevrilir; bu uygulamanın sunucusuna gitmez.
+          </span>
+        </p>
+      )}
       {micError && <p className="mt-2 text-xs text-amber-700">{micError}</p>}
+      {!micSupported && (
+        <p className="mt-2 text-xs text-slate-500">
+          Bu sürümde mikrofon yok (uygulamanın çalıştığı tarayıcı konuşma tanımayı desteklemiyor).
+          Komutu yazarak girebilirsiniz; Chrome veya Edge'de siteyi açarsanız mikrofon düğmesi görünür.
+        </p>
+      )}
 
       {!text.trim() && (
         <div className="mt-3">
@@ -230,7 +300,13 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
         </div>
       )}
 
-      {done && <p className="mt-2 text-sm text-emerald-700">{done}</p>}
+      {undoBar}
+
+      <p className="mt-3 pt-2 border-t border-sky-200 text-xs text-slate-600">
+        Bu özellik yeni ve deneme aşamasında. Anlamadığı bir cümle olursa{' '}
+        <a href={feedbackHref()} className="text-sky-700 underline font-medium">bize yazın</a>
+        {failed.length > 0 ? ' — anlaşılmayan satırlar e-postaya hazır eklenir.' : '.'} Böyle böyle öğreniyor.
+      </p>
     </div>
   );
 };
