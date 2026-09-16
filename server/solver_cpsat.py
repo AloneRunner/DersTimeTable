@@ -491,9 +491,12 @@ def solve_cp_sat(
         'firstSolutionAt': None,
         'firstSolutionSeconds': None,
         'timedOut': (status == cp_model.UNKNOWN),
-        'attempts': 0,
+        # Cozucunun kendi sayaclari. Onceden 0 gonderiliyordu ve ekrandaki
+        # "Performans" kutusu her seferinde "0 deneme 0 geri dönüş" diyordu.
+        # Dal sayisi denemeye, cakisma sayisi geri donuse karsilik geliyor.
+        'attempts': int(solver.NumBranches()),
         'placements': placements,
-        'backtracks': 0,
+        'backtracks': int(solver.NumConflicts()),
         'invalidReasons': {
             'levelMismatch': 0,
             'availability': 0,
