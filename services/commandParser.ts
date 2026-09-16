@@ -41,6 +41,8 @@ export interface ParsedLine {
   summaries: string[];
   /** Satır anlaşılmadıysa sebebi. */
   problem?: string;
+  /** Satır çözüldü ama içinde işlenmemiş bir kısım kaldıysa. */
+  warning?: string;
 }
 
 export interface ParseResult {
@@ -151,11 +153,25 @@ const matchTeacherByPart = (
   used: boolean[],
 ): { match: Match<Teacher> | null; ambiguous: Teacher[] } => {
   const hits: Array<Match<Teacher>> = [];
+  // Komşusunda başka bir ad varsa ("Ayşe Demir"), bu tek kelime kayıtlı bir
+  // öğretmenin soyadına benzese bile onu kastetmiyordur; eşleştirme yapılmaz.
+  // Gün ve ders adları "isim" sayılmaz; yoksa "Ali perşembe gelmiyor" cümlesinde
+  // Ali, yanındaki gün yüzünden tanınmaz olur.
+  const looksLikeName = (tok: Tok) =>
+    /^[a-zçğıöşü]+$/.test(tok.norm)
+    && !isKeywordToken(tok)
+    && !DAY_KEYS.some(keys => keys.some(k => wordScore(k, tok.norm) > 0))
+    && !CATALOG.some(entry => {
+      const words = nameWords(entry.name);
+      return words.length === 1 && wordScore(words[0], tok.norm) >= 5;
+    });
+  const neighbouredByName = (i: number) => [i - 1, i + 1].some(j =>
+    j >= 0 && j < toks.length && !used[j] && looksLikeName(toks[j]));
   for (const item of teachers) {
     const words = nameWords(item.name).filter(w => w.length >= 3);
     let best: Match<Teacher> | null = null;
     for (let i = 0; i < toks.length; i++) {
-      if (used[i]) continue;
+      if (used[i] || neighbouredByName(i)) continue;
       for (const w of words) {
         const exact = toks[i].norm === w;
         const score = wordScore(w, toks[i].norm);
@@ -216,6 +232,7 @@ const KEYWORDS = {
  */
 const FILLERS = [
   'bir', 'bu', 'şu', 'var', 'diye', 'adında', 'adlı', 'isimli', 'olarak', 'lütfen',
+  'bey', 'hanım', 'sayın', 'öğretmenimiz',
   'tane', 'ile', 've', 'ya', 'veya', 'ki', 'için', 'artık', 'ayrıca', 'sonra', 'önce',
   'gün', 'günü', 'günleri', 'haftada', 'haftalık', 'olsun', 'olacak', 'lazım', 'gerek',
 ];
@@ -358,7 +375,8 @@ const leftoverName = (toks: Tok[], used: boolean[]): { name: string; start: numb
     if (used[i] || !/^[a-zçğıöşü]+$/.test(toks[i].norm) || isKeywordToken(toks[i])) { i++; continue; }
     const start = i;
     const parts: string[] = [];
-    while (i < toks.length && !used[i] && /^[a-zçğıöşü]+$/.test(toks[i].norm) && !isKeywordToken(toks[i]) && parts.length < 3) {
+    // Dört kelimeye kadar: "Hatice Nur Demir Kaya" gibi adlar kırpılmasın.
+    while (i < toks.length && !used[i] && /^[a-zçğıöşü]+$/.test(toks[i].norm) && !isKeywordToken(toks[i]) && parts.length < 4) {
       parts.push(cleanName(toks[i].raw));
       i++;
     }
@@ -377,12 +395,18 @@ const leftoverName = (toks: Tok[], used: boolean[]): { name: string; start: numb
  * "Kaan Özarık fen öğretmeni ekle" satırından sonraki "5/A fene Kaan girsin"
  * satırı yeni öğretmeni görebilir.
  */
-const parseLine = (text: string, draft: TimetableData): ParsedLine => {
+const parseLineInner = (
+  text: string,
+  draft: TimetableData,
+  ctx: { toks?: Tok[]; used?: boolean[] },
+): ParsedLine => {
   const toks = tokenize(text);
   const line: ParsedLine = { text, actions: [], summaries: [] };
   if (!toks.length) { line.problem = 'Boş satır.'; return line; }
 
   const used: boolean[] = new Array(toks.length).fill(false);
+  ctx.toks = toks;
+  ctx.used = used;
   const classRefs = extractClassRefs(toks, used);
 
   // Cümlede birden çok öğretmen anılmış olabilir ("Nihal ve Ali perşembe gelmiyor").
@@ -619,6 +643,38 @@ const parseLine = (text: string, draft: TimetableData): ParsedLine => {
   }
 
   line.problem = 'Anlaşılmadı. Örnek: "5/A fen dersine Kaan Özarık girsin" ya da "6. sınıflara matematik 5 saat".';
+  return line;
+};
+
+/**
+ * Satırda ikinci bir komut kalmış mı? ("9. sınıflara felsefe 2 saat, tarih 2 saat")
+ * Artan kelimelerde hâlâ ders, gün ya da saat varsa kullanıcı uyarılır; sessizce
+ * yarım iş yapılmaz.
+ */
+const leftoverClause = (toks: Tok[], used: boolean[], draft: TimetableData): string | null => {
+  const rest = [...used];
+  const days = extractDays(toks, rest);
+  const hours = extractHours(toks, rest);
+  const subject = bestMatch(draft.subjects, toks, rest).match || bestMatch(CATALOG, toks, rest).match;
+  if (!days.length && hours === null && !subject) return null;
+  const text = toks.filter((_, i) => !used[i]).map(t => t.raw).join(' ').trim();
+  return text || null;
+};
+
+const parseLine = (text: string, draft: TimetableData): ParsedLine => {
+  const ctx: { toks?: Tok[]; used?: boolean[] } = {};
+  const line = parseLineInner(text, draft, ctx);
+  // Sorunlu satır hiçbir iz bırakmamalı: uyarı verip arkada kayıt oluşturmak,
+  // kullanıcının fark etmediği veri değişikliği demektir.
+  if (line.problem) {
+    line.actions = [];
+    line.summaries = [];
+    return line;
+  }
+  if (line.actions.length && ctx.toks && ctx.used) {
+    const rest = leftoverClause(ctx.toks, ctx.used, draft);
+    if (rest) line.warning = `Şu kısım işlenmedi: "${rest}". Ayrı satıra yazarsanız o da uygulanır.`;
+  }
   return line;
 };
 

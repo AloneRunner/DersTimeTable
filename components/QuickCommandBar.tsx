@@ -256,14 +256,20 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
             <div className="bg-white border border-emerald-200 rounded-md p-3">
               <p className="text-xs font-semibold text-emerald-800 mb-1">Yapılacaklar</p>
               <ul className="space-y-1">
-                {understood.flatMap(line =>
-                  line.summaries.map((summary, i) => (
+                {understood.flatMap(line => [
+                  ...line.summaries.map((summary, i) => (
                     <li key={`${line.text}-${i}`} className="text-sm text-slate-700 flex gap-2">
                       <span className="text-emerald-600">✓</span>
                       <span>{summary}</span>
                     </li>
                   )),
-                )}
+                  ...(line.warning ? [(
+                    <li key={`${line.text}-uyari`} className="text-xs text-amber-700 flex gap-2 pl-5">
+                      <span>⚠</span>
+                      <span>{line.warning}</span>
+                    </li>
+                  )] : []),
+                ])}
               </ul>
             </div>
           )}

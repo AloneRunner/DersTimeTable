@@ -211,6 +211,59 @@ console.log('15. Cümlede iki öğretmen');
   check('iki öğretmenli pin sessizce yarım kalmıyor', pin.actions.length === 0 && !!pin.lines[0].problem, pin.lines[0]);
 }
 
+// 16 — Sıfırdan başlayan okul: hiç kayıt yokken
+console.log('16. Sıfırdan okul');
+{
+  const empty: TimetableData = {
+    teachers: [], classrooms: [], subjects: [],
+    locations: [], fixedAssignments: [], lessonGroups: [], duties: [],
+  };
+  const r = parseCommands(
+    'abdullah felsefe öğretmeni ekle\n9. sınıf 3 şube\n9. sınıflara felsefe 2 saat\n9/A felsefe dersine abdullah girsin',
+    empty,
+  );
+  check('dört satır da çözüldü', r.lines.length === 4 && r.lines.every(l => !l.problem), r.lines.map(l => l.problem));
+  const next = applyActions(empty, r.actions);
+  check('küçük harfle yazılan ad düzeltildi', next.teachers[0]?.name === 'Abdullah', next.teachers.map(t => t.name));
+  check('branş Felsefe', next.teachers[0]?.branches[0] === 'Felsefe', next.teachers[0]?.branches);
+  check('lise seviyesi seçildi', next.classrooms.every(c => c.level === SchoolLevel.High), next.classrooms.map(c => c.level));
+  check('ders üç şubeye bağlandı', next.subjects[0]?.assignedClassIds.length === 3, next.subjects[0]?.assignedClassIds);
+  const pinned = next.subjects[0]?.pinnedTeacherByClassroom || {};
+  check('9/A için öğretmen çakıldı', Object.keys(pinned).length === 1, pinned);
+}
+
+// 17 — Dört kelimeli ad kırpılmamalı, kayıtlı soyada takılmamalı
+console.log('17. Uzun adlar ve soyadı çakışması');
+{
+  const empty: TimetableData = {
+    teachers: [], classrooms: [], subjects: [],
+    locations: [], fixedAssignments: [], lessonGroups: [], duties: [],
+  };
+  const first = parseCommands('hatice nur demir kaya coğrafya öğretmeni ekle', empty);
+  const withTeacher = applyActions(empty, first.actions);
+  check('dört kelimeli ad tam alındı', withTeacher.teachers[0]?.name === 'Hatice Nur Demir Kaya', withTeacher.teachers[0]?.name);
+
+  const second = parseCommands('ayşe demir müzik öğretmeni ekle', withTeacher);
+  const added = find(second.actions, 'addTeacher');
+  check('kayıtlı soyada takılmadı, yeni öğretmen açıldı', added?.name === 'Ayşe Demir', { added, lines: second.lines });
+}
+
+// 18 — Sorunlu satır arkada iz bırakmamalı
+console.log('18. Sorunlu satır iz bırakmıyor');
+{
+  const r = parseCommands('müzik dersine Ali Yılmaz girsin', baseData());
+  check('hiç eylem üretilmedi', r.actions.length === 0, kinds(r.actions));
+  check('sebep yazıldı', !!r.lines[0].problem, r.lines[0]);
+}
+
+// 19 — Aynı satırdaki ikinci komut sessizce yutulmuyor
+console.log('19. Yarım kalan satır uyarısı');
+{
+  const r = parseCommands('5/A matematik 5 saat, türkçe 6 saat', baseData());
+  check('ilk komut uygulandı', r.actions.length > 0, kinds(r.actions));
+  check('kalan kısım için uyarı var', !!r.lines[0].warning, r.lines[0]);
+}
+
 console.log('');
 if (failures) {
   console.log(`${failures} kontrol BAŞARISIZ`);
