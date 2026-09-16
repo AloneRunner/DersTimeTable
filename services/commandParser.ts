@@ -45,6 +45,15 @@ export interface ParsedLine {
   warning?: string;
 }
 
+/**
+ * Bir onceki satirdan tasinan baglam: "7/A'ya 4 saat fen dersi ekle" dedikten
+ * sonra "Kaan hoca derse girecek" denince hangi dersten bahsedildigi bilinsin.
+ */
+export interface CommandContext {
+  subjectId?: string;
+  classIds?: string[];
+}
+
 export interface ParseResult {
   lines: ParsedLine[];
   actions: CommandAction[];
@@ -399,6 +408,7 @@ const parseLineInner = (
   text: string,
   draft: TimetableData,
   ctx: { toks?: Tok[]; used?: boolean[] },
+  context: CommandContext,
 ): ParsedLine => {
   const toks = tokenize(text);
   const line: ParsedLine = { text, actions: [], summaries: [] };
@@ -453,6 +463,18 @@ const parseLineInner = (
   const saysAbsent = hasKeyword(toks, used, KEYWORDS.absent) || /müsait değil/.test(trLower(text));
   const saysPresent = hasKeyword(toks, used, KEYWORDS.present) && !/müsait değil/.test(trLower(text));
 
+  // Ders adı söylenmediyse bir önceki satırın dersi devralınır: "derse girecek".
+  // Silme cümlelerinde devralınmaz; yanlışlıkla başka bir dersi silmek istemeyiz.
+  let carried = false;
+  if (!subjectName && !wantsRemove && context.subjectId) {
+    const previous = draft.subjects.find(s => s.id === context.subjectId);
+    if (previous && (hasKeyword(toks, used, KEYWORDS.lesson) || wantsAssign)) {
+      subject = previous;
+      subjectName = previous.name;
+      carried = true;
+    }
+  }
+
   // Sınıf referanslarını gerçek sınıflara çevir; olmayanlar "eklenecek" sayılır.
   const sep = separatorOf(draft);
   const resolved: string[] = [];
@@ -473,6 +495,10 @@ const parseLineInner = (
     };
     toCreate.push(created);
     resolved.push(created.id);
+  }
+  if (carried && !resolved.length && context.classIds?.length) {
+    const stillThere = context.classIds.filter(id => draft.classrooms.some(c => c.id === id));
+    resolved.push(...stillThere);
   }
   const classIds = [...new Set(resolved)];
   const nameOf = (ids: string[]) => ids
@@ -677,9 +703,9 @@ const leftoverClause = (toks: Tok[], used: boolean[], draft: TimetableData): str
   return text || null;
 };
 
-const parseLine = (text: string, draft: TimetableData): ParsedLine => {
+const parseLine = (text: string, draft: TimetableData, context: CommandContext): ParsedLine => {
   const ctx: { toks?: Tok[]; used?: boolean[] } = {};
-  const line = parseLineInner(text, draft, ctx);
+  const line = parseLineInner(text, draft, ctx, context);
   // Sorunlu satır hiçbir iz bırakmamalı: uyarı verip arkada kayıt oluşturmak,
   // kullanıcının fark etmediği veri değişikliği demektir.
   if (line.problem) {
@@ -846,14 +872,23 @@ export const parseCommands = (text: string, data: TimetableData): ParseResult =>
   const lines: ParsedLine[] = [];
   const actions: CommandAction[] = [];
   let draft = data;
+  let context: CommandContext = {};
   for (const raw of text.split(/[\n;]+/)) {
     const trimmed = raw.trim();
     if (!trimmed) continue;
-    const parsed = parseLine(trimmed, draft);
+    const parsed = parseLine(trimmed, draft, context);
     lines.push(parsed);
     if (parsed.actions.length) {
       actions.push(...parsed.actions);
       draft = applyActions(draft, parsed.actions);
+      for (const action of parsed.actions) {
+        if (action.kind === 'addSubject') context = { subjectId: action.id, classIds: [...action.classroomIds] };
+        else if (action.kind === 'assignClasses' || action.kind === 'pinTeacher') {
+          context = { subjectId: action.subjectId, classIds: [...action.classroomIds] };
+        } else if (action.kind === 'setHours') {
+          context = { subjectId: action.subjectId, classIds: context.classIds };
+        }
+      }
     }
   }
   return { lines, actions, hasActions: actions.length > 0 };

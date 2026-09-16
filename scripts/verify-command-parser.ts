@@ -276,6 +276,35 @@ console.log('20. Listede olmayan ders adı');
   check('10/A açıldı ve derse bağlandı', subject?.classroomIds.length === 1, subject?.classroomIds);
 }
 
+// 21 — "derse girecek": ders adı söylenmeden önceki satırdan devralma
+console.log('21. Önceki satırdaki dersi hatırlama');
+{
+  const empty: TimetableData = {
+    teachers: [], classrooms: [], subjects: [],
+    locations: [], fixedAssignments: [], lessonGroups: [], duties: [],
+  };
+  const r = parseCommands(
+    "7a sınıfına 4 saat fen dersi ekle\nKaan hoca derse girecek\nKaan hocanın pazartesi günü öğleden sonrasını boş bırak",
+    empty,
+  );
+  check('üç satır da çözüldü', r.lines.every(l => !l.problem), r.lines.map(l => l.problem));
+  const next = applyActions(empty, r.actions);
+  const fen = next.subjects.find(s => s.name === 'Fen Bilimleri');
+  check('7/A açıldı', next.classrooms[0]?.name === '7/A', next.classrooms.map(c => c.name));
+  check('ders 4 saat', fen?.weeklyHours === 4, fen?.weeklyHours);
+  const kaan = next.teachers.find(t => t.name === 'Kaan');
+  check('öğretmen branşıyla eklendi', kaan?.branches[0] === 'Fen Bilimleri', kaan?.branches);
+  check('devralınan derse bağlandı', !!kaan && fen?.pinnedTeacherByClassroom?.[next.classrooms[0].id]?.[0] === kaan.id, fen?.pinnedTeacherByClassroom);
+  const monday = kaan?.availability[0] || [];
+  check('pazartesi ilk 4 saat açık', monday.slice(0, 4).every(x => x === true), monday);
+  check('pazartesi öğleden sonrası kapalı', monday.slice(4).every(x => x === false), monday);
+
+  // Silme cümlesinde devralma olmamalı: yanlış ders silinmesin.
+  const withData = applyActions(empty, r.actions);
+  const del = parseCommands('dersi sil', withData);
+  check('"dersi sil" devralıp silmiyor', del.actions.length === 0, kinds(del.actions));
+}
+
 console.log('');
 if (failures) {
   console.log(`${failures} kontrol BAŞARISIZ`);

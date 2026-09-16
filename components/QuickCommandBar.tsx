@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { TimetableData } from '../types';
 import { parseCommands, applyActions } from '../services/commandParser';
+import { Modal } from './Modal';
 
 /**
  * Hızlı komut kutusu: form doldurmadan, yazarak ya da mikrofonla veri girme.
@@ -54,6 +55,8 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
   const [listening, setListening] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  /** Uygula'ya basınca çıkan son onay ekranı. */
+  const [confirming, setConfirming] = useState(false);
   /** Uygulamadan önceki veri; "Geri al" bunu geri yükler. */
   const [undoSnapshot, setUndoSnapshot] = useState<TimetableData | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -117,6 +120,7 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
 
   const handleApply = () => {
     if (!result.hasActions) return;
+    setConfirming(false);
     setUndoSnapshot(data);
     onApply(applyActions(data, result.actions));
     setDone(`${result.actions.length} işlem uygulandı.`);
@@ -290,11 +294,11 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleApply}
+              onClick={() => setConfirming(true)}
               disabled={!result.hasActions}
               className="px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
             >
-              Uygula
+              Uygula ({result.actions.length})
             </button>
             <button
               onClick={() => setText('')}
@@ -307,6 +311,47 @@ export const QuickCommandBar: React.FC<Props> = ({ data, onApply }) => {
       )}
 
       {undoBar}
+
+      <Modal isOpen={confirming} onClose={() => setConfirming(false)} title="Onaylıyor musunuz?">
+        <p className="text-sm text-slate-600 mb-3">
+          Aşağıdaki {result.actions.length} işlem verilerinize uygulanacak. Listede olmayan hiçbir kayda dokunulmaz.
+        </p>
+        <ul className="space-y-2">
+          {understood.flatMap(line => line.summaries.map((summary, i) => (
+            <li key={`onay-${line.text}-${i}`} className="text-sm text-slate-800 flex gap-2 border-b border-slate-100 pb-2">
+              <span className="text-emerald-600">✓</span>
+              <span>{summary}</span>
+            </li>
+          )))}
+        </ul>
+        {understood.some(l => l.warning) && (
+          <div className="mt-3 text-xs text-amber-700">
+            {understood.filter(l => l.warning).map((l, i) => <p key={`onay-uyari-${i}`}>⚠ {l.warning}</p>)}
+          </div>
+        )}
+        {failed.length > 0 && (
+          <p className="mt-3 text-xs text-amber-700">
+            {failed.length} satır anlaşılmadı, onlar uygulanmayacak.
+          </p>
+        )}
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            onClick={handleApply}
+            className="px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            Evet, uygula
+          </button>
+          <button
+            onClick={() => setConfirming(false)}
+            className="px-4 py-2 rounded-md text-sm font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+          >
+            Vazgeç
+          </button>
+          <span className="w-full sm:w-auto sm:ml-auto text-xs text-slate-500 self-center">
+            Uyguladıktan sonra "Geri al" ile dönebilirsiniz.
+          </span>
+        </div>
+      </Modal>
 
       <p className="mt-3 pt-2 border-t border-sky-200 text-xs text-slate-600">
         Bu özellik yeni ve deneme aşamasında. Anlamadığı bir cümle olursa{' '}
