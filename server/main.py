@@ -4,8 +4,9 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 import os
+import re
 import time
-from threading import BoundedSemaphore
+from threading import BoundedSemaphore, Lock
 from solver_cpsat import solve_cp_sat
 from diagnose import diagnose_infeasible
 from schools import router as schools_router
@@ -141,6 +142,61 @@ except (TypeError, ValueError):
     _solver_concurrency = 2
 _solver_slots = BoundedSemaphore(_solver_concurrency)
 
+# Sira. Eskiden yuva doluysa istek ANINDA "mesgul" alip tarayicidaki yedek cozucuye
+# dusuyordu; oysa ondeki cozumlerin cogu 2-5 sn'de bitiyor. Artik kisa bir sure
+# sira beklenir, yer acilmazsa eskisi gibi "mesgul" donulur. Bekleyen her istek
+# bir sunucu is parcacigi tuttugu icin siranin da bir ust siniri var.
+try:
+    _queue_wait_seconds = max(0, min(120, int(os.environ.get("SOLVER_QUEUE_WAIT_SECONDS", "20"))))
+except (TypeError, ValueError):
+    _queue_wait_seconds = 20
+try:
+    _queue_max_waiting = max(0, min(30, int(os.environ.get("SOLVER_QUEUE_MAX_WAITING", "8"))))
+except (TypeError, ValueError):
+    _queue_max_waiting = 8
+_queue_lock = Lock()
+_queue_state = {"waiting": 0, "running": 0}
+# Istemcinin gonderdigi istek kimlikleri: "ben sirada miyim, calisiyor muyum" sorusu icin.
+_queue_waiting_ids: set = set()
+_queue_running_ids: set = set()
+_REQUEST_ID_RE = re.compile(r'^[A-Za-z0-9-]{8,64}$')
+
+
+def _request_id(request: Request) -> Optional[str]:
+    value = (request.headers.get('x-solve-request-id') or '').strip()
+    return value if _REQUEST_ID_RE.match(value) else None
+
+
+def _acquire_solver_slot(request_id: Optional[str] = None) -> bool:
+    if _solver_slots.acquire(blocking=False):
+        got = True
+    else:
+        with _queue_lock:
+            if _queue_wait_seconds <= 0 or _queue_state["waiting"] >= _queue_max_waiting:
+                return False
+            _queue_state["waiting"] += 1
+            if request_id:
+                _queue_waiting_ids.add(request_id)
+        try:
+            got = _solver_slots.acquire(timeout=_queue_wait_seconds)
+        finally:
+            with _queue_lock:
+                _queue_state["waiting"] -= 1
+                _queue_waiting_ids.discard(request_id)
+    if got:
+        with _queue_lock:
+            _queue_state["running"] += 1
+            if request_id:
+                _queue_running_ids.add(request_id)
+    return got
+
+
+def _release_solver_slot(request_id: Optional[str] = None) -> None:
+    with _queue_lock:
+        _queue_state["running"] = max(0, _queue_state["running"] - 1)
+        _queue_running_ids.discard(request_id)
+    _solver_slots.release()
+
 # Tesihs butcesi. Cozum cikmayinca sebep aranirken cozucu yuvasi mesgul kalir,
 # yani bu sure dogrudan "mesgul" cevabi riskini artirir. Ortam degiskeniyle
 # ayarlanabilir; 0 yazilirsa tesihs tamamen kapanir.
@@ -216,31 +272,48 @@ def solve_quota_request(request: Request) -> Any:
     return {"ok": solve_quota.request_increase(solve_quota.identity_keys(request))}
 
 
+@app.get("/solve/status")
+def solve_status(id: Optional[str] = None) -> Any:  # pylint: disable=redefined-builtin
+    """Sunucunun o anki dolulugu; istemci beklerken "siradasiniz" diyebilsin diye."""
+    with _queue_lock:
+        you = "waiting" if id in _queue_waiting_ids else "running" if id in _queue_running_ids else "unknown"
+        return {
+            "capacity": _solver_concurrency,
+            "running": _queue_state["running"],
+            "waiting": _queue_state["waiting"],
+            "queueWaitSeconds": _queue_wait_seconds,
+            "you": you,
+        }
+
+
 @app.post("/solve/cpsat")
 def solve_cpsat(req: SolveRequest, request: Request) -> Any:
     quota_keys = solve_quota.identity_keys(request)
-    if not _solver_slots.acquire(blocking=False):
+    # Butce kontrolu yuva beklemeden ONCE yapilir: suresi bitmis biri sirayi mesgul etmesin.
+    # Verinin parmak izi de bir kimliktir: ayni veriyi yeni hesaba yuklemek butceyi sifirlamaz.
+    if not solve_quota.is_exempt(quota_keys):
+        fingerprint = solve_quota.school_key(req.data.model_dump())
+        if fingerprint:
+            quota_keys = quota_keys + [fingerprint]
+    # Ayni tiklamanin ikinci (blok esnetmeli) istegi IP freninde ayri sayilmaz;
+    # sure butcesinden ise her istek harcadigi kadar duser.
+    blocked, time_limit = solve_quota.authorize(
+        quota_keys, min(req.timeLimitSeconds, _max_solve_seconds), count_ip=not req.followUp
+    )
+    if blocked:
+        raise HTTPException(
+            status_code=429,
+            detail=f"solver-quota-{blocked['scope']}",
+            headers={"Retry-After": str(blocked['retryAfter'])},
+        )
+    # Sirada gecen sure butceden DUSMEZ; sayac yuva alindiktan sonra baslar.
+    request_id = _request_id(request)
+    if not _acquire_solver_slot(request_id):
         raise HTTPException(status_code=429, detail="solver-busy-try-again")
     defaults = req.defaults or {}
     prefs = req.preferences or {}
     started_at: Optional[float] = None
     try:
-        # Verinin parmak izi de bir kimliktir: ayni veriyi yeni hesaba yuklemek butceyi sifirlamaz.
-        if not solve_quota.is_exempt(quota_keys):
-            fingerprint = solve_quota.school_key(req.data.model_dump())
-            if fingerprint:
-                quota_keys = quota_keys + [fingerprint]
-        # Ayni tiklamanin ikinci (blok esnetmeli) istegi IP freninde ayri sayilmaz;
-        # sure butcesinden ise her istek harcadigi kadar duser.
-        blocked, time_limit = solve_quota.authorize(
-            quota_keys, min(req.timeLimitSeconds, _max_solve_seconds), count_ip=not req.followUp
-        )
-        if blocked:
-            raise HTTPException(
-                status_code=429,
-                detail=f"solver-quota-{blocked['scope']}",
-                headers={"Retry-After": str(blocked['retryAfter'])},
-            )
         # Ust uste basarisizlikta sureyi kisaltmayi denedik ve geri aldik: gercek bir
         # okulun verisi (20 Eylul 2026) cozulebilir cikti ama ~60 sn istiyordu. Sureyi
         # kisaltmak boyle bir okulu KESIN basarisizliga mahkum eder; masrafi zaten
@@ -301,7 +374,7 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
         if started_at is not None:
             # Cozucu hata verdiyse de harcanan islemci suresi butceden duser.
             solve_quota.charge(quota_keys, time.time() - started_at, count_attempt=not req.followUp)
-        _solver_slots.release()
+        _release_solver_slot(request_id)
 
 
 class PublishSchedulePayload(BaseModel):

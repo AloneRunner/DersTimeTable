@@ -13,7 +13,7 @@ import { useLoadCalculation } from './hooks/useLoadCalculation';
 import type { TeacherLoad } from './hooks/useLoadCalculation';
 import { ConflictAnalyzer } from './components/ConflictAnalyzer';
 import { Modal } from './components/Modal';
-import { solveTimetableCP, fetchSolveQuota, requestQuotaIncrease, type SolveQuota } from './services/cpSatClient';
+import { solveTimetableCP, fetchSolveQuota, fetchSolveStatus, requestQuotaIncrease, type SolveQuota } from './services/cpSatClient';
 import { TeacherForm } from './components/forms/TeacherForm';
 import { ClassroomForm } from './components/forms/ClassroomForm';
 import { SubjectForm } from './components/forms/SubjectForm';
@@ -1443,6 +1443,19 @@ const App: React.FC = () => {
     // Kalan sunucu deneme hakkı (server/solve_quota.py). null: henüz bilinmiyor.
     const [solveQuota, setSolveQuota] = useState<SolveQuota | null>(null);
     const [quotaRequestState, setQuotaRequestState] = useState<'idle' | 'sent' | 'failed'>('idle');
+    // Program oluşturulurken sunucu doluysa kullanıcıya "sıradasınız" denir.
+    const [queuedOnServer, setQueuedOnServer] = useState<boolean>(false);
+    useEffect(() => {
+        if (!isLoading) { setQueuedOnServer(false); return; }
+        let cancelled = false;
+        const tick = async () => {
+            const status = await fetchSolveStatus();
+            if (!cancelled) setQueuedOnServer(status?.you === 'waiting');
+        };
+        const first = window.setTimeout(tick, 1200);
+        const timer = window.setInterval(tick, 2500);
+        return () => { cancelled = true; window.clearTimeout(first); window.clearInterval(timer); };
+    }, [isLoading]);
     // Süre bütçesi duyurusu: "Anladım" denene kadar en üstte durur (cihaz başına bir kez).
     const [showBudgetNotice, setShowBudgetNotice] = useState<boolean>(() => {
         try { return window.localStorage.getItem('ozarik.notice.budget.v1') !== 'ok'; } catch { return true; }
@@ -3749,7 +3762,14 @@ case 'duties':
                 {isLoading && (
                     <div className="flex flex-col items-center justify-center h-96 bg-white rounded-lg shadow-lg">
                         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-sky-500"></div>
-                        <p className="mt-4 text-slate-600">Program çözülüyor... Bu işlem verilerinizin karmaşıklığına göre birkaç saniye veya daha uzun sürebilir.</p>
+                        {queuedOnServer ? (
+                            <p className="mt-4 max-w-xl px-4 text-center text-amber-700">
+                                Sunucu şu an dolu, sıradasınız. Yer açılınca programınız oluşturulacak; kısa sürede yer açılmazsa
+                                program cihazınızdaki yedek çözücüyle oluşturulur. Sırada beklemek süre bütçenizden düşmez.
+                            </p>
+                        ) : (
+                            <p className="mt-4 text-slate-600">Program çözülüyor... Bu işlem verilerinizin karmaşıklığına göre birkaç saniye veya daha uzun sürebilir.</p>
+                        )}
                     </div>
                 )}
 

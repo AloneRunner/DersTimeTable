@@ -20,6 +20,33 @@ const identityHeaders = (): Record<string, string> => {
 // LAST RESORT: Hardcode the production URL directly.
 const BASE_URL = 'https://derstimetable-production.up.railway.app';
 
+// Süren çözüm isteğinin kimliği: beklerken sunucuya "sırada mıyım?" diye sorabilmek için.
+let activeRequestId: string | null = null;
+
+const newRequestId = (): string => {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  } catch {
+    // aşağıdaki yedeğe düş
+  }
+  return `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+};
+
+export type SolveServerStatus = { capacity: number; running: number; waiting: number; queueWaitSeconds: number; you: 'waiting' | 'running' | 'unknown' };
+
+/** Süren isteğin sunucudaki durumu. İstek yoksa ya da sunucuya ulaşılamazsa null. */
+export async function fetchSolveStatus(): Promise<SolveServerStatus | null> {
+  if (!activeRequestId) return null;
+  try {
+    const res = await fetch(`${BASE_URL}/solve/status?id=${encodeURIComponent(activeRequestId)}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return typeof json?.capacity === 'number' ? (json as SolveServerStatus) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function solveTimetableCP(
   data: TimetableData,
   schoolHours: SchoolHours,
@@ -33,9 +60,11 @@ export async function solveTimetableCP(
   // Aynı tıklamanın ikinci (blok esnetmeli) isteği; kotada ayrı deneme sayılmaz.
   followUp?: boolean,
 ): Promise<SolveResult> {
+  const requestId = newRequestId();
+  activeRequestId = requestId;
   const res = await fetch(`${BASE_URL}/solve/cpsat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...identityHeaders() },
+    headers: { 'Content-Type': 'application/json', 'X-Solve-Request-Id': requestId, ...identityHeaders() },
     body: JSON.stringify({ data, schoolHours, timeLimitSeconds, defaults, preferences, stopAtFirst, diagnose, followUp })
   });
   if (!res.ok) {
