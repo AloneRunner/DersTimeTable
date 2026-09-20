@@ -315,20 +315,35 @@ def authorize(keys: List[str], requested_seconds: int, count_ip: bool = True) ->
 
 
 def charge(keys: List[str], elapsed: float, count_attempt: bool) -> None:
-    """Harcanan cozucu suresini butun kalici kimliklere yazar."""
+    """Harcanan cozucu suresini butun kalici kimliklere yazar.
+
+    Her kimlik KENDI kalan butcesinden duser. Onceki surum hepsine "en az kalan"
+    kadarini yaziyordu; bir kimlik tukendiginde digerleri hic birikmiyordu. Olculdu
+    (21 Eylul 2026): butcesi bitmis ama ek suresi olan bir hesabin cihaz ve parmak
+    izi satirlari 0 sn'de kaldi, ayni cihazda yeni hesap acan sifirdan 25 dk aldi.
+    """
     kalici = _persistent(keys)
     if not kalici or elapsed <= 0 or is_exempt(keys):
         return
     primary = _primary(keys)
+    # Oturum acikken cihaz ve parmak izi satirlarina da hesap yazilir; yonetici
+    # panelinde bu satirlarin kime ait oldugu gorunsun diye (usage_events de boyle).
+    session_user = next((_user_id_of(k) for k in keys if k.startswith('user:')), None)
+    attempt = 1 if count_attempt else 0
     try:
-        st = _status(keys)
-        from_base = min(elapsed, st['baseLeft'])
-        from_bonus = int(math.ceil(elapsed - from_base)) if elapsed > from_base else 0
-        attempt = 1 if count_attempt else 0
+        rows = _rows(kalici)
+        paylar: Dict[str, float] = {}
+        for key in kalici:
+            row = rows.get(key) or {'seconds_used': 0.0, 'created_at': None}
+            paylar[key] = min(elapsed, max(0.0, base_left(row['seconds_used'], row['created_at'])))
+        # Ek sure, kimliklerin ORTAK kalanini asan kisim kadar harcanir (authorize da
+        # izni ortak kalana gore veriyor).
+        ortak = min(paylar.values()) if paylar else 0.0
+        from_bonus = int(math.ceil(elapsed - ortak)) if elapsed > ortak else 0
         if not DATABASE_URL:
             for key in kalici:
                 row = _mem_rows.setdefault(key, {'seconds_used': 0.0, 'bonus': 0, 'created_at': None})
-                row['seconds_used'] += from_base
+                row['seconds_used'] += paylar[key]
             return
         import psycopg
 
@@ -340,8 +355,9 @@ def charge(keys: List[str], elapsed: float, count_attempt: bool) -> None:
                        ON CONFLICT (key) DO UPDATE
                        SET total = solver_quota.total + EXCLUDED.total,
                            seconds_used = solver_quota.seconds_used + EXCLUDED.seconds_used,
+                           user_id = COALESCE(EXCLUDED.user_id, solver_quota.user_id),
                            last_solve_at = now()""",
-                    (key, _user_id_of(key), attempt, from_base),
+                    (key, _user_id_of(key) or session_user, attempt, paylar[key]),
                 )
             if from_bonus and primary:
                 conn.execute(

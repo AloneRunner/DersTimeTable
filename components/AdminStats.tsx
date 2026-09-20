@@ -540,11 +540,13 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
               {info.rows.map((r) => (
                 <tr key={r.key} className="border-t" style={{ borderColor: C.grid }}>
                   <td className="py-1.5 pr-4" style={{ color: C.ink }}>
-                    {r.email ?? (
+                    {r.key.startsWith('user:') ? (
+                      r.email ?? `hesap #${r.key.replace('user:', '')}`
+                    ) : (
                       <span style={{ color: C.muted }}>
                         {r.key.startsWith('school:')
-                          ? `veri parmak izi · ${r.fingerprint_size} öğretmen adı`
-                          : `hesapsız cihaz · ${r.key.replace('device:', '').slice(0, 8)}`}
+                          ? `veri parmak izi · ${r.fingerprint_size} öğretmen adı${r.email ? ` · ${r.email}` : ''}`
+                          : `cihaz · ${r.email ?? `hesapsız ${r.key.replace('device:', '').slice(0, 8)}`}`}
                       </span>
                     )}
                     {r.last_attempt && (
@@ -592,7 +594,7 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
         </div>
       )}
       <p className="mt-3 text-xs" style={{ color: C.muted }}>
-        Ek süre, kişinin temel bütçesi bittiğinde harcanır. "Veri parmak izi" satırları aynı okul verisini farklı hesaplarla kullananları tek bütçede toplar; öğretmen adı saklanmaz.
+        Her kişi üç satırda birden sayılır: hesap, cihaz ve verinin parmak izi. En az kalanı geçerlidir; böylece yeni e-posta açmak ya da veriyi başka bilgisayara taşımak bütçeyi sıfırlamaz. "Veri parmak izi" satırlarında öğretmen adı saklanmaz. Ek süre yalnız hesap satırına verilir ve temel bütçe bittiğinde harcanır.
       </p>
     </Card>
   );
