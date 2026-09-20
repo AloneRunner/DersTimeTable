@@ -1419,7 +1419,13 @@ const App: React.FC = () => {
     // kadar kullandigi icin en pahali denemeler basarisiz olanlardi (deneme basina
     // ~20 vCPU-dakika). 60 saniye ayni cevabi veriyor; daha uzun sure isteyen
     // "En iyi" profilini secebilir.
-    const [optTime, setOptTime] = useState<number>(60);
+    // Varsayilan arama suresi. 60 sn'ydi; olculdu (21 Eylul 2026): 52 ogretmenli bir
+    // okul 58,7 sn'de, bir digeri 59 sn'de cozuldu, yani ikisi de sinirin kilinda
+    // kaldi. Sinira takilan deneme hem sonucsuz kaliyor hem de sure butcesinden
+    // arama + teshis kadar dusuyor; 90 sn bu okullari basariya cevirdigi icin
+    // kullaniciya daha UCUZ. Kolay okullar zaten birkac saniyede bitiyor,
+    // onlar icin sinirin bir maliyeti yok.
+    const [optTime, setOptTime] = useState<number>(90);
     const [optSeedRatio, setOptSeedRatio] = useState<number>(0.15);
     const [optTabuTenure, setOptTabuTenure] = useState<number>(50);
     const [optTabuIter, setOptTabuIter] = useState<number>(2000);
@@ -2094,6 +2100,14 @@ const App: React.FC = () => {
         const classroomErrors = [...validation.incompleteClasses, ...validation.overflowingClasses]
             .reduce((acc, err) => ({...acc, [err.id]: err.message}), {} as Record<string, string>);
         const subjectErrors = validation.unassignedSubjects.reduce((acc, err) => ({...acc, [err.id]: err.message}), {} as Record<string, string>);
+        // Haftalik yuk sutunundaki "demand" bir TAHMIN: dersin saatleri o derse
+        // girebilecek ogretmenlere esit pay edilir. Paylasilan bir ders yuzunden
+        // tahmin ust siniri asabilir, ama cozucu yuku digerine kaydirabilir; bu
+        // satirlar kirmizi gosterilince kullanici olmayan bir hatayi ariyordu
+        // (52 ogretmenli bir okulda kirmizi vardi ve program yine de olustu).
+        // Kirmizi artik yalnizca Program Oncesi Kontrol'un da onayladigi KESIN
+        // acikta; tahmini asma turuncu uyari olarak kalir.
+        const teacherShortageIds = new Set(validation.teacherCapacityErrors.map(err => err.id));
         
         switch (activeTab) {
 
@@ -2110,7 +2124,14 @@ case 'teachers':
                 {item.canTeachMiddleSchool && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">Ortaokul</span>}
                 {item.canTeachHighSchool && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full bg-green-100 text-green-800">Lise</span>}
             </td>
-            <td className={`px-4 py-3 whitespace-nowrap font-medium ${load.demand > load.capacity ? 'text-red-600' : 'text-slate-600'}`}>
+            <td
+                className={`px-4 py-3 whitespace-nowrap font-medium ${teacherShortageIds.has(item.id) ? 'text-red-600' : load.demand > load.capacity ? 'text-amber-600' : 'text-slate-600'}`}
+                title={teacherShortageIds.has(item.id)
+                    ? 'Bu öğretmene kesin olarak düşen ders, kullanılabilir zamanından fazla. Müsaitlik açın, haftalık üst sınırı yükseltin ya da dersin bir kısmını başka öğretmene verin.'
+                    : load.demand > load.capacity
+                        ? 'Tahmini yük üst sınırın üstünde, ama bu derslere girebilecek başka öğretmenler de var; çözücü yükün bir kısmını onlara verebilir. Program yine de oluşabilir.'
+                        : 'Soldaki sayı tahmini haftalık yük: dersin saatleri o derse girebilecek öğretmenlere eşit pay edilir.'}
+            >
                 {Math.round(load.demand)} / {load.capacity} saat
                 {item.maxWeeklyHours && <span className="ml-1 text-[10px] font-normal text-slate-500">(üst sınır {item.maxWeeklyHours})</span>}
             </td>
