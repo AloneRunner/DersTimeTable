@@ -240,6 +240,21 @@ def request_increase(keys: List[str]) -> bool:
         return False
 
 
+def record_attempt(keys: List[str], info: Dict[str, object]) -> None:
+    """Son denemenin ayarlarini ve sonucunu kisinin satirina yazar (destek icin)."""
+    primary = _primary(keys)
+    if not primary or not DATABASE_URL:
+        return
+    try:
+        import psycopg
+        from psycopg.types.json import Json
+
+        with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
+            conn.execute('UPDATE solver_quota SET last_attempt = %s WHERE key = %s', (Json(info), primary))
+    except Exception:  # pylint: disable=broad-except
+        logger.exception('solver-quota-attempt-write-failed')
+
+
 def window_used(key: str) -> Dict[str, int]:
     """Yonetici paneli icin: kimligin bellekteki son 1 saat / 24 saat denemesi."""
     now = time.time()

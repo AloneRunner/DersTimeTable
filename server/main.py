@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 import os
+import time
 from threading import BoundedSemaphore
 from solver_cpsat import solve_cp_sat
 from diagnose import diagnose_infeasible
@@ -178,6 +179,29 @@ def health():
     return {"ok": True}
 
 
+def _record_attempt(quota_keys, req: SolveRequest, time_limit: int, started_at: float, result: Any) -> None:
+    """Destek icin son denemenin ayar ve sonucunu yazar; okul verisi yazilmaz."""
+    try:
+        stats = (result or {}).get('stats') or {}
+        status = next((str(n).split('=', 1)[1] for n in (stats.get('notes') or []) if str(n).startswith('status=')), None)
+        solve_quota.record_attempt(quota_keys, {
+            'at': datetime.now(timezone.utc).isoformat(),
+            'solved': bool((result or {}).get('schedule')),
+            'status': status,
+            'blocker': (stats.get('diagnosis') or {}).get('blocker'),
+            'seconds': round(time.time() - started_at, 1),
+            'timeLimit': time_limit,
+            'blocksRelaxed': bool(req.followUp),
+            'maxConsec': (req.defaults or {}).get('maxConsec'),
+            'preferences': req.preferences or {},
+            'classrooms': len(req.data.classrooms),
+            'teachers': len(req.data.teachers),
+            'subjects': len(req.data.subjects),
+        })
+    except Exception:  # pylint: disable=broad-except
+        pass  # not almak hicbir zaman cozumu bozmamali
+
+
 @app.get("/solve/quota")
 def solve_quota_status(request: Request) -> Any:
     """Kalan sunucu deneme hakki; istemci "Program Olustur" dugmesinin yaninda gosterir."""
@@ -211,6 +235,7 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
         # kisaltmak boyle bir okulu KESIN basarisizliga mahkum eder; masrafi zaten
         # kota sinirliyor.
         time_limit = min(req.timeLimitSeconds, _max_solve_seconds)
+        started_at = time.time()
         result = solve_cp_sat(
             req.data.model_dump(),
             req.schoolHours.model_dump(),
@@ -254,6 +279,7 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
                 if tani.get('message'):
                     stats['notes'] = notes + [tani['message']]
                 result['stats'] = stats
+        _record_attempt(quota_keys, req, time_limit, started_at, result)
         return result
     finally:
         _solver_slots.release()

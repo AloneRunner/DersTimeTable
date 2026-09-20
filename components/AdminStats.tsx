@@ -433,6 +433,31 @@ type QuotaRow = {
   used_hour: number;
   used_day: number;
   free_left: number;
+  last_attempt?: {
+    solved?: boolean;
+    status?: string | null;
+    blocker?: string | null;
+    seconds?: number;
+    timeLimit?: number;
+    blocksRelaxed?: boolean;
+    maxConsec?: number | null;
+    preferences?: Record<string, unknown>;
+    classrooms?: number;
+    teachers?: number;
+  } | null;
+};
+
+const describeAttempt = (a: NonNullable<QuotaRow['last_attempt']>): string => {
+  const parts = [
+    a.solved ? 'oluştu' : a.status === 'UNKNOWN' ? 'süre doldu' : a.status === 'INFEASIBLE' ? 'imkânsız' : 'oluşmadı',
+    `${a.seconds ?? '?'} / ${a.timeLimit ?? '?'} sn`,
+    `art arda ${a.maxConsec ?? 'sınırsız'}`,
+    a.blocksRelaxed ? 'bloklar esnetilerek' : null,
+    a.blocker ? `engel: ${FAIL_REASON_LABELS[a.blocker] ?? a.blocker}` : null,
+    a.preferences && Object.keys(a.preferences).length ? `tercihler: ${JSON.stringify(a.preferences)}` : null,
+    a.teachers != null ? `${a.teachers} öğretmen · ${a.classrooms} sınıf` : null,
+  ];
+  return parts.filter(Boolean).join(' · ');
 };
 type QuotaInfo = { hourlyLimit: number; dailyLimit: number; freeTotal: number; rows: QuotaRow[] };
 
@@ -497,6 +522,9 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
                 <tr key={r.key} className="border-t" style={{ borderColor: C.grid }}>
                   <td className="py-1.5 pr-4" style={{ color: C.ink }}>
                     {r.email ?? <span style={{ color: C.muted }}>hesapsız · {r.key.replace('device:', '').slice(0, 8)}</span>}
+                    {r.last_attempt && (
+                      <div className="text-xs" style={{ color: C.muted }}>Son deneme: {describeAttempt(r.last_attempt)}</div>
+                    )}
                     {r.requested_at && (
                       <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900" title={fmtDateTime(r.requested_at)}>
                         artış istiyor

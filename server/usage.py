@@ -327,7 +327,7 @@ def admin_solve_quota(x_admin_key: Optional[str] = Header(default=None)) -> Dict
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             rows = _all(cur, """
-                SELECT q.key, q.total, q.bonus, q.requested_at, q.last_solve_at, u.email,
+                SELECT q.key, q.total, q.bonus, q.requested_at, q.last_solve_at, q.last_attempt, u.email,
                        COALESCE((
                          SELECT string_agg(DISTINCT s.name, ', ')
                          FROM school_users su JOIN schools s ON s.id = su.school_id
