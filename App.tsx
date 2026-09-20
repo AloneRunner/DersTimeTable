@@ -1789,7 +1789,10 @@ const App: React.FC = () => {
     
     const handleExportData = async () => {
         try {
-            await saveTextFile(JSON.stringify({ data }, null, 2), "ders-programi-verileri.json");
+            // Günlük ders saatleri de yedeğe girer. Eskiden yalnız { data } yazılıyordu;
+            // yedeği geri yükleyen okul 9-9-9-8-8 yerine varsayılan 8x5'e dönüyor ve
+            // "kapasite yetmiyor" uyarıları alıyordu.
+            await saveTextFile(JSON.stringify({ data, schoolHours }, null, 2), "ders-programi-verileri.json");
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Veriler disa aktarilamadi.');
         }
@@ -1845,6 +1848,17 @@ const App: React.FC = () => {
                     throw new Error("Dosya okunamadı.");
                 }
                 importData(text);
+                // Dosyada günlük ders saatleri varsa onları da al (eski yedeklerde yoktur).
+                try {
+                    const hours = JSON.parse(text)?.schoolHours;
+                    const valid = (list: unknown) => Array.isArray(list) && list.length === 5
+                        && list.every((n) => Number.isInteger(n) && n >= 1 && n <= 16);
+                    if (hours && valid(hours.Ortaokul) && valid(hours.Lise)) {
+                        setSchoolHours({ Ortaokul: [...hours.Ortaokul], Lise: [...hours.Lise] });
+                    }
+                } catch {
+                    // Saatler okunamadıysa mevcut ayar kalır; veri yine içe aktarılmıştır.
+                }
                 setError(null);
                 setSchedule(null);
                 setSolverStats(null);
