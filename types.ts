@@ -171,6 +171,8 @@ export interface SolverStats {
   mrvDeadEnds: number;                   // Number of times MRV found no valid placements
   notes: string[];                       // Explanatory notes (e.g., timeout)
   diagnosis?: SolverDiagnosis;           // Çözüm çıkmadıysa: hangi kural engelliyor
+  /** Sunucunun bu denemeden SONRA bildirdiği kalan çözücü süresi. */
+  quota?: { secondsLeft: number; bonusSeconds: number; starterSeconds: number; monthlySeconds: number; exempt?: boolean };
 }
 
 /**

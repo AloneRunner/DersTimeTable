@@ -1441,6 +1441,14 @@ const App: React.FC = () => {
     // Kalan sunucu deneme hakkı (server/solve_quota.py). null: henüz bilinmiyor.
     const [solveQuota, setSolveQuota] = useState<SolveQuota | null>(null);
     const [quotaRequestState, setQuotaRequestState] = useState<'idle' | 'sent' | 'failed'>('idle');
+    // Süre bütçesi duyurusu: "Anladım" denene kadar en üstte durur (cihaz başına bir kez).
+    const [showBudgetNotice, setShowBudgetNotice] = useState<boolean>(() => {
+        try { return window.localStorage.getItem('ozarik.notice.budget.v1') !== 'ok'; } catch { return true; }
+    });
+    const dismissBudgetNotice = () => {
+        setShowBudgetNotice(false);
+        try { window.localStorage.setItem('ozarik.notice.budget.v1', 'ok'); } catch { /* gizli pencere: yalnız bu oturumda kapanır */ }
+    };
     const refreshSolveQuota = useCallback(() => { void fetchSolveQuota().then(setSolveQuota); }, []);
     useEffect(() => { refreshSolveQuota(); }, [refreshSolveQuota]);
     // CP-SAT (server) optional preferences – off by default; enable via simple toggles
@@ -1597,7 +1605,21 @@ const App: React.FC = () => {
         }
     };
 
+    // Ekrandaki veri başlangıç örneğinden büyükse üzerine yazmadan önce sorulur.
+    // Eskiden sorulmuyordu: "Örnek yükle"ye yanlışlıkla basan ya da başka bir okulun
+    // dosyasını açan kişinin kendi verisi (oturum açıksa buluttaki kopyası da) siliniyordu.
+    const confirmOverwrite = (what: string): boolean => {
+        const size = data.teachers.length + data.classrooms.length + data.subjects.length;
+        if (size <= 3) return true;
+        return window.confirm(
+            `${what} ekrandaki verinin YERİNE geçecek: ${data.teachers.length} öğretmen, ${data.classrooms.length} sınıf, ${data.subjects.length} ders silinecek.`
+            + (isRemoteMode ? ' Buluta bağlı olduğunuz için okulunuzun buluttaki verisi de değişir.' : '')
+            + ' Önce indir düğmesiyle yedek almanızı öneririz. Devam edilsin mi?'
+        );
+    };
+
     const loadSampleData = async (name: 'ai'|'school') => {
+        if (!confirmOverwrite('Örnek veri')) return;
         try {
             const res = await fetch(`sample-data/${name}.json`);
             if (!res.ok) throw new Error('Örnek dosya bulunamadı.');
@@ -1612,6 +1634,9 @@ const App: React.FC = () => {
     // forceRelax: hata kutusundaki "Blokları esneterek dene" düğmesinden gelir.
     // onClick olay nesnesi de ilk argüman olarak gelebildiği için === true aranır.
     const handleGenerate = useCallback(async (forceRelax?: unknown, maxConsecOverride?: number) => {
+        // Sunucunun deneme sonunda bildirdiği kalan süre. Ayrı sorgudan daha doğrudur:
+        // veri parmak izine bağlı bütçeyi de içerir.
+        let quotaAfter: SolveQuota | 'spent' | null = null;
         const relaxBlocks = forceRelax === true || relaxBlocksIfNeeded;
         // Hata kutusundaki "sınırı artırıp dene" düğmesi state güncellenmeden çağırır.
         const maxConsecNow = typeof maxConsecOverride === 'number' ? maxConsecOverride : defaultMaxConsec;
@@ -1693,7 +1718,8 @@ const App: React.FC = () => {
               // Sunucuya ulaşılamadı / meşgul: tarayıcı içi yedek çözücüye düş.
               const detail = cpErr instanceof Error ? cpErr.message : String(cpErr ?? '');
               const busy = /solver-busy/i.test(detail);
-              const quota = /solver-quota-(hourly|daily)/i.exec(detail);
+              const quota = /solver-quota-(hourly|daily|budget)/i.exec(detail);
+              if (quota && quota[1].toLowerCase() === 'budget') quotaAfter = 'spent';
               quotaHit = Boolean(quota);
               // Ham hata metni İngilizce geliyordu ("Failed to fetch" gibi) ve
               // kullanıcıya olduğu gibi gösteriliyordu. Bilinen durumları Türkçe
@@ -1706,7 +1732,9 @@ const App: React.FC = () => {
                     ? 'sunucu hata verdi'
                     : 'bağlantı kurulamadı';
               localFallbackNote = quota
-                ? `${quota[1].toLowerCase() === 'daily' ? 'Bugünkü' : 'Bu saatteki'} sunucu deneme hakkınız doldu; program tarayıcıdaki yedek çözücüyle oluşturuldu. Sunucu masrafı herkes arasında paylaşıldığı için kişi başına sınır var. Aynı veriyle tekrar denemek yerine kuralları gevşetin.`
+                ? (quota[1].toLowerCase() === 'budget'
+                    ? 'Sunucu çözücü süreniz doldu; program tarayıcıdaki yedek çözücüyle oluşturuldu. Sunucu masrafını geliştirici karşıladığı için kişi başına süre sınırı var; en çok süreyi oluşmayan denemeler harcar. Aynı veriyle tekrar denemek yerine ekranda gösterilen engeli düzeltin.'
+                    : 'Bu ağdan kısa sürede çok fazla deneme yapıldı; program tarayıcıdaki yedek çözücüyle oluşturuldu. Biraz sonra tekrar deneyebilirsiniz.')
                 : busy
                 ? 'Sunucu çözücüsü şu an meşgul; program tarayıcıdaki yedek çözücüyle oluşturuldu. Daha iyi sonuç için biraz sonra tekrar deneyin.'
                 : `Sunucu çözücüsüne ulaşılamadı (${sebep}); program tarayıcıdaki yedek çözücüyle oluşturuldu.`;
@@ -1729,6 +1757,7 @@ const App: React.FC = () => {
               });
             }
             
+            if (result.stats?.quota) quotaAfter = result.stats.quota;
             const displayStats: SolverStats = {
                 ...result.stats,
                 notes: [
@@ -1783,7 +1812,18 @@ const App: React.FC = () => {
             });
         } finally {
             setIsLoading(false);
-            refreshSolveQuota();
+            if (quotaAfter === 'spent') {
+                setSolveQuota((prev) => ({
+                    starterSeconds: prev?.starterSeconds ?? 0,
+                    monthlySeconds: prev?.monthlySeconds ?? 0,
+                    secondsLeft: 0,
+                    bonusSeconds: 0,
+                }));
+            } else if (quotaAfter) {
+                setSolveQuota(quotaAfter);
+            } else {
+                refreshSolveQuota();
+            }
         }
     }, [refreshSolveQuota, data, schoolHours, optTime, optSeedRatio, optTabuTenure, optTabuIter, optStopFirst, classicMode, solverStrategy, useDeterministic, optRngSeed, optDisableLNS, optDisableEdge, cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit, cpDailyMaxOn, cpDailyMaxVal, defaultMaxConsec, relaxBlocksIfNeeded]);
     
@@ -1839,6 +1879,7 @@ const App: React.FC = () => {
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+        if (!confirmOverwrite('Seçtiğiniz dosya')) { event.target.value = ''; return; }
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -3133,6 +3174,24 @@ case 'duties':
                 </div>
             </div>
         )}
+            {showBudgetNotice && (
+                <div className="no-print mb-4 flex items-start gap-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                    <p className="flex-1">
+                        <strong>Duyuru:</strong> DersTimeTable çok hızlı büyüyor ve ücretsiz kalmasını istiyoruz. Sunucu masrafını
+                        geliştirici kendi karşıladığı için, herkese adil olsun diye kişi başına bir <strong>sunucu çözücü süresi</strong> tanımlandı.
+                        Programı birkaç saniyede oluşan okullar bunu fark etmez; süreyi asıl tüketen, oluşmayan programı aynı veriyle tekrar
+                        tekrar denemektir. Kalan süreniz "Program Oluştur" düğmesinin altında yazar. Süre biterse program cihazınızdaki yedek
+                        çözücüyle oluşturulmaya devam eder ve uygulamadan ek süre isteyebilirsiniz.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={dismissBudgetNotice}
+                        className="shrink-0 rounded border border-sky-300 bg-white px-2 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100"
+                    >
+                        Anladım
+                    </button>
+                </div>
+            )}
             <header className="mb-8 no-print">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
             <div>
@@ -3389,38 +3448,35 @@ case 'duties':
                         {isLoading ? 'Oluşturuluyor...' : 'Program Oluştur'}
                     </button>
                 </div>
-                {solveQuota && (() => {
-                    const free = solveQuota.freeLeft ?? 0;
-                    const bonus = solveQuota.bonus ?? 0;
-                    const spent = free === 0 && bonus === 0 && (solveQuota.hourlyLeft === 0 || solveQuota.dailyLeft === 0);
+                {solveQuota && !solveQuota.exempt && (() => {
+                    const left = Math.max(0, solveQuota.secondsLeft) + Math.max(0, solveQuota.bonusSeconds);
+                    const spent = left <= 0;
+                    const sure = left >= 60 ? `${Math.floor(left / 60)} dk ${left % 60} sn` : `${left} sn`;
                     return (
-                        <div className="no-print text-xs" title="Sunucu masrafını geliştirici karşıladığı için kişi başına deneme sınırı var. Hak bitince program cihazınızdaki yedek çözücüyle oluşturulur.">
-                            {free > 0 ? (
-                                <p className="text-slate-500">
-                                    Sunucu deneme hakkı: başlangıç hakkınızdan {free} deneme kaldı (bu sürede saatlik/günlük sınır yok).
-                                </p>
-                            ) : (
-                                <p className={spent ? 'font-medium text-red-700' : solveQuota.dailyLeft <= 5 ? 'text-amber-700' : 'text-slate-500'}>
-                                    Sunucu deneme hakkı: bu saat {solveQuota.hourlyLeft}/{solveQuota.hourlyLimit} · bugün {solveQuota.dailyLeft}/{solveQuota.dailyLimit}
-                                    {bonus > 0 && ` · ek hak ${bonus}`}
-                                    {spent && ' — hak doldu, yedek çözücü kullanılacak'}
-                                </p>
-                            )}
+                        <div
+                            className="no-print text-xs"
+                            title={`Sunucu masrafını geliştirici karşıladığı için kişi başına çözücü süresi sınırlı. Program hızlı oluşuyorsa neredeyse hiç harcamazsınız; süreyi asıl oluşmayan denemeler tüketir.${solveQuota.monthlySeconds > 0 ? ` Her ay ${Math.round(solveQuota.monthlySeconds / 60)} dakika eklenir.` : ''} Süre bitince program cihazınızdaki yedek çözücüyle oluşturulur.`}
+                        >
+                            <p className={spent ? 'font-medium text-red-700' : left < 180 ? 'text-amber-700' : 'text-slate-500'}>
+                                {spent
+                                    ? 'Sunucu çözücü süreniz doldu; programlar cihazınızdaki yedek çözücüyle oluşturulacak.'
+                                    : `Sunucu çözücü süreniz: ${sure} kaldı${solveQuota.bonusSeconds > 0 ? ' (ek süre dahil)' : ''}. Oluşmayan denemeler süreyi hızlı tüketir.`}
+                            </p>
                             {spent && (
                                 <p className="mt-1 text-slate-600">
                                     {quotaRequestState === 'sent'
-                                        ? 'İsteğiniz iletildi. Sunucu kotasının durumuna göre limitiniz artırılabilir; kesin değildir.'
+                                        ? 'İsteğiniz iletildi. Sunucu bütçesinin durumuna göre ek süre verilebilir; kesin değildir.'
                                         : quotaRequestState === 'failed'
                                             ? 'İstek iletilemedi. kaanozarik@gmail.com adresine yazabilirsiniz.'
                                             : (
                                                 <>
-                                                    Sunucu kotasının durumuna göre yönetici limitinizi artırabilir (kesin değildir).{' '}
+                                                    Sunucu bütçesinin durumuna göre yönetici size ek süre verebilir (kesin değildir).{' '}
                                                     <button
                                                         type="button"
                                                         className="font-medium text-sky-700 underline"
                                                         onClick={() => { void requestQuotaIncrease().then((ok) => setQuotaRequestState(ok ? 'sent' : 'failed')); }}
                                                     >
-                                                        Limit artışı iste
+                                                        Ek süre iste
                                                     </button>
                                                 </>
                                             )}

@@ -430,9 +430,9 @@ type QuotaRow = {
   last_solve_at: string | null;
   email: string | null;
   schools: string;
-  used_hour: number;
-  used_day: number;
-  free_left: number;
+  seconds_used: number;
+  base_left: number;
+  fingerprint_size: number;
   last_attempt?: {
     solved?: boolean;
     status?: string | null;
@@ -450,16 +450,34 @@ type QuotaRow = {
 const describeAttempt = (a: NonNullable<QuotaRow['last_attempt']>): string => {
   const parts = [
     a.solved ? 'oluştu' : a.status === 'UNKNOWN' ? 'süre doldu' : a.status === 'INFEASIBLE' ? 'imkânsız' : 'oluşmadı',
-    `${a.seconds ?? '?'} / ${a.timeLimit ?? '?'} sn`,
+    `${a.seconds ?? '?'} sn sürdü (arama sınırı ${a.timeLimit ?? '?'} sn${!a.solved && a.blocker ? ', gerisi teşhis' : ''})`,
     `art arda ${a.maxConsec ?? 'sınırsız'}`,
     a.blocksRelaxed ? 'bloklar esnetilerek' : null,
     a.blocker ? `engel: ${FAIL_REASON_LABELS[a.blocker] ?? a.blocker}` : null,
-    a.preferences && Object.keys(a.preferences).length ? `tercihler: ${JSON.stringify(a.preferences)}` : null,
+    a.preferences && describePreferences(a.preferences) ? `tercihler: ${describePreferences(a.preferences)}` : null,
     a.teachers != null ? `${a.teachers} öğretmen · ${a.classrooms} sınıf` : null,
   ];
   return parts.filter(Boolean).join(' · ');
 };
-type QuotaInfo = { hourlyLimit: number; dailyLimit: number; freeTotal: number; rows: QuotaRow[] };
+type QuotaInfo = { starterSeconds: number; monthlySeconds: number; rows: QuotaRow[] };
+
+const fmtDuration = (seconds: number): string => {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} sn`;
+  const m = Math.floor(s / 60);
+  return m < 60 ? `${m} dk ${s % 60} sn` : `${Math.floor(m / 60)} sa ${m % 60} dk`;
+};
+
+// Kullanıcının gelişmiş ayarlarda işaretlediği kutuların sunucuya giden adları.
+const describePreferences = (prefs: Record<string, unknown>): string => {
+  const parts: string[] = [];
+  if (prefs.teacherGapWeight || prefs.nogapWeight) parts.push('boşlukları azalt');
+  if (prefs.maxTeacherGapHours != null) parts.push(`en fazla ${prefs.maxTeacherGapHours} boş saat`);
+  if (prefs.allowSameDaySplit) parts.push('ders aynı gün bölünebilir');
+  if (prefs.teacherDailyMaxHours != null) parts.push(`öğretmen günde en fazla ${prefs.teacherDailyMaxHours} ders`);
+  if (prefs.edgeWeight) parts.push('ilk/son saatleri az kullan');
+  return parts.join(', ');
+};
 
 /** Kişi başı sunucu deneme kotası: durum, bekleyen istekler ve ek hak verme. */
 const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
@@ -489,16 +507,16 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
       if (!res.ok) throw new Error(String(res.status));
       await load();
     } catch (err) {
-      alert(`Ek hak verilemedi (${err instanceof Error ? err.message : 'bağlantı hatası'}).`);
+      alert(`Ek süre verilemedi (${err instanceof Error ? err.message : 'bağlantı hatası'}).`);
     }
   };
 
   const waiting = info?.rows.filter((r) => r.requested_at).length ?? 0;
   return (
     <Card
-      title="Sunucu deneme kotası"
+      title="Sunucu çözücü süresi"
       subtitle={info
-        ? `İlk ${info.freeTotal} deneme sınırsız, sonra saatte ${info.hourlyLimit} · günde ${info.dailyLimit}${waiting ? ` · ${waiting} limit artışı isteği bekliyor` : ''}`
+        ? `Kişi başı başlangıç ${fmtDuration(info.starterSeconds)}${info.monthlySeconds > 0 ? ` + ayda ${fmtDuration(info.monthlySeconds)}` : ', yenileme yok'} · masraf saniyeyle doğru orantılı${waiting ? ` · ${waiting} ek süre isteği bekliyor` : ''}`
         : 'Yükleniyor…'}
     >
       {error && <p className="text-sm" style={{ color: C.ink2 }}>{error}</p>}
@@ -510,18 +528,24 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
               <tr style={{ color: C.ink2 }}>
                 <th className="py-1 pr-4 font-medium">Hesap / cihaz</th>
                 <th className="py-1 pr-4 font-medium">Okul</th>
-                <th className="py-1 pr-4 font-medium text-right">Toplam</th>
-                <th className="py-1 pr-4 font-medium text-right">Başlangıç hakkı</th>
-                <th className="py-1 pr-4 font-medium text-right">Son 1 sa / 24 sa</th>
-                <th className="py-1 pr-4 font-medium text-right">Ek hak</th>
-                <th className="py-1 font-medium">Ek hak ver</th>
+                <th className="py-1 pr-4 font-medium text-right">Deneme</th>
+                <th className="py-1 pr-4 font-medium text-right">Harcanan</th>
+                <th className="py-1 pr-4 font-medium text-right">Kalan</th>
+                <th className="py-1 pr-4 font-medium text-right">Ek süre</th>
+                <th className="py-1 font-medium">Ek süre ver</th>
               </tr>
             </thead>
             <tbody>
               {info.rows.map((r) => (
                 <tr key={r.key} className="border-t" style={{ borderColor: C.grid }}>
                   <td className="py-1.5 pr-4" style={{ color: C.ink }}>
-                    {r.email ?? <span style={{ color: C.muted }}>hesapsız · {r.key.replace('device:', '').slice(0, 8)}</span>}
+                    {r.email ?? (
+                      <span style={{ color: C.muted }}>
+                        {r.key.startsWith('school:')
+                          ? `veri parmak izi · ${r.fingerprint_size} öğretmen adı`
+                          : `hesapsız cihaz · ${r.key.replace('device:', '').slice(0, 8)}`}
+                      </span>
+                    )}
                     {r.last_attempt && (
                       <div className="text-xs" style={{ color: C.muted }}>Son deneme: {describeAttempt(r.last_attempt)}</div>
                     )}
@@ -533,19 +557,19 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
                   </td>
                   <td className="py-1.5 pr-4" style={{ color: C.ink2 }}>{r.schools || '—'}</td>
                   <td className="py-1.5 pr-4 text-right font-semibold tabular-nums">{fmt(r.total)}</td>
-                  <td className="py-1.5 pr-4 text-right tabular-nums">{r.free_left > 0 ? `${fmt(r.free_left)} kaldı` : 'bitti'}</td>
-                  <td className="py-1.5 pr-4 text-right tabular-nums">{r.used_hour} / {r.used_day}</td>
-                  <td className="py-1.5 pr-4 text-right tabular-nums">{fmt(r.bonus)}</td>
+                  <td className="py-1.5 pr-4 text-right tabular-nums whitespace-nowrap">{fmtDuration(r.seconds_used)}</td>
+                  <td className="py-1.5 pr-4 text-right tabular-nums whitespace-nowrap">{r.base_left > 0 ? fmtDuration(r.base_left) : 'bitti'}</td>
+                  <td className="py-1.5 pr-4 text-right tabular-nums whitespace-nowrap">{r.bonus > 0 ? fmtDuration(r.bonus) : '—'}</td>
                   <td className="py-1.5 whitespace-nowrap">
-                    {[30, 100].map((n) => (
+                    {!r.key.startsWith('school:') && [10, 30].map((n) => (
                       <button
                         key={n}
                         type="button"
-                        onClick={() => void grant(r, r.bonus + n)}
+                        onClick={() => void grant(r, r.bonus + n * 60)}
                         className="mr-1 rounded border px-2 py-0.5 text-xs hover:bg-slate-50"
                         style={{ borderColor: C.border }}
                       >
-                        +{n}
+                        +{n} dk
                       </button>
                     ))}
                     {(r.bonus > 0 || r.requested_at) && (
@@ -561,7 +585,7 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
         </div>
       )}
       <p className="mt-3 text-xs" style={{ color: C.muted }}>
-        Ek hak, kişinin saatlik/günlük sınırı dolduğunda birer birer harcanır. "Son 1 sa / 24 sa" sunucu yeniden başlayınca sıfırlanır.
+        Ek süre, kişinin temel bütçesi bittiğinde harcanır. "Veri parmak izi" satırları aynı okul verisini farklı hesaplarla kullananları tek bütçede toplar; öğretmen adı saklanmaz.
       </p>
     </Card>
   );

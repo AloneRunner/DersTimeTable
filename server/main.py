@@ -204,7 +204,7 @@ def _record_attempt(quota_keys, req: SolveRequest, time_limit: int, started_at: 
 
 @app.get("/solve/quota")
 def solve_quota_status(request: Request) -> Any:
-    """Kalan sunucu deneme hakki; istemci "Program Olustur" dugmesinin yaninda gosterir."""
+    """Kalan sunucu cozucu suresi; istemci "Program Olustur" dugmesinin yaninda gosterir."""
     return solve_quota.remaining(solve_quota.identity_keys(request))
 
 
@@ -221,20 +221,28 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
         raise HTTPException(status_code=429, detail="solver-busy-try-again")
     defaults = req.defaults or {}
     prefs = req.preferences or {}
+    started_at: Optional[float] = None
     try:
-        if not req.followUp:
-            blocked = solve_quota.check_and_count(quota_keys)
-            if blocked:
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"solver-quota-{blocked['scope']}",
-                    headers={"Retry-After": str(blocked['retryAfter'])},
-                )
+        # Verinin parmak izi de bir kimliktir: ayni veriyi yeni hesaba yuklemek butceyi sifirlamaz.
+        if not solve_quota.is_exempt(quota_keys):
+            fingerprint = solve_quota.school_key(req.data.model_dump())
+            if fingerprint:
+                quota_keys = quota_keys + [fingerprint]
+        # Ayni tiklamanin ikinci (blok esnetmeli) istegi IP freninde ayri sayilmaz;
+        # sure butcesinden ise her istek harcadigi kadar duser.
+        blocked, time_limit = solve_quota.authorize(
+            quota_keys, min(req.timeLimitSeconds, _max_solve_seconds), count_ip=not req.followUp
+        )
+        if blocked:
+            raise HTTPException(
+                status_code=429,
+                detail=f"solver-quota-{blocked['scope']}",
+                headers={"Retry-After": str(blocked['retryAfter'])},
+            )
         # Ust uste basarisizlikta sureyi kisaltmayi denedik ve geri aldik: gercek bir
         # okulun verisi (20 Eylul 2026) cozulebilir cikti ama ~60 sn istiyordu. Sureyi
         # kisaltmak boyle bir okulu KESIN basarisizliga mahkum eder; masrafi zaten
-        # kota sinirliyor.
-        time_limit = min(req.timeLimitSeconds, _max_solve_seconds)
+        # sure butcesi sinirliyor.
         started_at = time.time()
         result = solve_cp_sat(
             req.data.model_dump(),
@@ -280,8 +288,17 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
                     stats['notes'] = notes + [tani['message']]
                 result['stats'] = stats
         _record_attempt(quota_keys, req, time_limit, started_at, result)
+        # Harcanan sure yazildiktan SONRA kalan hesaplanir ki istemci guncel degeri gorsun.
+        solve_quota.charge(quota_keys, time.time() - started_at, count_attempt=not req.followUp)
+        started_at = None
+        stats = result.get('stats') or {}
+        stats['quota'] = solve_quota.remaining(quota_keys)
+        result['stats'] = stats
         return result
     finally:
+        if started_at is not None:
+            # Cozucu hata verdiyse de harcanan islemci suresi butceden duser.
+            solve_quota.charge(quota_keys, time.time() - started_at, count_attempt=not req.followUp)
         _solver_slots.release()
 
 

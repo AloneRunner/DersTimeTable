@@ -315,19 +315,21 @@ def admin_export_school(school_id: int, x_admin_key: Optional[str] = Header(defa
 
 class QuotaGrantPayload(BaseModel):
     key: str = Field(min_length=3, max_length=80)
-    bonus: int = Field(ge=0, le=5000)
+    bonus: int = Field(ge=0, le=86400)  # saniye
 
 
 @router.get('/admin/solve-quota')
 def admin_solve_quota(x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
-    """Kisi basi sunucu deneme kotasinin durumu: toplam, ek hak, bekleyen istekler."""
+    """Kisi basi cozucu sure butcesinin durumu: harcanan, kalan, ek sure, bekleyen istekler."""
     _require_admin(x_admin_key)
     import solve_quota  # yerel ice aktarma: dongusel bagimliligi onler
 
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             rows = _all(cur, """
-                SELECT q.key, q.total, q.bonus, q.requested_at, q.last_solve_at, q.last_attempt, u.email,
+                SELECT q.key, q.total, q.bonus, q.seconds_used, q.created_at, q.requested_at,
+                       q.last_solve_at, q.last_attempt, u.email,
+                       COALESCE(cardinality(q.name_hashes), 0) AS fingerprint_size,
                        COALESCE((
                          SELECT string_agg(DISTINCT s.name, ', ')
                          FROM school_users su JOIN schools s ON s.id = su.school_id
@@ -335,25 +337,22 @@ def admin_solve_quota(x_admin_key: Optional[str] = Header(default=None)) -> Dict
                        ), '') AS schools
                 FROM solver_quota q
                 LEFT JOIN users u ON u.id = q.user_id
-                ORDER BY (q.requested_at IS NULL), q.requested_at DESC, q.last_solve_at DESC NULLS LAST
-                LIMIT 50
+                ORDER BY (q.requested_at IS NULL), q.requested_at DESC, q.seconds_used DESC, q.last_solve_at DESC NULLS LAST
+                LIMIT 60
             """)
     for row in rows:
-        used = solve_quota.window_used(row['key'])
-        row['used_hour'] = used['hour']
-        row['used_day'] = used['day']
-        row['free_left'] = max(0, solve_quota.FREE_TOTAL - int(row['total'] or 0))
+        row['base_left'] = int(max(0.0, solve_quota.base_left(row.get('seconds_used') or 0, row.get('created_at'))))
+        row['seconds_used'] = int(row.get('seconds_used') or 0)
     return {
-        'hourlyLimit': solve_quota.HOURLY_LIMIT,
-        'dailyLimit': solve_quota.DAILY_LIMIT,
-        'freeTotal': solve_quota.FREE_TOTAL,
+        'starterSeconds': solve_quota.STARTER_SECONDS,
+        'monthlySeconds': solve_quota.MONTHLY_SECONDS,
         'rows': rows,
     }
 
 
 @router.post('/admin/solve-quota/grant')
 def admin_grant_quota(payload: QuotaGrantPayload, x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
-    """Bir kimligin ek hakkini ayarlar (0 = kaldir) ve bekleyen istegini kapatir."""
+    """Bir kimligin ek suresini (saniye) ayarlar (0 = kaldir) ve bekleyen istegini kapatir."""
     _require_admin(x_admin_key)
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         row = conn.execute(
