@@ -378,7 +378,9 @@ def remaining(keys: List[str]) -> Dict[str, Any]:
         logger.exception('solver-quota-read-failed')
         st = {'baseLeft': float(STARTER_SECONDS), 'bonus': 0, 'hasIdentity': False}
     return {
-        'secondsLeft': int(st['baseLeft']) if st['hasIdentity'] else STARTER_SECONDS,
+        # Yuvarlanir, kirpilmaz: saniyenin altinda kullanan biri "24 dk 59 sn kaldi"
+        # gorup hic kullanmadigi halde sure eksilmis saniyordu.
+        'secondsLeft': int(round(st['baseLeft'])) if st['hasIdentity'] else STARTER_SECONDS,
         'bonusSeconds': int(st['bonus']),
         'starterSeconds': STARTER_SECONDS,
         'monthlySeconds': MONTHLY_SECONDS,

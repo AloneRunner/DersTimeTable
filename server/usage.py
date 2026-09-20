@@ -341,8 +341,12 @@ def admin_solve_quota(x_admin_key: Optional[str] = Header(default=None)) -> Dict
                 LIMIT 60
             """)
     for row in rows:
-        row['base_left'] = int(max(0.0, solve_quota.base_left(row.get('seconds_used') or 0, row.get('created_at'))))
-        row['seconds_used'] = int(row.get('seconds_used') or 0)
+        # Once harcanan yuvarlanir, KALAN ondan turetilir. Ikisi ayri ayri asagi
+        # yuvarlandiginda "harcanan 0 sn, kalan 24 dk 59 sn" gibi toplami tutmayan
+        # satirlar cikiyordu (0,4 sn harcayan magaza robotunda goruldu).
+        used = int(round(float(row.get('seconds_used') or 0)))
+        row['seconds_used'] = used
+        row['base_left'] = int(max(0, round(solve_quota.base_left(used, row.get('created_at')))))
     return {
         'starterSeconds': solve_quota.STARTER_SECONDS,
         'monthlySeconds': solve_quota.MONTHLY_SECONDS,
