@@ -573,9 +573,15 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
                         +{n} dk
                       </button>
                     ))}
-                    {(r.bonus > 0 || r.requested_at) && (
+                    {/* İsteği kapatmak ek süreyi değiştirmez: aynı miktar yeniden yazılır, sunucu isteği siler. */}
+                    {r.requested_at && (
+                      <button type="button" onClick={() => void grant(r, r.bonus)} className="mr-2 text-xs underline" style={{ color: C.ink2 }}>
+                        isteği kapat
+                      </button>
+                    )}
+                    {r.bonus > 0 && (
                       <button type="button" onClick={() => void grant(r, 0)} className="text-xs underline" style={{ color: C.ink2 }}>
-                        {r.bonus > 0 ? 'sıfırla' : 'isteği kapat'}
+                        ek süreyi sıfırla
                       </button>
                     )}
                   </td>
