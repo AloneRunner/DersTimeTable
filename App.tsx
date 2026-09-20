@@ -1610,8 +1610,10 @@ const App: React.FC = () => {
 
     // forceRelax: hata kutusundaki "Blokları esneterek dene" düğmesinden gelir.
     // onClick olay nesnesi de ilk argüman olarak gelebildiği için === true aranır.
-    const handleGenerate = useCallback(async (forceRelax?: unknown) => {
+    const handleGenerate = useCallback(async (forceRelax?: unknown, maxConsecOverride?: number) => {
         const relaxBlocks = forceRelax === true || relaxBlocksIfNeeded;
+        // Hata kutusundaki "sınırı artırıp dene" düğmesi state güncellenmeden çağırır.
+        const maxConsecNow = typeof maxConsecOverride === 'number' ? maxConsecOverride : defaultMaxConsec;
         setIsLoading(true);
         setError(null);
         setSchedule(null);
@@ -1645,7 +1647,7 @@ const App: React.FC = () => {
                 data,
                 schoolHours,
                 strictTime,
-                { maxConsec: defaultMaxConsec },
+                { maxConsec: maxConsecNow },
                 cpPrefs,
                 optStopFirst,
                 // Teşhis yalnız son denemede istenir. Blok esnetmeli ikinci deneme
@@ -1666,7 +1668,7 @@ const App: React.FC = () => {
                   relaxedData,
                   schoolHours,
                   relaxedTime,
-                  { maxConsec: defaultMaxConsec },
+                  { maxConsec: maxConsecNow },
                   cpPrefs,
                   optStopFirst,
                   true,
@@ -1752,7 +1754,11 @@ const App: React.FC = () => {
                 // Teşhis varsa EN BAŞA alınır. Kullanıcı ilk satırda ne yapacağını
                 // görmeli; "status=INFEASIBLE" çevirisi ve teknik notlar arkada kalsın.
                 const tani = displayStats.diagnosis;
-                const digerNotlar = (displayStats.notes ?? []).filter((n) => n !== tani?.message);
+                // Teşhis bir engel bulduysa genel "kırmızı uyarıları düzeltin" cümlesi
+                // gösterilmez: kırmızı uyarı yokken kullanıcıyı boşa aratıyordu.
+                const genelNot = explainSolverNote('status=INFEASIBLE');
+                const digerNotlar = [...new Set(displayStats.notes ?? [])]
+                    .filter((n) => n !== tani?.message && !(tani?.found && n === genelNot));
                 const errorMsg = tani?.message
                   ? [tani.message, ...digerNotlar].join(' | ')
                   : (digerNotlar.join(' | ') || "Çözüm bulunamadı. Kısıtlar çok sıkı olabilir.");
@@ -2795,6 +2801,17 @@ case 'duties':
                     <input type="checkbox" checked={relaxBlocksIfNeeded} onChange={(e) => setRelaxBlocksIfNeeded(e.target.checked)} />
                     <Tooltip text="Örnek: 5 saatlik ders 3+2 olarak yerleşmezse 3+1+1 veya 2+1+1+1 gibi bölünmesine izin verir. CP-SAT önce tanımlı blokları dener; olmazsa esnetir."><span className="font-medium">Yer bulamazsa blokları esnet</span></Tooltip>
                 </label>
+                <label className="flex items-center gap-1">
+                    <Tooltip text="Bir sınıfta aynı dersin bir günde art arda en fazla kaç saat olabileceği. Derste ayrıca 'Maks. Ardışık Saat' yazıyorsa o geçerlidir. Sınıflar ve öğretmenler tam doluysa 3 fazla dar kalabilir."><span className="text-slate-600">Art arda en fazla</span></Tooltip>
+                    <select
+                        value={defaultMaxConsec ?? 0}
+                        onChange={(e) => { const v = Number(e.target.value); setDefaultMaxConsec(v > 0 ? v : undefined); }}
+                        className="rounded border-slate-300 py-0.5 text-sm"
+                    >
+                        {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n} saat</option>)}
+                        <option value={0}>Sınırsız</option>
+                    </select>
+                </label>
             </div>
         );
 
@@ -3593,7 +3610,21 @@ case 'duties':
                 {error && (
                     <div className="p-4 bg-red-100 text-red-700 border border-red-200 rounded-lg no-print">
                         <div>{error}</div>
-                        {!relaxBlocksIfNeeded && !isLoading && data.subjects.some((s) => s.blockHours > 0 || (s.tripleBlockHours ?? 0) > 0) && (
+                        {!isLoading && solverStats?.diagnosis?.blocker === 'max_consec' && typeof defaultMaxConsec === 'number' && (
+                            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
+                                <p className="text-sm">
+                                    Engel tek bir ayar: <strong>"art arda en fazla {defaultMaxConsec} ders"</strong> sınırı. Verinizde değiştirmeniz gereken bir şey yok.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => { const next = defaultMaxConsec + 1; setDefaultMaxConsec(next); void handleGenerate(false, next); }}
+                                    className="mt-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-600"
+                                >
+                                    Sınırı {defaultMaxConsec + 1} yapıp dene
+                                </button>
+                            </div>
+                        )}
+                        {!relaxBlocksIfNeeded && !isLoading && solverStats?.diagnosis?.blocker !== 'max_consec' && data.subjects.some((s) => s.blockHours > 0 || (s.tripleBlockHours ?? 0) > 0) && (
                             <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
                                 <p className="text-sm">
                                     <strong>Aynı veriyle tekrar denemeyin.</strong> Blok dersleriniz var ve "Yer bulamazsa blokları esnet" seçeneği kapalı.

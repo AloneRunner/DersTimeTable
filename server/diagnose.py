@@ -9,14 +9,19 @@ BIRBIRIYLE cakismasini goremiyor. Olculdu (16 Eylul 2026): 30 gunde 164 denemeni
 Yontem: modeli degistirmeden GIRDIYI gevsetip yeniden cozuyoruz. Hangi gevsetme
 programi mumkun kiliyorsa engel odur.
 
-SIRALAMA ONEMLI, ilk surumde yanlis yapildi ve test yakaladi:
-musaitligi tamamen acmak neredeyse her seyi cozer. Once musaitlik denendiginde
-blok yuzunden ya da sabitlenmis ders yuzunden cikmayan programlar da
-"ogretmen musaitligi" diye raporlaniyordu (3 vakanin 2'sinde yanlis sebep).
-O yuzden once DAR ve somut kurallar denenir (sabit ders, sabitlenen ogretmen,
-bloklar...), musaitlik en sona birakilir. Kullaniciya da en kucuk duzeltmeyi
-soylemek dogrusu: "su iki sabitlemeyi kaldir" demek, "kadronun musaitligini ac"
-demekten iyidir.
+SIRALAMA ONEMLI, iki kez yanlis yapildi:
+1) Ilk surumde once musaitlik deneniyordu; musaitligi tamamen acmak neredeyse
+   her seyi cozdugu icin blok ya da sabit ders yuzunden cikmayan programlar da
+   "ogretmen musaitligi" diye raporlaniyordu.
+2) Ikinci surumde sabitlenen ogretmenler basa alindi. Gercek bir okulda
+   (20 Eylul 2026) engel "art arda en fazla 3 ders" varsayilaniydi, 4 yapmak
+   yetiyordu; ama butun sabitlemeleri kaldirmak da programi cozdugu icin
+   kullaniciya "sabitlediginiz ogretmen dersleri karsilamiyor" dendi. Yanlis ve
+   uygulanmasi cok daha zor bir tavsiye.
+Kural: kullanicinin EN KOLAY duzeltebilecegi gevsetme once denenir. Tek bir
+sayiyi/secenegi degistirmek (art arda sinir, ayni gun bolunme, gunluk sinir,
+bosluk siniri) basta; verinin buyuk kismini degistirmeyi gerektirenler (butun
+sabitlemeler, butun musaitlikler) sonda.
 
 Tanimli olmayan kural HIC denenmez: hem sure kazandirir hem olmayan bir kurali
 suclamayi onler.
@@ -228,23 +233,18 @@ def diagnose_infeasible(
     def bulundu(blocker: str, message: str, teacher: Optional[str] = None) -> Dict[str, Any]:
         return {'found': True, 'blocker': blocker, 'teacher': teacher, 'message': message, 'tried': denenen}
 
-    # 1) Saate sabitlenmis dersler. En dar ve en kolay duzeltilen kural.
-    sabit = _sabit_ders_sayisi(data)
-    if sabit > 0 and dene('fixed', _sabit_dersler_kaldir(data)):
-        return bulundu('fixed', (
-            f"Belirli saate sabitlenmiş {sabit} ders kaldırılınca program oluşuyor. Sabitlediğiniz "
-            "saatler diğer kurallarla çakışıyor; birkaç sabitlemeyi kaldırıp tekrar deneyin."
-        ))
+    # 1) Art arda ders siniri. Once yalnizca BIR artirilir: kullaniciya "siniri kaldir"
+    # degil "3'u 4 yap" diyebilmek icin.
+    if _ardisik_sinir_var(data, default_max_consec):
+        if default_max_consec is not None and dene('max_consec+1', deepcopy(data), None, int(default_max_consec) + 1):
+            return bulundu('max_consec', (
+                f"\"Art arda en fazla {default_max_consec} ders\" sınırı {int(default_max_consec) + 1} yapılınca program oluşuyor. "
+                "Sınıflar ve bazı öğretmenler tam dolu olduğu için aynı dersin saatleri yan yana gelmek zorunda kalıyor. "
+                f"Gelişmiş ayarlardaki art arda ders sınırını {int(default_max_consec) + 1} yapıp tekrar deneyin."
+            ))
 
-    # 2) Derse sabitlenen ogretmen.
-    pinned = _sabit_ogretmen_sayisi(data)
-    if pinned > 0 and dene('pinned', _sabit_ogretmen_kaldir(data)):
-        return bulundu('pinned_teacher', (
-            "Derslere sabitlenen öğretmenler serbest bırakılınca program oluşuyor. Sabitlediğiniz "
-            "öğretmenin saatleri o dersleri karşılamıyor; dersi başka bir öğretmene de açın."
-        ))
-
-    # 3) Blok dersler.
+    # Blok dersler. Tek bir secenekle (bloklari esnet) duzeldigi icin basta; gercek bir
+    # okulda bloklu 90 sn'de cikmayan program bloksuz 6 sn'de cikti.
     if _blok_var(data) and dene('blocks', _bloksuz(data)):
         return bulundu('blocks', (
             "2'li ve 3'lü blok kuralları kaldırılınca program oluşuyor. Blok istenen dersler "
@@ -252,14 +252,7 @@ def diagnose_infeasible(
             "seçeneğini açabilir ya da bir dersin blok saatini azaltabilirsiniz."
         ))
 
-    # 4) "Ayni gun olamaz" eslestirmeleri.
-    if _ayni_gun_kurali_var(data) and dene('not_same_day', _ayni_gun_serbest(data)):
-        return bulundu('not_same_day', (
-            "\"Aynı gün olamaz\" kuralları kaldırılınca program oluşuyor. Bu şekilde eşleştirdiğiniz "
-            "derslerden birkaçını serbest bırakın."
-        ))
-
-    # 5) Dersin ayni gun bolunememesi.
+    # 2) Dersin ayni gun bolunememesi.
     if not prefs.get('allowSameDaySplit'):
         gevsek = dict(prefs)
         gevsek['allowSameDaySplit'] = True
@@ -269,14 +262,7 @@ def diagnose_infeasible(
                 "CP-SAT ayarlarından \"aynı gün bölünebilsin\" seçeneğini açabilirsiniz."
             ))
 
-    # 6) Art arda ders siniri.
-    if _ardisik_sinir_var(data, default_max_consec) and dene('max_consec', _ardisik_sinirsiz(data), None, None):
-        return bulundu('max_consec', (
-            "Art arda ders sınırı kaldırılınca program oluşuyor. Bir dersin günde en fazla kaç saat "
-            "üst üste olabileceği ayarı fazla dar; bir artırıp tekrar deneyin."
-        ))
-
-    # 7) Ogretmenin gunluk ders siniri.
+    # 3) Ogretmenin gunluk ders siniri.
     if prefs.get('teacherDailyMaxHours') is not None:
         gevsek = dict(prefs)
         gevsek.pop('teacherDailyMaxHours', None)
@@ -286,15 +272,7 @@ def diagnose_infeasible(
                 "program oluşuyor. Bu sınırı bir artırmak yeterli olabilir."
             ))
 
-    # 8) Ogretmenin haftalik ust siniri.
-    if _haftalik_sinir_var(data) and dene('weekly_max', _haftalik_sinirsiz(data)):
-        return bulundu('weekly_max', (
-            "Öğretmenlerin haftalık üst sınırları kaldırılınca program oluşuyor. Bir öğretmenin "
-            "haftalık ders sınırı, ona verilen derslerden az. Sınırı yükseltin ya da dersin bir "
-            "kısmını başka öğretmene verin."
-        ))
-
-    # 9) Ogretmen bosluk siniri.
+    # 4) Ogretmen bosluk siniri.
     if prefs.get('maxTeacherGapHours') is not None:
         gevsek = dict(prefs)
         gevsek.pop('maxTeacherGapHours', None)
@@ -303,7 +281,45 @@ def diagnose_infeasible(
                 "Öğretmen boşluk sınırı kaldırılınca program oluşuyor. Bu sınırı gevşetin ya da kapatın."
             ))
 
-    # 10) Ogretmen musaitligi. En genis gevsetme, bu yuzden EN SONDA.
+    # Art arda siniri tamamen kaldirmak (bir artirmak yetmediyse).
+    if _ardisik_sinir_var(data, default_max_consec) and dene('max_consec', _ardisik_sinirsiz(data), None, None):
+        return bulundu('max_consec', (
+            "Art arda ders sınırı kaldırılınca program oluşuyor. Bir dersin günde en fazla kaç saat "
+            "üst üste olabileceği ayarı fazla dar; artırıp tekrar deneyin."
+        ))
+
+    # 5) "Ayni gun olamaz" eslestirmeleri.
+    if _ayni_gun_kurali_var(data) and dene('not_same_day', _ayni_gun_serbest(data)):
+        return bulundu('not_same_day', (
+            "\"Aynı gün olamaz\" kuralları kaldırılınca program oluşuyor. Bu şekilde eşleştirdiğiniz "
+            "derslerden birkaçını serbest bırakın."
+        ))
+
+    # 6) Saate sabitlenmis dersler.
+    sabit = _sabit_ders_sayisi(data)
+    if sabit > 0 and dene('fixed', _sabit_dersler_kaldir(data)):
+        return bulundu('fixed', (
+            f"Belirli saate sabitlenmiş {sabit} ders kaldırılınca program oluşuyor. Sabitlediğiniz "
+            "saatler diğer kurallarla çakışıyor; birkaç sabitlemeyi kaldırıp tekrar deneyin."
+        ))
+
+    # 7) Ogretmenin haftalik ust siniri.
+    if _haftalik_sinir_var(data) and dene('weekly_max', _haftalik_sinirsiz(data)):
+        return bulundu('weekly_max', (
+            "Öğretmenlerin haftalık üst sınırları kaldırılınca program oluşuyor. Bir öğretmenin "
+            "haftalık ders sınırı, ona verilen derslerden az. Sınırı yükseltin ya da dersin bir "
+            "kısmını başka öğretmene verin."
+        ))
+
+    # 8) Derse sabitlenen ogretmen.
+    pinned = _sabit_ogretmen_sayisi(data)
+    if pinned > 0 and dene('pinned', _sabit_ogretmen_kaldir(data)):
+        return bulundu('pinned_teacher', (
+            "Derslere sabitlenen öğretmenler serbest bırakılınca program oluşuyor. Sabitlediğiniz "
+            "öğretmenin saatleri o dersleri karşılamıyor; dersi başka bir öğretmene de açın."
+        ))
+
+    # 9) Ogretmen musaitligi. En genis gevsetme, bu yuzden EN SONDA.
     if dene('availability', _acik_musaitlik(data)):
         for teacher_id, _skor in _teacher_pressure(data)[:8]:
             if kalan() <= 3:
