@@ -46,7 +46,28 @@ export async function solveTimetableCP(
   return json as SolveResult;
 }
 
-export type SolveQuota = { hourlyLeft: number; hourlyLimit: number; dailyLeft: number; dailyLimit: number };
+export type SolveQuota = {
+  hourlyLeft: number;
+  hourlyLimit: number;
+  dailyLeft: number;
+  dailyLimit: number;
+  /** Başlangıç hakkından kalan; > 0 iken saatlik/günlük sınır uygulanmaz. */
+  freeLeft?: number;
+  /** Yöneticinin verdiği ek hak. */
+  bonus?: number;
+};
+
+/** Limit artışı isteğini yöneticiye iletir. Hesapsız/kimliksiz istekte false döner. */
+export async function requestQuotaIncrease(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/solve/quota/request`, { method: 'POST', headers: identityHeaders() });
+    if (!res.ok) return false;
+    const json = await res.json();
+    return Boolean(json?.ok);
+  } catch {
+    return false;
+  }
+}
 
 /** Kalan sunucu deneme hakkı. Ulaşılamazsa null döner; gösterim isteğe bağlıdır. */
 export async function fetchSolveQuota(): Promise<SolveQuota | null> {

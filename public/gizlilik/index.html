@@ -139,10 +139,13 @@
       <p>
         <strong>Deneme sınırı.</strong> Uygulamayı ücretsiz sunmaya çalışıyoruz; sunucu masrafını geliştirici kendi
         cebinden karşılıyor. Kullanıcı sayısı arttıkça, aynı veriyle art arda yapılan çok sayıda deneme sunucu bütçesini
-        tek başına tüketebildiği için kişi başına saatlik ve günlük bir deneme sınırı uyguluyoruz. Bu sınırı
+        tek başına tüketebildiği için, ilk 100 denemeden sonra kişi başına saatlik ve günlük bir deneme sınırı uyguluyoruz. Bu sınırı
         sayabilmek için hesaplama isteğiyle birlikte cihaz kimliğiniz ve (giriş yaptıysanız) oturum bilginiz gönderilir;
-        IP adresiniz de sayaçta kullanılır. Sayaç yalnız sunucunun geçici belleğinde tutulur, veritabanına yazılmaz ve
-        en geç 24 saat içinde kendiliğinden silinir. Sınır dolduğunda program, cihazınızdaki yedek çözücüyle
+        IP adresiniz de sayaçta kullanılır. Saatlik ve günlük sayaç ile IP adresi yalnız sunucunun geçici belleğinde
+        tutulur ve en geç 24 saat içinde kendiliğinden silinir. Veritabanına yalnızca hesabınıza (giriş yapmadıysanız
+        cihaz kimliğinize) ait <em>toplam deneme sayısı</em>, varsa size tanınan ek hak ve limit artışı istediyseniz
+        isteğin zamanı yazılır; okul verisi yazılmaz. Sınır dolduğunda uygulamadaki düğmeyle limit artışı
+        isteyebilirsiniz; artış sunucu bütçesinin durumuna bağlıdır, garanti edilmez. Sınır dolduğunda program, cihazınızdaki yedek çözücüyle
         oluşturulmaya devam eder; hesaplama sunucuda değil cihazınızda yapılır.
       </p>
 
@@ -173,7 +176,7 @@
             <tr><td>Hesap oluşturma ve oturum açma</td><td>Hesap bilgileri, oturum kayıtları</td><td>Sözleşmenin ifası (c)</td></tr>
             <tr><td>Okul verilerini buluta kaydetme ve cihazlar arasında eşitleme</td><td>Okul verileri, hesap bilgileri</td><td>Sözleşmenin ifası (c)</td></tr>
             <tr><td>Güvenlik, hata ayıklama ve destek</td><td>Oturum kayıtları, hesap bilgileri; sorun bildirildiğinde ya da program oluşmadığında buluttaki okul verileri</td><td>Meşru menfaat (f)</td></tr>
-            <tr><td>Sunucu kaynaklarının adil paylaşımı (deneme sınırı)</td><td>Cihaz kimliği, oturum bilgisi, IP adresi (geçici bellekte, en fazla 24 saat)</td><td>Meşru menfaat (f)</td></tr>
+            <tr><td>Sunucu kaynaklarının adil paylaşımı (deneme sınırı)</td><td>Cihaz kimliği, oturum bilgisi, toplam deneme sayısı; IP adresi (yalnız geçici bellekte, en fazla 24 saat)</td><td>Meşru menfaat (f)</td></tr>
             <tr><td>Kullanımı ölçmek ve uygulamayı geliştirmek</td><td>Kullanım istatistikleri</td><td>Meşru menfaat (f)</td></tr>
             <tr><td>Sesli komutla veri girişi (isteğe bağlı)</td><td>Yalnız düğmeye bastığınızda alınan ses; tarayıcınız tarafından yazıya çevrilir, bizde saklanmaz</td><td>Açık rıza (a) — mikrofon izni</td></tr>
             <tr><td>Yasal yükümlülükleri yerine getirme</td><td>İlgili veriler</td><td>Kanunda öngörülme / hukuki yükümlülük (a, ç)</td></tr>

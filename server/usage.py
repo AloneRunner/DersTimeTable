@@ -313,6 +313,59 @@ def admin_export_school(school_id: int, x_admin_key: Optional[str] = Header(defa
     }
 
 
+class QuotaGrantPayload(BaseModel):
+    key: str = Field(min_length=3, max_length=80)
+    bonus: int = Field(ge=0, le=5000)
+
+
+@router.get('/admin/solve-quota')
+def admin_solve_quota(x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Kisi basi sunucu deneme kotasinin durumu: toplam, ek hak, bekleyen istekler."""
+    _require_admin(x_admin_key)
+    import solve_quota  # yerel ice aktarma: dongusel bagimliligi onler
+
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            rows = _all(cur, """
+                SELECT q.key, q.total, q.bonus, q.requested_at, q.last_solve_at, u.email,
+                       COALESCE((
+                         SELECT string_agg(DISTINCT s.name, ', ')
+                         FROM school_users su JOIN schools s ON s.id = su.school_id
+                         WHERE su.user_id = q.user_id
+                       ), '') AS schools
+                FROM solver_quota q
+                LEFT JOIN users u ON u.id = q.user_id
+                ORDER BY (q.requested_at IS NULL), q.requested_at DESC, q.last_solve_at DESC NULLS LAST
+                LIMIT 50
+            """)
+    for row in rows:
+        used = solve_quota.window_used(row['key'])
+        row['used_hour'] = used['hour']
+        row['used_day'] = used['day']
+        row['free_left'] = max(0, solve_quota.FREE_TOTAL - int(row['total'] or 0))
+    return {
+        'hourlyLimit': solve_quota.HOURLY_LIMIT,
+        'dailyLimit': solve_quota.DAILY_LIMIT,
+        'freeTotal': solve_quota.FREE_TOTAL,
+        'rows': rows,
+    }
+
+
+@router.post('/admin/solve-quota/grant')
+def admin_grant_quota(payload: QuotaGrantPayload, x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Bir kimligin ek hakkini ayarlar (0 = kaldir) ve bekleyen istegini kapatir."""
+    _require_admin(x_admin_key)
+    with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
+        row = conn.execute(
+            'UPDATE solver_quota SET bonus = %s, requested_at = NULL WHERE key = %s RETURNING key, bonus',
+            (payload.bonus, payload.key),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail='quota-key-not-found')
+    logger.warning('admin-granted-solver-quota key=%s bonus=%s', payload.key, payload.bonus)
+    return {'ok': True, 'key': row[0], 'bonus': row[1]}
+
+
 @router.delete('/admin/schools/{school_id}')
 def admin_delete_school(school_id: int, x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
     """Okulu ve okula bagli tum verileri kalici olarak siler (yalniz uygulama sahibine).

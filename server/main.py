@@ -184,6 +184,12 @@ def solve_quota_status(request: Request) -> Any:
     return solve_quota.remaining(solve_quota.identity_keys(request))
 
 
+@app.post("/solve/quota/request")
+def solve_quota_request(request: Request) -> Any:
+    """Kullanici limit artisi ister; yonetici panelinde "istek var" olarak gorunur."""
+    return {"ok": solve_quota.request_increase(solve_quota.identity_keys(request))}
+
+
 @app.post("/solve/cpsat")
 def solve_cpsat(req: SolveRequest, request: Request) -> Any:
     quota_keys = solve_quota.identity_keys(request)

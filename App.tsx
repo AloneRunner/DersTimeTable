@@ -13,7 +13,7 @@ import { useLoadCalculation } from './hooks/useLoadCalculation';
 import type { TeacherLoad } from './hooks/useLoadCalculation';
 import { ConflictAnalyzer } from './components/ConflictAnalyzer';
 import { Modal } from './components/Modal';
-import { solveTimetableCP, fetchSolveQuota, type SolveQuota } from './services/cpSatClient';
+import { solveTimetableCP, fetchSolveQuota, requestQuotaIncrease, type SolveQuota } from './services/cpSatClient';
 import { TeacherForm } from './components/forms/TeacherForm';
 import { ClassroomForm } from './components/forms/ClassroomForm';
 import { SubjectForm } from './components/forms/SubjectForm';
@@ -1440,6 +1440,7 @@ const App: React.FC = () => {
     const [relaxBlocksIfNeeded, setRelaxBlocksIfNeeded] = useState<boolean>(true);
     // Kalan sunucu deneme hakkı (server/solve_quota.py). null: henüz bilinmiyor.
     const [solveQuota, setSolveQuota] = useState<SolveQuota | null>(null);
+    const [quotaRequestState, setQuotaRequestState] = useState<'idle' | 'sent' | 'failed'>('idle');
     const refreshSolveQuota = useCallback(() => { void fetchSolveQuota().then(setSolveQuota); }, []);
     useEffect(() => { refreshSolveQuota(); }, [refreshSolveQuota]);
     // CP-SAT (server) optional preferences – off by default; enable via simple toggles
@@ -3374,15 +3375,46 @@ case 'duties':
                         {isLoading ? 'Oluşturuluyor...' : 'Program Oluştur'}
                     </button>
                 </div>
-                {solveQuota && (
-                    <p
-                        className={`no-print text-xs ${solveQuota.hourlyLeft === 0 || solveQuota.dailyLeft === 0 ? 'font-medium text-red-700' : solveQuota.dailyLeft <= 5 ? 'text-amber-700' : 'text-slate-500'}`}
-                        title="Sunucu masrafını geliştirici karşıladığı için kişi başına deneme sınırı var. Hak bitince program cihazınızdaki yedek çözücüyle oluşturulur."
-                    >
-                        Sunucu deneme hakkı: bu saat {solveQuota.hourlyLeft}/{solveQuota.hourlyLimit} · bugün {solveQuota.dailyLeft}/{solveQuota.dailyLimit}
-                        {(solveQuota.hourlyLeft === 0 || solveQuota.dailyLeft === 0) && ' — hak doldu, yedek çözücü kullanılacak'}
-                    </p>
-                )}
+                {solveQuota && (() => {
+                    const free = solveQuota.freeLeft ?? 0;
+                    const bonus = solveQuota.bonus ?? 0;
+                    const spent = free === 0 && bonus === 0 && (solveQuota.hourlyLeft === 0 || solveQuota.dailyLeft === 0);
+                    return (
+                        <div className="no-print text-xs" title="Sunucu masrafını geliştirici karşıladığı için kişi başına deneme sınırı var. Hak bitince program cihazınızdaki yedek çözücüyle oluşturulur.">
+                            {free > 0 ? (
+                                <p className="text-slate-500">
+                                    Sunucu deneme hakkı: başlangıç hakkınızdan {free} deneme kaldı (bu sürede saatlik/günlük sınır yok).
+                                </p>
+                            ) : (
+                                <p className={spent ? 'font-medium text-red-700' : solveQuota.dailyLeft <= 5 ? 'text-amber-700' : 'text-slate-500'}>
+                                    Sunucu deneme hakkı: bu saat {solveQuota.hourlyLeft}/{solveQuota.hourlyLimit} · bugün {solveQuota.dailyLeft}/{solveQuota.dailyLimit}
+                                    {bonus > 0 && ` · ek hak ${bonus}`}
+                                    {spent && ' — hak doldu, yedek çözücü kullanılacak'}
+                                </p>
+                            )}
+                            {spent && (
+                                <p className="mt-1 text-slate-600">
+                                    {quotaRequestState === 'sent'
+                                        ? 'İsteğiniz iletildi. Sunucu kotasının durumuna göre limitiniz artırılabilir; kesin değildir.'
+                                        : quotaRequestState === 'failed'
+                                            ? 'İstek iletilemedi. kaanozarik@gmail.com adresine yazabilirsiniz.'
+                                            : (
+                                                <>
+                                                    Sunucu kotasının durumuna göre yönetici limitinizi artırabilir (kesin değildir).{' '}
+                                                    <button
+                                                        type="button"
+                                                        className="font-medium text-sky-700 underline"
+                                                        onClick={() => { void requestQuotaIncrease().then((ok) => setQuotaRequestState(ok ? 'sent' : 'failed')); }}
+                                                    >
+                                                        Limit artışı iste
+                                                    </button>
+                                                </>
+                                            )}
+                                </p>
+                            )}
+                        </div>
+                    );
+                })()}
                 <div className="md:hidden bg-white border border-slate-200 rounded-lg px-3 py-3 shadow-sm">
                     <div className="flex flex-col gap-3">
                         <button

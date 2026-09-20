@@ -422,6 +422,123 @@ const ReviewAccountCard: React.FC<{ adminKey: string; onChanged: () => void }> =
   );
 };
 
+type QuotaRow = {
+  key: string;
+  total: number;
+  bonus: number;
+  requested_at: string | null;
+  last_solve_at: string | null;
+  email: string | null;
+  schools: string;
+  used_hour: number;
+  used_day: number;
+  free_left: number;
+};
+type QuotaInfo = { hourlyLimit: number; dailyLimit: number; freeTotal: number; rows: QuotaRow[] };
+
+/** Kişi başı sunucu deneme kotası: durum, bekleyen istekler ve ek hak verme. */
+const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
+  const [info, setInfo] = useState<QuotaInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/solve-quota`, { headers: { 'X-Admin-Key': adminKey } });
+      if (!res.ok) throw new Error(String(res.status));
+      setInfo(await res.json());
+      setError(null);
+    } catch (err) {
+      setError(`Kota durumu alınamadı (${err instanceof Error ? err.message : 'bağlantı hatası'}).`);
+    }
+  }, [adminKey]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const grant = async (row: QuotaRow, bonus: number) => {
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/solve-quota/grant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ key: row.key, bonus }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      await load();
+    } catch (err) {
+      alert(`Ek hak verilemedi (${err instanceof Error ? err.message : 'bağlantı hatası'}).`);
+    }
+  };
+
+  const waiting = info?.rows.filter((r) => r.requested_at).length ?? 0;
+  return (
+    <Card
+      title="Sunucu deneme kotası"
+      subtitle={info
+        ? `İlk ${info.freeTotal} deneme sınırsız, sonra saatte ${info.hourlyLimit} · günde ${info.dailyLimit}${waiting ? ` · ${waiting} limit artışı isteği bekliyor` : ''}`
+        : 'Yükleniyor…'}
+    >
+      {error && <p className="text-sm" style={{ color: C.ink2 }}>{error}</p>}
+      {info && info.rows.length === 0 && <p className="text-sm" style={{ color: C.muted }}>Henüz kayıt yok.</p>}
+      {info && info.rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr style={{ color: C.ink2 }}>
+                <th className="py-1 pr-4 font-medium">Hesap / cihaz</th>
+                <th className="py-1 pr-4 font-medium">Okul</th>
+                <th className="py-1 pr-4 font-medium text-right">Toplam</th>
+                <th className="py-1 pr-4 font-medium text-right">Başlangıç hakkı</th>
+                <th className="py-1 pr-4 font-medium text-right">Son 1 sa / 24 sa</th>
+                <th className="py-1 pr-4 font-medium text-right">Ek hak</th>
+                <th className="py-1 font-medium">Ek hak ver</th>
+              </tr>
+            </thead>
+            <tbody>
+              {info.rows.map((r) => (
+                <tr key={r.key} className="border-t" style={{ borderColor: C.grid }}>
+                  <td className="py-1.5 pr-4" style={{ color: C.ink }}>
+                    {r.email ?? <span style={{ color: C.muted }}>hesapsız · {r.key.replace('device:', '').slice(0, 8)}</span>}
+                    {r.requested_at && (
+                      <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900" title={fmtDateTime(r.requested_at)}>
+                        artış istiyor
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-4" style={{ color: C.ink2 }}>{r.schools || '—'}</td>
+                  <td className="py-1.5 pr-4 text-right font-semibold tabular-nums">{fmt(r.total)}</td>
+                  <td className="py-1.5 pr-4 text-right tabular-nums">{r.free_left > 0 ? `${fmt(r.free_left)} kaldı` : 'bitti'}</td>
+                  <td className="py-1.5 pr-4 text-right tabular-nums">{r.used_hour} / {r.used_day}</td>
+                  <td className="py-1.5 pr-4 text-right tabular-nums">{fmt(r.bonus)}</td>
+                  <td className="py-1.5 whitespace-nowrap">
+                    {[30, 100].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => void grant(r, r.bonus + n)}
+                        className="mr-1 rounded border px-2 py-0.5 text-xs hover:bg-slate-50"
+                        style={{ borderColor: C.border }}
+                      >
+                        +{n}
+                      </button>
+                    ))}
+                    {(r.bonus > 0 || r.requested_at) && (
+                      <button type="button" onClick={() => void grant(r, 0)} className="text-xs underline" style={{ color: C.ink2 }}>
+                        {r.bonus > 0 ? 'sıfırla' : 'isteği kapat'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="mt-3 text-xs" style={{ color: C.muted }}>
+        Ek hak, kişinin saatlik/günlük sınırı dolduğunda birer birer harcanır. "Son 1 sa / 24 sa" sunucu yeniden başlayınca sıfırlanır.
+      </p>
+    </Card>
+  );
+};
+
 type SchoolRow = NonNullable<Stats['schools']>[number];
 
 const SchoolsCard: React.FC<{ schools: SchoolRow[]; adminKey: string; onChanged: () => void }> = ({
@@ -955,6 +1072,7 @@ const AdminStats: React.FC = () => {
               </Card>
             </div>
 
+            <QuotaCard adminKey={key} />
             <ReviewAccountCard adminKey={key} onChanged={() => void load(key)} />
 
             <SchoolsCard schools={s.schools ?? []} adminKey={key} onChanged={() => void load(key)} />
