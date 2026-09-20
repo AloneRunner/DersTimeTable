@@ -103,8 +103,10 @@ const createDefaultPrintInfo = (): PrintInfo => ({
 });
 
 // Tek "Program Oluştur" denemesinin üst sınırı. Sunucu da aynı değerde kırpar
-// (SOLVER_MAX_SECONDS); sunucu masrafını tek kişinin tüketmemesi için.
-const MAX_SOLVE_SECONDS = 90;
+// (SOLVER_MAX_SECONDS). Önce 180'di, masraf yüzünden 90'a indi; kişi başı SÜRE
+// bütçesi gelince yeniden 180 oldu: uzun deneme artık yalnız deneyenin kendi
+// bütçesinden düşüyor, zor okullara da gerçek bir şans veriyor.
+const MAX_SOLVE_SECONDS = 180;
 
 const explainSolverNote = (note: string): string => {
     // Basarili sonuclarin notu da cevrilir. Onceden yalnizca hata durumlari
@@ -123,7 +125,7 @@ const explainSolverNote = (note: string): string => {
         // Eskiden "süreyi artırıp yeniden deneyin" diyordu; bir kullanıcı bunu
         // harfiyen uygulayıp aynı veriyle yüzlerce kez denedi. Aynı veri aynı
         // sonucu verir, düzeltilmesi gereken kurallardır.
-        return 'Çözücü verilen sürede program bulamadı. Aynı veriyle tekrar denemek sonucu değiştirmez; kurallar fazla sıkı. En dolu öğretmenlere müsait saat ekleyin ya da blok/sabitleme kurallarını gevşetip öyle deneyin.';
+        return `Çözücü verilen sürede program bulamadı. Aynı veriyle ve aynı süreyle tekrar denemek sonucu değiştirmez. Önce kuralları gevşetin: en dolu öğretmenlere müsait saat ekleyin ya da blok/sabitleme kurallarını esnetin. Kurallara dokunmak istemiyorsanız gelişmiş ayarlardan süreyi artırabilirsiniz (en fazla ${MAX_SOLVE_SECONDS} sn); uzun deneme sunucu süre bütçenizden o kadar düşer.`;
     }
     if (/^status=MODEL_INVALID$/i.test(note)) {
         return 'Program kurallarında çözücünün işleyemediği bir tanım var. Veri kontrollerini gözden geçirin.';
@@ -2727,7 +2729,7 @@ case 'duties':
         }
 
         firstRowItems.push(
-            <Tooltip key="time-label" text={`Toplam arama süresi (en fazla ${MAX_SOLVE_SECONDS} sn). Program çıkmıyorsa süreyi artırmak yerine kuralları gevşetin.`}>
+            <Tooltip key="time-label" text={`Toplam arama süresi (en fazla ${MAX_SOLVE_SECONDS} sn). Program birkaç saniyede oluşuyorsa bu değerin önemi yoktur. Oluşmayan bir deneme bu sürenin tamamını sunucu süre bütçenizden düşer; önce ekranda gösterilen engeli düzeltin, süreyi en son artırın.`}>
                 <span className="font-medium text-slate-600">Süre (sn)</span>
             </Tooltip>
         );

@@ -149,14 +149,16 @@ try:
 except (TypeError, ValueError):
     _diagnose_budget = 30
 
-# Tek denemenin ust siniri. Istemci 180'e kadar gonderebiliyordu ve sure asimi
-# mesaji kullaniciyi sureyi artirmaya yonlendiriyordu; tek kisi 180 sn'lik
-# yuzlerce denemeyle aylik butceyi bitirdi. Eski istemciler (Android paketi)
-# hala buyuk deger gonderebilecegi icin 422 vermek yerine sessizce kirpiyoruz.
+# Tek denemenin ust siniri. Gecmisi: 180 -> 90 -> 180. Sinir yokken tek kisi
+# 180 sn'lik yuzlerce denemeyle aylik butceyi bitirmisti, o yuzden 90'a inmisti.
+# Kisi basi SURE butcesi (solve_quota.py) gelince yeniden 180 oldu: uzun deneme
+# artik yalniz deneyenin kendi butcesinden dusuyor. Dikkat: ayni anda yalniz
+# SOLVER_MAX_CONCURRENCY cozum kosar; uzun denemeler baskalarini "mesgul"e
+# dusurur, o yuzden daha fazla artirmadan once es zamanliligi dusunun.
 try:
-    _max_solve_seconds = max(15, min(180, int(os.environ.get("SOLVER_MAX_SECONDS", "90"))))
+    _max_solve_seconds = max(15, min(180, int(os.environ.get("SOLVER_MAX_SECONDS", "180"))))
 except (TypeError, ValueError):
-    _max_solve_seconds = 90
+    _max_solve_seconds = 180
 
 
 _BLOCKER_NAMES = {
