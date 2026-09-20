@@ -43,17 +43,11 @@ DAILY_LIMIT = _env_int('SOLVER_QUOTA_DAILY', 30, 1, 10000)
 # bu yuzden kisi sinirindan genis tutulur.
 IP_FACTOR = 4
 
-# Ust uste basarisiz denemede arama suresi kisalir: 1. ve 2. deneme tam sure,
-# sonra her basarisizlikta bir kademe. Basarili cozumde ya da 1 saat sonra sifirlanir.
-_BACKOFF_STEPS = [1.0, 1.0, 0.75, 0.5, 0.35]
-MIN_SECONDS = 15
-
 _HOUR = 3600.0
 _DAY = 86400.0
 
 _lock = Lock()
 _hits: Dict[str, List[float]] = {}
-_fails: Dict[str, Tuple[int, float]] = {}
 
 
 def identity_keys(request: Request) -> List[str]:
@@ -105,29 +99,3 @@ def check_and_count(keys: List[str]) -> Optional[Dict[str, int]]:
             for key in [k for k, v in _hits.items() if not v or now - v[-1] > _DAY]:
                 _hits.pop(key, None)
     return None
-
-
-def effective_seconds(keys: List[str], requested: int) -> int:
-    """Ust uste basarisiz olan kimlik icin kisaltilmis arama suresi."""
-    now = time.time()
-    with _lock:
-        count, last = _fails.get(keys[0], (0, 0.0))
-        if now - last > _HOUR:
-            count = 0
-    factor = _BACKOFF_STEPS[min(count, len(_BACKOFF_STEPS) - 1)]
-    return max(min(requested, MIN_SECONDS), int(requested * factor))
-
-
-def record_outcome(keys: List[str], success: bool) -> None:
-    now = time.time()
-    with _lock:
-        if success:
-            _fails.pop(keys[0], None)
-            return
-        count, last = _fails.get(keys[0], (0, 0.0))
-        if now - last > _HOUR:
-            count = 0
-        _fails[keys[0]] = (count + 1, now)
-        if len(_fails) > 5000:
-            for key in [k for k, v in _fails.items() if now - v[1] > _HOUR]:
-                _fails.pop(key, None)

@@ -158,6 +158,21 @@ except (TypeError, ValueError):
     _max_solve_seconds = 90
 
 
+_BLOCKER_NAMES = {
+    'fixed': 'saate sabitlenmiş dersler',
+    'pinned_teacher': 'derslere sabitlenen öğretmenler',
+    'blocks': "2'li / 3'lü blok kuralları",
+    'not_same_day': '"aynı gün olamaz" kuralları',
+    'same_day_split': 'dersin aynı gün bölünememesi',
+    'max_consec': 'art arda ders sınırı',
+    'daily_max': 'öğretmen günlük ders sınırı',
+    'weekly_max': 'öğretmen haftalık üst sınırı',
+    'gap_limit': 'öğretmen boşluk sınırı',
+    'availability': 'öğretmen müsaitlikleri',
+    'availability_teacher': 'bir öğretmenin müsaitliği',
+}
+
+
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -179,8 +194,11 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
                     detail=f"solver-quota-{blocked['scope']}",
                     headers={"Retry-After": str(blocked['retryAfter'])},
                 )
-        requested_seconds = min(req.timeLimitSeconds, _max_solve_seconds)
-        time_limit = solve_quota.effective_seconds(quota_keys, requested_seconds)
+        # Ust uste basarisizlikta sureyi kisaltmayi denedik ve geri aldik: gercek bir
+        # okulun verisi (20 Eylul 2026) cozulebilir cikti ama ~60 sn istiyordu. Sureyi
+        # kisaltmak boyle bir okulu KESIN basarisizliga mahkum eder; masrafi zaten
+        # kota sinirliyor.
+        time_limit = min(req.timeLimitSeconds, _max_solve_seconds)
         result = solve_cp_sat(
             req.data.model_dump(),
             req.schoolHours.model_dump(),
@@ -200,7 +218,8 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
         if req.diagnose and _diagnose_budget > 0 and not result.get('schedule'):
             stats = result.get('stats') or {}
             notes = list(stats.get('notes') or [])
-            if any(str(n).strip() in ('status=INFEASIBLE', 'status=UNKNOWN') for n in notes):
+            timed_out = any(str(n).strip() == 'status=UNKNOWN' for n in notes)
+            if timed_out or any(str(n).strip() == 'status=INFEASIBLE' for n in notes):
                 tani = diagnose_infeasible(
                     req.data.model_dump(),
                     req.schoolHours.model_dump(),
@@ -209,22 +228,20 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
                     probe_seconds=8,
                     budget_seconds=_diagnose_budget,
                 )
+                # Sure asiminda program IMKANSIZ degil, yalnizca zor olabilir: bir okulun
+                # verisi sabitlemelerle 63 sn'de, sabitlemesiz 8 sn'de cozuldu. "Kural
+                # karsilamiyor" demek yanlis olur; "bu kural isi zorlastiriyor" diyoruz.
+                if timed_out and tani.get('found'):
+                    kural = _BLOCKER_NAMES.get(tani.get('blocker'), 'bazı kurallar')
+                    tani['message'] = (
+                        f"Program verilen sürede bulunamadı, ama imkânsız görünmüyor: {kural} gevşetilince "
+                        "birkaç saniyede oluşuyor. Bu kuralların hepsini değil, birkaçını gevşetin; ayrıca "
+                        "\"Yer bulamazsa blokları esnet\" seçeneğini açmak çoğu zaman yeterli olur."
+                    )
                 stats['diagnosis'] = tani
                 if tani.get('message'):
                     stats['notes'] = notes + [tani['message']]
                 result['stats'] = stats
-        solved = bool(result.get('schedule'))
-        # Basarisizlik yalnizca tiklamanin SON isteginde yazilir (diagnose=true);
-        # blok esnetmeli ikinci istek varsa tek tiklama iki basarisizlik sayilmasin.
-        if solved or req.diagnose:
-            solve_quota.record_outcome(quota_keys, solved)
-        if time_limit < requested_seconds:
-            stats = result.get('stats') or {}
-            stats['notes'] = list(stats.get('notes') or []) + [
-                f"Üst üste başarısız denemeler nedeniyle arama süresi {time_limit} saniyeye kısaltıldı. "
-                "Aynı veriyle tekrar denemek yerine yukarıdaki engeli düzeltin; program oluşunca süre normale döner."
-            ]
-            result['stats'] = stats
         return result
     finally:
         _solver_slots.release()
