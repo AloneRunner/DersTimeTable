@@ -3181,7 +3181,7 @@ case 'duties':
                         geliştirici kendi karşıladığı için, herkese adil olsun diye kişi başına bir <strong>sunucu çözücü süresi</strong> tanımlandı.
                         Programı birkaç saniyede oluşan okullar bunu fark etmez; süreyi asıl tüketen, oluşmayan programı aynı veriyle tekrar
                         tekrar denemektir. Kalan süreniz "Program Oluştur" düğmesinin altında yazar. Süre biterse program cihazınızdaki yedek
-                        çözücüyle oluşturulmaya devam eder ve uygulamadan ek süre isteyebilirsiniz.
+                        çözücüyle oluşturulmaya devam eder. Ek süre istekleri ay sonunda, sunucu bütçesinden artan paya göre değerlendirilir.
                     </p>
                     <button
                         type="button"
@@ -3465,12 +3465,12 @@ case 'duties':
                             {spent && (
                                 <p className="mt-1 text-slate-600">
                                     {quotaRequestState === 'sent'
-                                        ? 'İsteğiniz iletildi. Sunucu bütçesinin durumuna göre ek süre verilebilir; kesin değildir.'
+                                        ? 'İsteğiniz iletildi. Ek süre istekleri ay sonunda, sunucu bütçesinden artan paya göre değerlendirilir; kesin değildir. O zamana kadar programlarınız cihazınızdaki yedek çözücüyle oluşturulur.'
                                         : quotaRequestState === 'failed'
                                             ? 'İstek iletilemedi. kaanozarik@gmail.com adresine yazabilirsiniz.'
                                             : (
                                                 <>
-                                                    Sunucu bütçesinin durumuna göre yönetici size ek süre verebilir (kesin değildir).{' '}
+                                                    Ek süre istekleri ay sonunda, sunucu bütçesinden artan paya göre değerlendirilir (kesin değildir).{' '}
                                                     <button
                                                         type="button"
                                                         className="font-medium text-sky-700 underline"
