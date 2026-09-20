@@ -178,6 +178,12 @@ def health():
     return {"ok": True}
 
 
+@app.get("/solve/quota")
+def solve_quota_status(request: Request) -> Any:
+    """Kalan sunucu deneme hakki; istemci "Program Olustur" dugmesinin yaninda gosterir."""
+    return solve_quota.remaining(solve_quota.identity_keys(request))
+
+
 @app.post("/solve/cpsat")
 def solve_cpsat(req: SolveRequest, request: Request) -> Any:
     quota_keys = solve_quota.identity_keys(request)

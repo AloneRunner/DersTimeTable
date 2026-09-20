@@ -45,3 +45,17 @@ export async function solveTimetableCP(
   const json = await res.json();
   return json as SolveResult;
 }
+
+export type SolveQuota = { hourlyLeft: number; hourlyLimit: number; dailyLeft: number; dailyLimit: number };
+
+/** Kalan sunucu deneme hakkı. Ulaşılamazsa null döner; gösterim isteğe bağlıdır. */
+export async function fetchSolveQuota(): Promise<SolveQuota | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/solve/quota`, { headers: identityHeaders() });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return typeof json?.dailyLeft === 'number' && typeof json?.hourlyLeft === 'number' ? (json as SolveQuota) : null;
+  } catch {
+    return null;
+  }
+}

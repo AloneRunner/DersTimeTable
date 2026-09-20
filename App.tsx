@@ -13,7 +13,7 @@ import { useLoadCalculation } from './hooks/useLoadCalculation';
 import type { TeacherLoad } from './hooks/useLoadCalculation';
 import { ConflictAnalyzer } from './components/ConflictAnalyzer';
 import { Modal } from './components/Modal';
-import { solveTimetableCP } from './services/cpSatClient';
+import { solveTimetableCP, fetchSolveQuota, type SolveQuota } from './services/cpSatClient';
 import { TeacherForm } from './components/forms/TeacherForm';
 import { ClassroomForm } from './components/forms/ClassroomForm';
 import { SubjectForm } from './components/forms/SubjectForm';
@@ -1434,7 +1434,14 @@ const App: React.FC = () => {
     const [optDisableLNS, setOptDisableLNS] = useState<boolean>(true);
     const [solverStrategy, setSolverStrategy] = useState<"repair"|"tabu"|"alns"|"cp">("cp");
     const [optDisableEdge, setOptDisableEdge] = useState<boolean>(true);
-    const [relaxBlocksIfNeeded, setRelaxBlocksIfNeeded] = useState<boolean>(false);
+    // Varsayılan AÇIK: gerçek bir okulun verisi bloklarla 63 sn, bloklar esnetilince
+    // 5 sn'de çözüldü ve kullanıcı bu seçeneği fark etmeden yüzlerce kez denedi.
+    // Esnetme olursa sonuç notunda açıkça yazıyor. Daha önce kaydedilmiş tercih korunur.
+    const [relaxBlocksIfNeeded, setRelaxBlocksIfNeeded] = useState<boolean>(true);
+    // Kalan sunucu deneme hakkı (server/solve_quota.py). null: henüz bilinmiyor.
+    const [solveQuota, setSolveQuota] = useState<SolveQuota | null>(null);
+    const refreshSolveQuota = useCallback(() => { void fetchSolveQuota().then(setSolveQuota); }, []);
+    useEffect(() => { refreshSolveQuota(); }, [refreshSolveQuota]);
     // CP-SAT (server) optional preferences – off by default; enable via simple toggles
     const [cpUseCustom, setCpUseCustom] = useState<boolean>(false);
     const [cpAllowSplit, setCpAllowSplit] = useState<boolean>(false);
@@ -1601,7 +1608,10 @@ const App: React.FC = () => {
         }
     };
 
-    const handleGenerate = useCallback(async () => {
+    // forceRelax: hata kutusundaki "Blokları esneterek dene" düğmesinden gelir.
+    // onClick olay nesnesi de ilk argüman olarak gelebildiği için === true aranır.
+    const handleGenerate = useCallback(async (forceRelax?: unknown) => {
+        const relaxBlocks = forceRelax === true || relaxBlocksIfNeeded;
         setIsLoading(true);
         setError(null);
         setSchedule(null);
@@ -1627,7 +1637,7 @@ const App: React.FC = () => {
               const hasDefinedBlocks = data.subjects.some((subject) =>
                 subject.blockHours > 0 || (subject.tripleBlockHours ?? 0) > 0
               );
-              const shouldTryRelaxedBlocks = relaxBlocksIfNeeded && hasDefinedBlocks;
+              const shouldTryRelaxedBlocks = relaxBlocks && hasDefinedBlocks;
               const strictTime = shouldTryRelaxedBlocks
                 ? Math.max(5, Math.floor(totalTime * 0.65))
                 : totalTime;
@@ -1711,7 +1721,7 @@ const App: React.FC = () => {
               disableTeacherEdgePenalty: classicMode ? true : optDisableEdge,
               teacherSpreadWeight: classicMode ? 0 : 1,
               teacherEdgeWeight: classicMode ? 0 : 1,
-              allowBlockRelaxation: relaxBlocksIfNeeded,
+              allowBlockRelaxation: relaxBlocks,
               allowSameDaySplit: cpUseCustom && cpAllowSplit,
               });
             }
@@ -1766,8 +1776,9 @@ const App: React.FC = () => {
             });
         } finally {
             setIsLoading(false);
+            refreshSolveQuota();
         }
-    }, [data, schoolHours, optTime, optSeedRatio, optTabuTenure, optTabuIter, optStopFirst, classicMode, solverStrategy, useDeterministic, optRngSeed, optDisableLNS, optDisableEdge, cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit, cpDailyMaxOn, cpDailyMaxVal, defaultMaxConsec, relaxBlocksIfNeeded]);
+    }, [refreshSolveQuota, data, schoolHours, optTime, optSeedRatio, optTabuTenure, optTabuIter, optStopFirst, classicMode, solverStrategy, useDeterministic, optRngSeed, optDisableLNS, optDisableEdge, cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit, cpDailyMaxOn, cpDailyMaxVal, defaultMaxConsec, relaxBlocksIfNeeded]);
     
     const handleExportData = async () => {
         try {
@@ -3346,6 +3357,15 @@ case 'duties':
                         {isLoading ? 'Oluşturuluyor...' : 'Program Oluştur'}
                     </button>
                 </div>
+                {solveQuota && (
+                    <p
+                        className={`no-print text-xs ${solveQuota.hourlyLeft === 0 || solveQuota.dailyLeft === 0 ? 'font-medium text-red-700' : solveQuota.dailyLeft <= 5 ? 'text-amber-700' : 'text-slate-500'}`}
+                        title="Sunucu masrafını geliştirici karşıladığı için kişi başına deneme sınırı var. Hak bitince program cihazınızdaki yedek çözücüyle oluşturulur."
+                    >
+                        Sunucu deneme hakkı: bu saat {solveQuota.hourlyLeft}/{solveQuota.hourlyLimit} · bugün {solveQuota.dailyLeft}/{solveQuota.dailyLimit}
+                        {(solveQuota.hourlyLeft === 0 || solveQuota.dailyLeft === 0) && ' — hak doldu, yedek çözücü kullanılacak'}
+                    </p>
+                )}
                 <div className="md:hidden bg-white border border-slate-200 rounded-lg px-3 py-3 shadow-sm">
                     <div className="flex flex-col gap-3">
                         <button
@@ -3570,7 +3590,26 @@ case 'duties':
 
                 {renderSavedSchedules()}
 
-                {error && <div className="p-4 bg-red-100 text-red-700 border border-red-200 rounded-lg no-print">{error}</div>}
+                {error && (
+                    <div className="p-4 bg-red-100 text-red-700 border border-red-200 rounded-lg no-print">
+                        <div>{error}</div>
+                        {!relaxBlocksIfNeeded && !isLoading && data.subjects.some((s) => s.blockHours > 0 || (s.tripleBlockHours ?? 0) > 0) && (
+                            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
+                                <p className="text-sm">
+                                    <strong>Aynı veriyle tekrar denemeyin.</strong> Blok dersleriniz var ve "Yer bulamazsa blokları esnet" seçeneği kapalı.
+                                    Bloklar esnetilince çoğu program birkaç saniyede oluşur; yalnız yer bulamayan bloklar bölünür.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => { setRelaxBlocksIfNeeded(true); void handleGenerate(true); }}
+                                    className="mt-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-600"
+                                >
+                                    Blokları esneterek dene
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
                 
                 {isLoading && (
                     <div className="flex flex-col items-center justify-center h-96 bg-white rounded-lg shadow-lg">

@@ -99,3 +99,21 @@ def check_and_count(keys: List[str]) -> Optional[Dict[str, int]]:
             for key in [k for k, v in _hits.items() if not v or now - v[-1] > _DAY]:
                 _hits.pop(key, None)
     return None
+
+
+def remaining(keys: List[str]) -> Dict[str, int]:
+    """Kimligin kalan hakki (anahtarlari arasinda en dusuk olan). Saymaz."""
+    now = time.time()
+    hourly_left, daily_left = HOURLY_LIMIT, DAILY_LIMIT
+    with _lock:
+        for key in keys:
+            stamps = [t for t in _hits.get(key, []) if now - t < _DAY]
+            hourly, daily = _limits_for(key)
+            hourly_left = min(hourly_left, hourly - len([t for t in stamps if now - t < _HOUR]))
+            daily_left = min(daily_left, daily - len(stamps))
+    return {
+        'hourlyLeft': max(0, hourly_left),
+        'hourlyLimit': HOURLY_LIMIT,
+        'dailyLeft': max(0, daily_left),
+        'dailyLimit': DAILY_LIMIT,
+    }
