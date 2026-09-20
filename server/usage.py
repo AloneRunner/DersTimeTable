@@ -43,6 +43,11 @@ _FAIL_REASONS = {
     'gap_limit', 'unknown',
     # Program uretimi baslamadan dusen beklenmeyen hata (istemci tarafi cokme).
     'crash',
+    # Cozucu sureyi doldurdu, tesihs de engel bulamadi. Eskiden sebepsiz
+    # yaziliyordu ve panelde "tesihs oncesi deneme" diye yanlis gorunuyordu.
+    'timeout',
+    # Kisi basi sunucu kotasi doldu, program tarayicidaki yedek cozucuyle denendi.
+    'quota',
 }
 
 
@@ -281,6 +286,33 @@ def _school_rows(cur: Any, school_id: Optional[int] = None) -> List[Dict[str, An
     return list(cur.fetchall())
 
 
+@router.get('/admin/schools/{school_id}/export')
+def admin_export_school(school_id: int, x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Okulun katalog verisini salt-okunur dondurur (yalniz uygulama sahibine).
+
+    Destek icin: bir okul ayni veriyle surekli basarisiz oluyorsa veriyi yerelde
+    cozucuye verip sebebini bulabilmek. Uygulamanin kendi disa aktarma dosyasiyla
+    ayni bicimde doner ({data, schoolHours}); her cagri gunluge yazilir.
+    """
+    _require_admin(x_admin_key)
+    import catalog_repository as repo  # yerel ice aktarma: dongusel bagimliligi onler
+
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            rows = _school_rows(cur, school_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail='school-not-found')
+    catalog = repo.export_school_catalog(school_id)
+    settings = catalog.pop('settings', None) or {}
+    logger.warning('admin-exported-school id=%s name=%s', school_id, rows[0].get('name'))
+    return {
+        'school': {'id': rows[0].get('id'), 'name': rows[0].get('name')},
+        'data': catalog,
+        'schoolHours': settings.get('schoolHours'),
+        'preferences': settings.get('preferences'),
+    }
+
+
 @router.delete('/admin/schools/{school_id}')
 def admin_delete_school(school_id: int, x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
     """Okulu ve okula bagli tum verileri kalici olarak siler (yalniz uygulama sahibine).
@@ -375,6 +407,37 @@ def _collect_stats(cur: Any) -> Dict[str, Any]:
         ORDER BY 2 DESC
     """)
 
+    # En cok deneyen cihazlar. Sunucu masrafinin kimden geldigini gormek icin;
+    # cihaz bir hesaba bagliysa e-postasi ve okulu da gelir.
+    top_solvers = _all(cur, """
+        WITH top AS (
+          SELECT device_id,
+                 COUNT(*) AS solves,
+                 COUNT(*) FILTER (WHERE detail->>'success' = 'false') AS failed,
+                 COUNT(*) FILTER (
+                   WHERE created_at >= (date_trunc('day', now() AT TIME ZONE %(tz)s) AT TIME ZONE %(tz)s)
+                 ) AS today,
+                 MAX(created_at) AS last_solve,
+                 MAX(user_id) AS user_id
+          FROM usage_events
+          WHERE event = 'solve'
+            AND created_at > now() - interval '30 days'
+          GROUP BY device_id
+          ORDER BY solves DESC
+          LIMIT 10
+        )
+        SELECT top.device_id, top.solves, top.failed, top.today, top.last_solve,
+               u.email,
+               COALESCE((
+                 SELECT string_agg(DISTINCT s.name, ', ')
+                 FROM school_users su JOIN schools s ON s.id = su.school_id
+                 WHERE su.user_id = top.user_id
+               ), '') AS schools
+        FROM top
+        LEFT JOIN users u ON u.id = top.user_id
+        ORDER BY top.solves DESC
+    """, tz)
+
     daily = _all(cur, """
         WITH days AS (
           SELECT generate_series(
@@ -431,6 +494,7 @@ def _collect_stats(cur: Any) -> Dict[str, Any]:
         'platforms': platforms,
         'solves': solves,
         'failReasons': fail_reasons,
+        'topSolvers': top_solvers,
         'daily': daily,
         'accounts': accounts,
         'recentUsers': recent_users,

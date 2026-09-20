@@ -13,6 +13,7 @@ from auth import router as auth_router, get_session_context, get_teacher_links_f
 from catalog_router import catalog_router
 from usage import router as usage_router
 from published_schedule_repository import get_published_schedule, upsert_published_schedule
+import solve_quota
 
 
 class Teacher(BaseModel):
@@ -103,6 +104,9 @@ class SolveRequest(BaseModel):
     # Cozum cikmazsa sebebini ara. Istemci bunu yalnizca SON denemede true
     # gonderiyor; yoksa blok esnetmeli ikinci deneme yuzunden tesihs iki kez kosar.
     diagnose: bool = False
+    # Ayni "Program Olustur" tiklamasinin ikinci (blok esnetmeli) istegi. Kotada
+    # ayri bir deneme sayilmaz; yoksa bloklu okullar haklarini iki kat hizli bitirir.
+    followUp: bool = False
 
 
 app = FastAPI()
@@ -144,6 +148,15 @@ try:
 except (TypeError, ValueError):
     _diagnose_budget = 30
 
+# Tek denemenin ust siniri. Istemci 180'e kadar gonderebiliyordu ve sure asimi
+# mesaji kullaniciyi sureyi artirmaya yonlendiriyordu; tek kisi 180 sn'lik
+# yuzlerce denemeyle aylik butceyi bitirdi. Eski istemciler (Android paketi)
+# hala buyuk deger gonderebilecegi icin 422 vermek yerine sessizce kirpiyoruz.
+try:
+    _max_solve_seconds = max(15, min(180, int(os.environ.get("SOLVER_MAX_SECONDS", "90"))))
+except (TypeError, ValueError):
+    _max_solve_seconds = 90
+
 
 @app.get("/health")
 def health():
@@ -151,16 +164,27 @@ def health():
 
 
 @app.post("/solve/cpsat")
-def solve_cpsat(req: SolveRequest) -> Any:
+def solve_cpsat(req: SolveRequest, request: Request) -> Any:
+    quota_keys = solve_quota.identity_keys(request)
     if not _solver_slots.acquire(blocking=False):
         raise HTTPException(status_code=429, detail="solver-busy-try-again")
     defaults = req.defaults or {}
     prefs = req.preferences or {}
     try:
+        if not req.followUp:
+            blocked = solve_quota.check_and_count(quota_keys)
+            if blocked:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"solver-quota-{blocked['scope']}",
+                    headers={"Retry-After": str(blocked['retryAfter'])},
+                )
+        requested_seconds = min(req.timeLimitSeconds, _max_solve_seconds)
+        time_limit = solve_quota.effective_seconds(quota_keys, requested_seconds)
         result = solve_cp_sat(
             req.data.model_dump(),
             req.schoolHours.model_dump(),
-            req.timeLimitSeconds,
+            time_limit,
             default_max_consec=defaults.get('maxConsec'),
             preferences=prefs,
             stop_at_first=bool(req.stopAtFirst) if req.stopAtFirst is not None else False,
@@ -168,24 +192,39 @@ def solve_cpsat(req: SolveRequest) -> Any:
         # TESHIS. Cozucu "mumkun degil" dediginde kullaniciya duzeltecek bir sey
         # soylemek gerekiyor; ekrandaki on kontrol yesilken bu mesaj tek basina
         # cikmaz sokak oluyordu. Kurallari tek tek gevsetip hangisinin engel
-        # oldugunu buluyoruz. Yalnizca INFEASIBLE'da kosar: sure asiminda
-        # (UNKNOWN) gevsetme denemek zaten anlamsiz, cunku sorun zaman olabilir.
+        # oldugunu buluyoruz. Sure asiminda (UNKNOWN) da kosar: ilk surumde
+        # kosmuyordu, kullanici yalnizca "sureyi artirip yeniden deneyin" goruyor
+        # ve ayni veriyle yuzlerce kez deniyordu. Bir kural gevsetilince 8 sn'de
+        # cozum cikiyorsa engel o kuraldir; asil cozumun sureye sigmamis olmasi
+        # bunu degistirmez.
         if req.diagnose and _diagnose_budget > 0 and not result.get('schedule'):
             stats = result.get('stats') or {}
             notes = list(stats.get('notes') or [])
-            if any(str(n).strip() == 'status=INFEASIBLE' for n in notes):
+            if any(str(n).strip() in ('status=INFEASIBLE', 'status=UNKNOWN') for n in notes):
                 tani = diagnose_infeasible(
                     req.data.model_dump(),
                     req.schoolHours.model_dump(),
                     defaults.get('maxConsec'),
                     prefs,
                     probe_seconds=8,
-                    budget_seconds=30,
+                    budget_seconds=_diagnose_budget,
                 )
                 stats['diagnosis'] = tani
                 if tani.get('message'):
                     stats['notes'] = notes + [tani['message']]
                 result['stats'] = stats
+        solved = bool(result.get('schedule'))
+        # Basarisizlik yalnizca tiklamanin SON isteginde yazilir (diagnose=true);
+        # blok esnetmeli ikinci istek varsa tek tiklama iki basarisizlik sayilmasin.
+        if solved or req.diagnose:
+            solve_quota.record_outcome(quota_keys, solved)
+        if time_limit < requested_seconds:
+            stats = result.get('stats') or {}
+            stats['notes'] = list(stats.get('notes') or []) + [
+                f"Üst üste başarısız denemeler nedeniyle arama süresi {time_limit} saniyeye kısaltıldı. "
+                "Aynı veriyle tekrar denemek yerine yukarıdaki engeli düzeltin; program oluşunca süre normale döner."
+            ]
+            result['stats'] = stats
         return result
     finally:
         _solver_slots.release()

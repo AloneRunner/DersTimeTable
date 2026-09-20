@@ -102,6 +102,10 @@ const createDefaultPrintInfo = (): PrintInfo => ({
     principalName: '',
 });
 
+// Tek "Program Oluştur" denemesinin üst sınırı. Sunucu da aynı değerde kırpar
+// (SOLVER_MAX_SECONDS); sunucu masrafını tek kişinin tüketmemesi için.
+const MAX_SOLVE_SECONDS = 90;
+
 const explainSolverNote = (note: string): string => {
     // Basarili sonuclarin notu da cevrilir. Onceden yalnizca hata durumlari
     // cevriliyordu ve kullanici programi olusunca sari kutuda ham
@@ -116,7 +120,10 @@ const explainSolverNote = (note: string): string => {
         return 'Bu kurallarla program oluşturmak mümkün değil. Program Öncesi Kontrol bölümündeki kırmızı uyarıları düzeltin veya müsaitlik/blok kurallarını esnetin.';
     }
     if (/^status=UNKNOWN$/i.test(note)) {
-        return 'Çözücü verilen süre içinde kesin bir sonuç bulamadı. Süreyi artırıp yeniden deneyin.';
+        // Eskiden "süreyi artırıp yeniden deneyin" diyordu; bir kullanıcı bunu
+        // harfiyen uygulayıp aynı veriyle yüzlerce kez denedi. Aynı veri aynı
+        // sonucu verir, düzeltilmesi gereken kurallardır.
+        return 'Çözücü verilen sürede program bulamadı. Aynı veriyle tekrar denemek sonucu değiştirmez; kurallar fazla sıkı. En dolu öğretmenlere müsait saat ekleyin ya da blok/sabitleme kurallarını gevşetip öyle deneyin.';
     }
     if (/^status=MODEL_INVALID$/i.test(note)) {
         return 'Program kurallarında çözücünün işleyemediği bir tanım var. Veri kontrollerini gözden geçirin.';
@@ -1529,7 +1536,7 @@ const App: React.FC = () => {
             const raw = localStorage.getItem('solver_settings');
             if (raw) {
                 const s = JSON.parse(raw);
-                if (typeof s.time === 'number') { setOptTime(s.time); setTimeText(String(s.time)); }
+                if (typeof s.time === 'number') { const t = Math.max(10, Math.min(MAX_SOLVE_SECONDS, s.time)); setOptTime(t); setTimeText(String(t)); }
                 if (typeof s.seed === 'number') { setOptSeedRatio(s.seed); setSeedText(String(s.seed)); }
                 if (typeof s.tenure === 'number') { setOptTabuTenure(s.tenure); setTenureText(String(s.tenure)); }
                 if (typeof s.iter === 'number') { setOptTabuIter(s.iter); setIterText(String(s.iter)); }
@@ -1603,6 +1610,7 @@ const App: React.FC = () => {
         try {
             let result;
             let localFallbackNote: string | null = null;
+            let quotaHit = false;
             try {
               // Sunucu tarafı CP-SAT tek varsayılan çözücüdür.
               let cpPrefs: any | undefined = undefined;
@@ -1615,7 +1623,7 @@ const App: React.FC = () => {
                 const dm = parseInt(cpDailyMaxVal);
                 if (cpDailyMaxOn && Number.isFinite(dm) && dm > 0) cpPrefs.teacherDailyMaxHours = dm;
               }
-              const totalTime = Math.min(optTime, 180);
+              const totalTime = Math.min(optTime, MAX_SOLVE_SECONDS);
               const hasDefinedBlocks = data.subjects.some((subject) =>
                 subject.blockHours > 0 || (subject.tripleBlockHours ?? 0) > 0
               );
@@ -1651,6 +1659,7 @@ const App: React.FC = () => {
                   { maxConsec: defaultMaxConsec },
                   cpPrefs,
                   optStopFirst,
+                  true,
                   true
                 );
                 if (relaxedResult.schedule) {
@@ -1671,6 +1680,8 @@ const App: React.FC = () => {
               // Sunucuya ulaşılamadı / meşgul: tarayıcı içi yedek çözücüye düş.
               const detail = cpErr instanceof Error ? cpErr.message : String(cpErr ?? '');
               const busy = /solver-busy/i.test(detail);
+              const quota = /solver-quota-(hourly|daily)/i.exec(detail);
+              quotaHit = Boolean(quota);
               // Ham hata metni İngilizce geliyordu ("Failed to fetch" gibi) ve
               // kullanıcıya olduğu gibi gösteriliyordu. Bilinen durumları Türkçe
               // karşılıklarıyla anlatıyoruz.
@@ -1681,7 +1692,9 @@ const App: React.FC = () => {
                   : /\b5\d\d\b/.test(detail)
                     ? 'sunucu hata verdi'
                     : 'bağlantı kurulamadı';
-              localFallbackNote = busy
+              localFallbackNote = quota
+                ? `${quota[1].toLowerCase() === 'daily' ? 'Bugünkü' : 'Bu saatteki'} sunucu deneme hakkınız doldu; program tarayıcıdaki yedek çözücüyle oluşturuldu. Sunucu masrafı herkes arasında paylaşıldığı için kişi başına sınır var. Aynı veriyle tekrar denemek yerine kuralları gevşetin.`
+                : busy
                 ? 'Sunucu çözücüsü şu an meşgul; program tarayıcıdaki yedek çözücüyle oluşturuldu. Daha iyi sonuç için biraz sonra tekrar deneyin.'
                 : `Sunucu çözücüsüne ulaşılamadı (${sebep}); program tarayıcıdaki yedek çözücüyle oluşturuldu.`;
             }
@@ -1716,7 +1729,11 @@ const App: React.FC = () => {
                 success: Boolean(result.schedule),
                 classrooms: data.classrooms.length,
                 teachers: data.teachers.length,
-                reason: result.schedule ? undefined : (displayStats.diagnosis?.blocker || undefined),
+                reason: result.schedule
+                    ? undefined
+                    : (displayStats.diagnosis?.blocker
+                        || (quotaHit ? 'quota' : undefined)
+                        || ((result.stats.notes ?? []).some((n) => /^status=UNKNOWN$/i.test(n)) ? 'timeout' : undefined)),
             });
 
             if (result.schedule) {
@@ -2637,7 +2654,7 @@ case 'duties':
         }
 
         firstRowItems.push(
-            <Tooltip key="time-label" text="Toplam arama süresi. Daha uzun süre = daha yüksek başarı.">
+            <Tooltip key="time-label" text={`Toplam arama süresi (en fazla ${MAX_SOLVE_SECONDS} sn). Program çıkmıyorsa süreyi artırmak yerine kuralları gevşetin.`}>
                 <span className="font-medium text-slate-600">Süre (sn)</span>
             </Tooltip>
         );
@@ -2649,7 +2666,7 @@ case 'duties':
                 onBlur={() => {
                     const parsed = parseInt(timeText, 10);
                     const next = Number.isNaN(parsed) ? optTime : parsed;
-                    const clamped = Math.max(10, Math.min(600, next));
+                    const clamped = Math.max(10, Math.min(MAX_SOLVE_SECONDS, next));
                     setOptTime(clamped);
                     setTimeText(String(clamped));
                 }}

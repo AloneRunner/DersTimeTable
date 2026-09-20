@@ -326,8 +326,10 @@ def diagnose_infeasible(
         'blocker': 'unknown',
         'teacher': None,
         'message': (
-            "Tek tek denedim ama engelin hangi kural olduğunu bulamadım. Kurallar birlikte çakışıyor "
-            "olabilir. Süreyi artırıp tekrar deneyin; sorun sürerse ekran görüntüsüyle bize yazın."
+            "Kuralları tek tek gevşeterek denedim ama engelin hangisi olduğunu bulamadım; kurallar "
+            "birlikte çakışıyor olabilir. Aynı veriyle tekrar denemek sonucu değiştirmez. En dolu "
+            "öğretmenlerin müsaitliğini ve blok/sabitleme kurallarını gevşetip öyle deneyin; sorun "
+            "sürerse ekran görüntüsüyle bize yazın."
         ),
         'tried': denenen,
     }

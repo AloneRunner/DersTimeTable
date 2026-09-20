@@ -31,6 +31,15 @@ type Stats = {
   };
   /** Son 30 günde program oluşturulamayan denemelerin sebep dağılımı. */
   failReasons?: Array<{ reason: string; count: number }>;
+  topSolvers?: Array<{
+    device_id: string;
+    solves: number;
+    failed: number;
+    today: number;
+    last_solve: string | null;
+    email: string | null;
+    schools: string;
+  }>;
   daily: Array<{ day: string; devices: number; solves: number }>;
   accounts: {
     users: number;
@@ -152,7 +161,12 @@ const FAIL_REASON_LABELS: Record<string, string> = {
   same_day_split: 'Ders aynı gün bölünemiyor',
   gap_limit: 'Öğretmen boşluk sınırı',
   unknown: 'Teşhis sebebi bulamadı',
-  kaydedilmemis: 'Teşhis eklenmeden önceki denemeler',
+  timeout: 'Süre doldu, engel bulunamadı',
+  quota: 'Sunucu kotası doldu (yedek çözücüyle denendi)',
+  crash: 'Beklenmeyen hata (istemci)',
+  // Sebep yazılmamış eski kayıtlar: 16 Eylül 2026 öncesi denemeler VE o tarihten
+  // sonraki süre aşımları (o zaman süre aşımında teşhis koşmuyordu).
+  kaydedilmemis: 'Sebep kaydedilmemiş (eski kayıt; çoğu süre aşımı)',
 };
 
 const StatTile: React.FC<{ label: string; value: number; hint?: string }> = ({ label, value, hint }) => (
@@ -439,6 +453,25 @@ const SchoolsCard: React.FC<{ schools: SchoolRow[]; adminKey: string; onChanged:
     setSelected((prev) => new Set([...prev].filter((id) => existing.has(id))));
   }, [schools]);
 
+  // Destek için salt-okunur dışa aktarma; sunucu her çağrıyı günlüğe yazar.
+  const downloadSchool = async (schoolId: number) => {
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/schools/${schoolId}/export`, {
+        headers: { 'X-Admin-Key': adminKey },
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = new Blob([JSON.stringify(await res.json(), null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `okul-${schoolId}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Okul verisi indirilemedi (${err instanceof Error ? err.message : 'bağlantı hatası'}).`);
+    }
+  };
+
   const allFilteredSelected = filtered.length > 0 && filtered.every((school) => selected.has(school.id));
 
   const toggle = (id: number) =>
@@ -574,6 +607,17 @@ const SchoolsCard: React.FC<{ schools: SchoolRow[]; adminKey: string; onChanged:
                     )}
                     {school.published && (
                       <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-xs text-sky-800">yayında</span>
+                    )}
+                    {!empty && (
+                      <button
+                        type="button"
+                        onClick={() => void downloadSchool(school.id)}
+                        className="ml-2 text-xs underline"
+                        style={{ color: C.ink2 }}
+                        title="Destek için: okulun verisini uygulamanın içe aktarabildiği JSON olarak indirir"
+                      >
+                        veriyi indir
+                      </button>
                     )}
                   </td>
                   <td className="py-1.5 pr-3" style={{ color: C.ink2 }}>
@@ -794,6 +838,42 @@ const AdminStats: React.FC = () => {
                     </li>
                   ))}
                 </ul>
+              </Card>
+            )}
+
+            {(s.topSolvers?.length ?? 0) > 0 && (
+              <Card
+                title="En çok deneyen cihazlar"
+                subtitle="Son 30 gün · sunucu masrafının kimden geldiği (hesapsız cihazlarda e-posta görünmez)"
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr style={{ color: C.ink2 }}>
+                        <th className="py-1 pr-4 font-medium">Hesap / cihaz</th>
+                        <th className="py-1 pr-4 font-medium">Okul</th>
+                        <th className="py-1 pr-4 font-medium text-right">Deneme</th>
+                        <th className="py-1 pr-4 font-medium text-right">Başarısız</th>
+                        <th className="py-1 pr-4 font-medium text-right">Bugün</th>
+                        <th className="py-1 font-medium">Son deneme</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(s.topSolvers ?? []).map((t) => (
+                        <tr key={t.device_id} className="border-t" style={{ borderColor: C.grid }}>
+                          <td className="py-1.5 pr-4" style={{ color: C.ink }}>
+                            {t.email ?? <span style={{ color: C.muted }}>hesapsız · {t.device_id.slice(0, 8)}</span>}
+                          </td>
+                          <td className="py-1.5 pr-4" style={{ color: C.ink2 }}>{t.schools || '—'}</td>
+                          <td className="py-1.5 pr-4 text-right font-semibold tabular-nums">{fmt(t.solves)}</td>
+                          <td className="py-1.5 pr-4 text-right tabular-nums">{fmt(t.failed)}</td>
+                          <td className="py-1.5 pr-4 text-right tabular-nums">{fmt(t.today)}</td>
+                          <td className="py-1.5 whitespace-nowrap tabular-nums" style={{ color: C.ink2 }}>{fmtDateTime(t.last_solve)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </Card>
             )}
 
