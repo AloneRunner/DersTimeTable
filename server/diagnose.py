@@ -188,6 +188,87 @@ def _ogretmen_adi(data: Dict[str, Any], teacher_id: str) -> str:
     return 'Bir öğretmen'
 
 
+# ── Gun kapasitesi (cozucu calistirmadan, aritmetikle) ──────────────────────
+
+_GUNLER = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma']
+
+
+def _etiket(value: Any) -> str:
+    text = str(value or '').replace('İ', 'i').replace('I', 'ı').casefold()
+    return ' '.join(text.split())
+
+
+def gun_kapasitesi_acigi(data: Dict[str, Any], school_hours: Dict[str, List[int]]) -> Optional[Dict[str, Any]]:
+    """Haftalik toplamlar tutsa da tek bir gun imkansiz olabilir.
+
+    Gercek vaka (Eylul 2026): 4 sinif 35/35 doluydu, yani Pazartesi 28 ders saati
+    dolmak zorundaydi; 7 ogretmenin 3'u Pazartesi hic gelmiyordu, kalanlar en fazla
+    20 saat verebiliyordu. Gevsetme denemeleri bunu "sabitlenen ogretmen" diye
+    yanlis raporladi. Yalnizca KESIN imkansizligi bildirir: talep alt sinir, arz ust
+    sinirdir. Birlestirilmis ders gruplari varken hesap gecersizdir, yapilmaz.
+    utils/dataDiagnostics.ts icindeki buildDayCapacityShortages ile ayni hesaptir.
+    """
+    if data.get('lessonGroups'):
+        return None
+    teachers = data.get('teachers') or []
+    classrooms = {c['id']: c for c in (data.get('classrooms') or [])}
+    mumkun = {t['id']: 0 for t in teachers}
+    haftalik = {cid: 0 for cid in classrooms}
+    for s in data.get('subjects') or []:
+        saat = int(s.get('weeklyHours') or 0)
+        ad = _etiket(s.get('name'))
+        pinned_map = s.get('pinnedTeacherByClassroom') or {}
+        for cid in s.get('assignedClassIds') or []:
+            c = classrooms.get(cid)
+            if not c:
+                continue
+            haftalik[cid] += saat
+            gecerli = [tid for tid in (pinned_map.get(cid) or []) if tid in mumkun]
+            if gecerli:
+                adaylar = gecerli
+            else:
+                adaylar = []
+                for t in teachers:
+                    if c.get('level') == 'Ortaokul' and not t.get('canTeachMiddleSchool', False):
+                        continue
+                    if c.get('level') == 'Lise' and not t.get('canTeachHighSchool', False):
+                        continue
+                    branslar = t.get('branches') or []
+                    if branslar and ad not in {_etiket(b) for b in branslar}:
+                        continue
+                    adaylar.append(t['id'])
+            for tid in adaylar:
+                mumkun[tid] += saat
+
+    for gun in range(5):
+        talep = 0
+        for cid, c in classrooms.items():
+            saatler = school_hours.get(c.get('level')) or [0] * 5
+            bugun = int(saatler[gun]) if gun < len(saatler) else 0
+            kapasite = sum(int(x) for x in saatler)
+            talep += max(0, min(bugun, haftalik[cid] - (kapasite - bugun)))
+        arz = 0
+        gelmeyen: List[str] = []
+        for t in teachers:
+            sinirlar = []
+            if t.get('canTeachMiddleSchool'):
+                sinirlar.append(int((school_hours.get('Ortaokul') or [0] * 5)[gun]))
+            if t.get('canTeachHighSchool'):
+                sinirlar.append(int((school_hours.get('Lise') or [0] * 5)[gun]))
+            gun_siniri = max(sinirlar) if sinirlar else 0
+            satir = (t.get('availability') or [[]] * 5)[gun] if gun < len(t.get('availability') or []) else []
+            musait = sum(1 for saat_i in range(min(gun_siniri, len(satir))) if satir[saat_i])
+            ust = mumkun[t['id']]
+            if t.get('maxWeeklyHours') is not None:
+                ust = min(ust, int(t['maxWeeklyHours']))
+            arz += min(musait, ust)
+            if musait == 0 and mumkun[t['id']] > 0:
+                gelmeyen.append(str(t.get('name') or ''))
+        if talep > arz:
+            return {'gun': _GUNLER[gun], 'talep': talep, 'arz': arz, 'gelmeyen': gelmeyen}
+    return None
+
+
 # ── Ana islev ────────────────────────────────────────────────────────────────
 
 def diagnose_infeasible(
@@ -232,6 +313,19 @@ def diagnose_infeasible(
 
     def bulundu(blocker: str, message: str, teacher: Optional[str] = None) -> Dict[str, Any]:
         return {'found': True, 'blocker': blocker, 'teacher': teacher, 'message': message, 'tried': denenen}
+
+    # 0) Gun kapasitesi. Aritmetik; cozucu calismaz, sure harcamaz. Kesin imkansizlik
+    # oldugu icin gevsetme denemelerinden ONCE gelir (onlar yanlis kurali gosterirdi).
+    acik = gun_kapasitesi_acigi(data, school_hours)
+    if acik:
+        denenen.append('day_capacity')
+        gelmeyen = (f" {acik['gun']} günü hiç müsait olmayanlar: {', '.join(acik['gelmeyen'])}." if acik['gelmeyen'] else '')
+        return bulundu('day_capacity', (
+            f"{acik['gun']} günü program kesin olarak oluşamaz: sınıfların o gün en az {acik['talep']} ders saati dolu "
+            f"olmak zorunda, ama o gün müsait öğretmenler en fazla {acik['arz']} saat ders verebiliyor "
+            f"({acik['talep'] - acik['arz']} saat açık).{gelmeyen} Bu öğretmenlerden birine {acik['gun']} günü müsaitlik "
+            f"açın ya da bazı dersleri {acik['gun']} günü gelebilen öğretmenlere verin."
+        ))
 
     # 1) Art arda ders siniri. Once yalnizca BIR artirilir: kullaniciya "siniri kaldir"
     # degil "3'u 4 yap" diyebilmek icin.

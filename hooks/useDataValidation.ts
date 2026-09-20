@@ -1,7 +1,7 @@
 
 import { useMemo } from 'react';
 import type { TimetableData, SchoolHours } from '../types';
-import { buildClassroomSummaries, buildTeacherCapacitySummaries, findDuplicateClassSubjects, normalizeLabel } from '../utils/dataDiagnostics';
+import { buildClassroomSummaries, buildDayCapacityShortages, buildTeacherCapacitySummaries, findDuplicateClassSubjects, normalizeLabel } from '../utils/dataDiagnostics';
 
 export interface ValidationError {
   id: string;
@@ -74,7 +74,23 @@ export const useDataValidation = (data: TimetableData, schoolHours: SchoolHours)
         });
       });
 
-    const allErrors = [...unassignedSubjects, ...incompleteClasses, ...overflowingClasses, ...duplicateClassSubjects, ...teacherCapacityErrors];
+    // 5. Gün bazında kapasite: haftalık toplam tutsa da tek bir gün imkânsız olabilir.
+    //    Sınıf saatleri taşıyorsa (madde 2) bu hesap anlamsızdır; önce o düzeltilmeli.
+    const dayCapacityErrors: ValidationError[] = [];
+    if (overflowingClasses.length === 0) {
+      const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+      buildDayCapacityShortages(data, schoolHours).forEach(({ dayIndex, demand, supply, absentTeachers }) => {
+        const day = dayNames[dayIndex];
+        dayCapacityErrors.push({
+          id: `day:${dayIndex}`,
+          message: `Gün: ${day} - Sınıfların ${day} günü en az ${demand} ders saati dolu olmak zorunda, ama o gün müsait öğretmenler en fazla ${supply} saat ders verebiliyor (${demand - supply} saat açık).`
+            + (absentTeachers.length > 0 ? ` ${day} günü hiç müsait olmayanlar: ${absentTeachers.join(', ')}.` : '')
+            + ` Bu öğretmenlerden birine ${day} günü müsaitlik açın ya da bazı dersleri ${day} günü gelebilen öğretmenlere verin.`,
+        });
+      });
+    }
+
+    const allErrors = [...unassignedSubjects, ...incompleteClasses, ...overflowingClasses, ...duplicateClassSubjects, ...teacherCapacityErrors, ...dayCapacityErrors];
     const isValid = allErrors.length === 0;
 
     return {
@@ -84,6 +100,7 @@ export const useDataValidation = (data: TimetableData, schoolHours: SchoolHours)
       overflowingClasses,
       duplicateClassSubjects,
       teacherCapacityErrors,
+      dayCapacityErrors,
       allErrors,
     };
   }, [data, schoolHours]);

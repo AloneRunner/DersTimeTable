@@ -5,6 +5,12 @@ import os
 import time
 
 
+def _etiket(value: Any) -> str:
+    """Ders/brans adini karsilastirma icin sadelestirir (Turkce I/i dahil)."""
+    text = str(value or '').replace('İ', 'i').replace('I', 'ı').casefold()
+    return ' '.join(text.split())
+
+
 def solve_cp_sat(
     data: Dict[str, Any],
     school_hours: Dict[str, List[int]],
@@ -53,7 +59,8 @@ def solve_cp_sat(
                 continue
             branches = t.get('branches') or []
             # If branches defined, prefer matching; if empty, consider eligible.
-            if branches and s['name'] not in branches:
+            # Buyuk-kucuk harf ve bosluk farki gozetilmez (on kontrol de boyle eslestirir).
+            if branches and _etiket(s['name']) not in {_etiket(b) for b in branches}:
                 continue
             el.append(t['id'])
         return el

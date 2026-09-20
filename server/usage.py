@@ -40,7 +40,7 @@ _SOLVERS = {'cpsat', 'local'}
 _FAIL_REASONS = {
     'availability_teacher', 'availability', 'blocks', 'fixed', 'pinned_teacher',
     'daily_max', 'max_consec', 'weekly_max', 'not_same_day', 'same_day_split',
-    'gap_limit', 'unknown',
+    'gap_limit', 'unknown', 'day_capacity',
     # Program uretimi baslamadan dusen beklenmeyen hata (istemci tarafi cokme).
     'crash',
     # Cozucu sureyi doldurdu, tesihs de engel bulamadi. Eskiden sebepsiz

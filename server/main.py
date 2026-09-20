@@ -276,7 +276,7 @@ def solve_cpsat(req: SolveRequest, request: Request) -> Any:
                 # Sure asiminda program IMKANSIZ degil, yalnizca zor olabilir: bir okulun
                 # verisi sabitlemelerle 63 sn'de, sabitlemesiz 8 sn'de cozuldu. "Kural
                 # karsilamiyor" demek yanlis olur; "bu kural isi zorlastiriyor" diyoruz.
-                if timed_out and tani.get('found'):
+                if timed_out and tani.get('found') and tani.get('blocker') != 'day_capacity':
                     kural = _BLOCKER_NAMES.get(tani.get('blocker'), 'bazı kurallar')
                     tani['message'] = (
                         f"Program verilen sürede bulunamadı, ama imkânsız görünmüyor: {kural} gevşetilince "

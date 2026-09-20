@@ -160,6 +160,7 @@ const FAIL_REASON_LABELS: Record<string, string> = {
   not_same_day: '"Aynı gün olamaz" kuralı',
   same_day_split: 'Ders aynı gün bölünemiyor',
   gap_limit: 'Öğretmen boşluk sınırı',
+  day_capacity: 'Bir gün için öğretmen yetmiyor',
   unknown: 'Teşhis sebebi bulamadı',
   timeout: 'Süre doldu, engel bulunamadı',
   quota: 'Sunucu kotası doldu (yedek çözücüyle denendi)',
