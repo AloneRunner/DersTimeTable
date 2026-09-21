@@ -100,6 +100,7 @@ const createDefaultPrintInfo = (): PrintInfo => ({
     schoolName: '',
     academicYear: currentAcademicYear(),
     principalName: '',
+    teacherSignature: true,
 });
 
 // Tek "Program Oluştur" denemesinin üst sınırı. Sunucu da aynı değerde kırpar
@@ -1124,7 +1125,7 @@ const App: React.FC = () => {
         });
     };
     
-    const handlePrintInfoChange = (field: keyof PrintInfo, value: string) => {
+    const handlePrintInfoChange = (field: keyof PrintInfo, value: string | boolean) => {
         setPrintInfo(prev => ({ ...prev, [field]: value }));
     };
 
@@ -3435,6 +3436,16 @@ case 'duties':
                                     className="flex-1 rounded-md border-slate-300 text-sm p-1"
                                 />
                             </div>
+                            <label className="flex items-center gap-2 text-[11px] text-slate-600">
+                                <input
+                                    type="checkbox"
+                                    checked={printInfo.teacherSignature !== false}
+                                    onChange={(e) => handlePrintInfoChange('teacherSignature', e.target.checked)}
+                                />
+                                <span title="Öğretmen programında dersin öğretmeni, sınıf programında (tanımlıysa) sınıf öğretmeni; ad veriden otomatik alınır.">
+                                    Sol alt köşeye öğretmen imza yeri ekle
+                                </span>
+                            </label>
                             <p className="text-[11px] text-slate-500">Boş bırakılan alan çıktıda görünmez.</p>
                         </div>
                     </div>

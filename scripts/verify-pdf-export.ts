@@ -27,7 +27,7 @@ const common = {
   viewMode: 'master' as const,
   // PDF_PRINT_INFO=1 ile resmi baslik/mudur cercevesi de cizilir.
   printInfo: process.env.PDF_PRINT_INFO
-    ? { schoolName: 'Yıldırım Beyazıt Ortaokulu', academicYear: '2026-2027', principalName: 'Ahmet Yılmaz' }
+    ? { schoolName: 'Yıldırım Beyazıt Ortaokulu', academicYear: '2026-2027', principalName: 'Ahmet Yılmaz', teacherSignature: true }
     : null,
 };
 
@@ -46,6 +46,7 @@ if (previewDir) {
     fs.writeFile(path.join(previewDir, 'siniflar.pdf'), bytes),
     fs.writeFile(path.join(previewDir, 'toplu-sinif.pdf'), classMatrixBytes),
     fs.writeFile(path.join(previewDir, 'toplu-ogretmen.pdf'), teacherMatrixBytes),
+    fs.writeFile(path.join(previewDir, 'ogretmenler.pdf'), Buffer.from(teacherDoc.output('arraybuffer'))),
   ]);
 }
 const result = {

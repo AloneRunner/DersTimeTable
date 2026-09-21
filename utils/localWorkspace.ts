@@ -21,6 +21,8 @@ export const parsePrintInfo = (value: unknown): PrintInfo | null => {
     schoolName: text(raw.schoolName),
     academicYear: text(raw.academicYear),
     principalName: text(raw.principalName),
+    // Tanimsiz olanlar (eski kayitlar) acik sayilir.
+    teacherSignature: raw.teacherSignature !== false,
   };
 };
 

@@ -58,24 +58,49 @@ type OfficialFrame = {
   headerText: string;
   principalText: string;
   headerHeight: number; // Baslik satirinin ustteki icerigi ne kadar asagi ittigi (mm)
-  footerHeight: number; // Mudur blogunun alttan ayirdigi yer (mm)
+  footerHeight: number; // Imza blogunun alttan ayirdigi yer (mm)
 };
 
-const officialFrame = (printInfo: PrintInfo | null | undefined, headerFontSize: number): OfficialFrame => {
+// Sayfalar ayni yukseklikte kalsin diye imza yeri, ciktidaki HERHANGI bir sayfada
+// imza gorunecekse butun sayfalarda yer ayirir.
+const officialFrame = (
+  printInfo: PrintInfo | null | undefined,
+  headerFontSize: number,
+  hasSignature = false,
+): OfficialFrame => {
   const headerText = officialHeaderText(printInfo);
   const principalText = officialPrincipalText(printInfo);
   return {
     headerText,
     principalText,
     headerHeight: headerText ? headerFontSize * 0.55 : 0,
-    footerHeight: principalText ? 7 : 0,
+    footerHeight: principalText || hasSignature ? 7 : 0,
   };
+};
+
+/** Sol alt imza yeri: ogretmen sayfasinda dersin, sinif sayfasinda sinif ogretmeni. */
+const signatureFor = (target: { kind: 'class' | 'teacher'; name: string; id: string },
+                      data: TimetableData,
+                      printInfo?: PrintInfo | null): { name: string; label: string } | null => {
+  if (printInfo?.teacherSignature === false) return null;
+  if (target.kind === 'teacher') return { name: target.name, label: 'Ders Öğretmeni' };
+  const classroom = data.classrooms.find((item) => item.id === target.id);
+  const homeroom = classroom?.homeroomTeacherId
+    ? data.teachers.find((item) => item.id === classroom.homeroomTeacherId)
+    : undefined;
+  return homeroom ? { name: homeroom.name, label: 'Sınıf Öğretmeni' } : null;
 };
 
 const drawOfficialFrame = (
   doc: jsPDF,
   frame: OfficialFrame,
-  options: { headerFontSize: number; footerFontSize: number; margin: number; footerBaseline: number },
+  options: {
+    headerFontSize: number;
+    footerFontSize: number;
+    margin: number;
+    footerBaseline: number;
+    signature?: { name: string; label: string } | null;
+  },
 ) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   doc.setFont(FONT_NAME, 'normal');
@@ -84,14 +109,22 @@ const drawOfficialFrame = (
     doc.setTextColor(15, 23, 42);
     doc.text(frame.headerText, pageWidth / 2, options.headerFontSize * 0.45 + 1.5, { align: 'center' });
   }
+  const lineGap = options.footerFontSize * 0.42;
   if (frame.principalText) {
-    const lineGap = options.footerFontSize * 0.42;
     doc.setFontSize(options.footerFontSize);
     doc.setTextColor(15, 23, 42);
     doc.text(frame.principalText, pageWidth - options.margin, options.footerBaseline - lineGap, { align: 'right' });
     doc.setTextColor(71, 85, 105);
     doc.setFontSize(options.footerFontSize * 0.85);
     doc.text('Okul Müdürü', pageWidth - options.margin, options.footerBaseline, { align: 'right' });
+  }
+  if (options.signature) {
+    doc.setFontSize(options.footerFontSize);
+    doc.setTextColor(15, 23, 42);
+    doc.text(options.signature.name, options.margin, options.footerBaseline - lineGap, { align: 'left' });
+    doc.setTextColor(71, 85, 105);
+    doc.setFontSize(options.footerFontSize * 0.85);
+    doc.text(options.signature.label, options.margin, options.footerBaseline, { align: 'left' });
   }
 };
 const FONT_NAME = 'Atkinson';
@@ -625,7 +658,8 @@ export const buildSchedulePdf = async (options: ExportOptions) => {
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   await addTurkishFont(doc);
-  const frame = officialFrame(options.printInfo, 9);
+  const signatures = targets.map((target) => signatureFor(target, options.data, options.printInfo));
+  const frame = officialFrame(options.printInfo, 9, signatures.some(Boolean));
 
   targets.forEach((target, targetIndex) => {
     if (targetIndex > 0) {
@@ -641,6 +675,7 @@ export const buildSchedulePdf = async (options: ExportOptions) => {
       footerFontSize: 8,
       margin: 8,
       footerBaseline: pageHeight - 4,
+      signature: signatures[targetIndex],
     });
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(15);

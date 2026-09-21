@@ -115,12 +115,18 @@ export type SchoolHours = {
   [SchoolLevel.High]: number[];   // Array of 5 for Mon-Fri
 };
 
-// PDF ciktisinin resmi basligi: ustte egitim-ogretim yili + okul adi, sag altta mudur adi.
-// Bos birakilan alan ciktida hic gorunmez.
+// PDF ciktisinin resmi cercevesi: ustte okul adi + egitim-ogretim yili, sag altta
+// mudur adi, sol altta ogretmen adi. Bos birakilan alan ciktida hic gorunmez.
 export interface PrintInfo {
   schoolName: string;
   academicYear: string;
   principalName: string;
+  /**
+   * Sol alt koseye imza yeri: ogretmen programinda dersin ogretmeni, sinif
+   * programinda (taniliysa) sinif ogretmeni. Ad zaten sayfanin ustunde yazdigi
+   * icin veriden otomatik alinir. Tanimsiz = acik.
+   */
+  teacherSignature?: boolean;
 }
 
 // --- Solver Reporting Interfaces ---
