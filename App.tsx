@@ -2588,6 +2588,14 @@ case 'duties':
         ...printInfo,
         schoolName: printInfo.schoolName.trim() || cloudSchoolName,
     };
+    // Ciktida GERCEKTEN bos kalacak alanlar. Okul adi bos birakilsa bile bulutta
+    // kayitli ad kullaniliyor (effectivePrintInfo), o yuzden onu eksik saymiyoruz.
+    // Bir ogretmen "mobilden de ekleyebilsek iyi olur" diye yazmisti; alan zaten
+    // mobilde de vardi ama telefonda asagida kaldigi icin fark edilmiyordu.
+    const printInfoMissing = [
+        !effectivePrintInfo.schoolName.trim() ? 'okul adı' : null,
+        !printInfo.principalName.trim() ? 'müdür adı' : null,
+    ].filter((item): item is string => item !== null);
     const bridgeCodeExpiryText = bridgeCodeInfo ? new Date(bridgeCodeInfo.expiresAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
 
     const viewOptions = useMemo(() => {
@@ -3408,7 +3416,17 @@ case 'duties':
                         </div>
                     </div>
                     <div>
-                        <label className="text-xs font-medium text-slate-500 block mb-2">PDF Başlığı (resmî çıktı)</label>
+                        <label className="text-xs font-medium text-slate-500 block mb-2">
+                            PDF Başlığı (resmî çıktı)
+                            {printInfoMissing.length > 0 && (
+                                <span
+                                    className="ml-1 font-normal text-amber-600"
+                                    title="Boş bıraktığınız alan çıktıda hiç görünmez. Resmî bir çıktı için doldurun."
+                                >
+                                    · {printInfoMissing.join(' ve ')} boş
+                                </span>
+                            )}
+                        </label>
                         <div className="space-y-2">
                             <input
                                 type="text"
