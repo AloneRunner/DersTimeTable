@@ -367,10 +367,25 @@ def admin_solve_quota(x_admin_key: Optional[str] = Header(default=None)) -> Dict
         used = int(round(float(row.get('seconds_used') or 0)))
         row['seconds_used'] = used
         row['base_left'] = int(max(0, round(solve_quota.base_left(used, row.get('created_at')))))
+    # Railway fatura baglantisinin durumu da ayni istekle gelsin: panelde ayri bir
+    # cagri yapmadan "baglandi mi, baglanmadiysa neden" gorulsun.
+    import railway_usage  # yerel ice aktarma: dongusel bagimliligi onler
+
+    try:
+        rw = {
+            'tokenTanimli': railway_usage.enabled(),
+            'calismaAlani': railway_usage._workspace_id() if railway_usage.enabled() else None,
+            'durum': railway_usage.status(),
+            'ham': railway_usage.raw_usage() if railway_usage.enabled() else None,
+            'butceUsd': railway_usage.BUDGET_USD,
+        }
+    except Exception as err:  # pylint: disable=broad-except
+        rw = {'tokenTanimli': railway_usage.enabled(), 'hata': str(err)[:300]}
     return {
         'starterSeconds': solve_quota.STARTER_SECONDS,
         'monthlySeconds': solve_quota.MONTHLY_SECONDS,
         'rows': rows,
+        'railway': rw,
     }
 
 

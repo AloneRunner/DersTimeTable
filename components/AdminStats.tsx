@@ -460,7 +460,15 @@ const describeAttempt = (a: NonNullable<QuotaRow['last_attempt']>): string => {
   ];
   return parts.filter(Boolean).join(' · ');
 };
-type QuotaInfo = { starterSeconds: number; monthlySeconds: number; rows: QuotaRow[] };
+type RailwayInfo = {
+  tokenTanimli?: boolean;
+  calismaAlani?: string | null;
+  durum?: { billUsedUsd: number; billBudgetUsd: number; billPeriodEnd?: string | null } | null;
+  ham?: unknown;
+  butceUsd?: number;
+  hata?: string;
+};
+type QuotaInfo = { starterSeconds: number; monthlySeconds: number; rows: QuotaRow[]; railway?: RailwayInfo };
 
 const fmtDuration = (seconds: number): string => {
   const s = Math.max(0, Math.round(seconds));
@@ -596,6 +604,31 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {info?.railway && (
+        <div className="mt-3 rounded border p-2 text-xs" style={{ borderColor: C.border, color: C.ink2 }}>
+          <strong>Railway fatura bağlantısı: </strong>
+          {!info.railway.tokenTanimli ? (
+            <span style={{ color: C.muted }}>anahtar tanımlı değil — çubuk çözücü süresini gösteriyor.</span>
+          ) : info.railway.durum ? (
+            <span>
+              bağlı · bu dönem <strong>${info.railway.durum.billUsedUsd.toFixed(2)}</strong> / $
+              {info.railway.durum.billBudgetUsd.toFixed(2)} ({Math.round((info.railway.durum.billUsedUsd / info.railway.durum.billBudgetUsd) * 100)}%)
+              {info.railway.durum.billPeriodEnd ? ` · dönem sonu ${info.railway.durum.billPeriodEnd.slice(0, 10)}` : ''}
+            </span>
+          ) : (
+            <span style={{ color: '#b45309' }}>
+              anahtar var ama Railway'den rakam alınamadı
+              {info.railway.calismaAlani ? ` (çalışma alanı bulundu: ${info.railway.calismaAlani})` : ' (çalışma alanı da bulunamadı — anahtar yetkisi ya da sorgu adları)'}
+              {info.railway.hata ? ` · ${info.railway.hata}` : ''}
+            </span>
+          )}
+          {info.railway.tokenTanimli && !info.railway.durum && info.railway.ham != null && (
+            <pre className="mt-1 overflow-auto rounded bg-slate-100 p-1 text-[10px]" style={{ maxHeight: 120 }}>
+              {JSON.stringify(info.railway.ham, null, 1)}
+            </pre>
+          )}
         </div>
       )}
       <p className="mt-3 text-xs" style={{ color: C.muted }}>
