@@ -2592,6 +2592,13 @@ case 'duties':
     // kayitli ad kullaniliyor (effectivePrintInfo), o yuzden onu eksik saymiyoruz.
     // Bir ogretmen "mobilden de ekleyebilsek iyi olur" diye yazmisti; alan zaten
     // mobilde de vardi ama telefonda asagida kaldigi icin fark edilmiyordu.
+    const quotaMailHref = `mailto:kaanozarik@gmail.com?subject=${encodeURIComponent('Ders Dağıtım - ek süre isteği')}&body=${encodeURIComponent(
+        `Okul: ${cloudSchoolName || printInfo.schoolName || '-'}
+Hesap: ${activeSessionUser?.email ?? '-'}
+
+Ek süre istememin sebebi:
+`,
+    )}`;
     const printInfoMissing = [
         !effectivePrintInfo.schoolName.trim() ? 'okul adı' : null,
         !printInfo.principalName.trim() ? 'müdür adı' : null,
@@ -3513,6 +3520,27 @@ case 'duties':
                         {isLoading ? 'Oluşturuluyor...' : 'Program Oluştur'}
                     </button>
                 </div>
+                {solveQuota && (solveQuota.poolSeconds ?? 0) > 0 && (() => {
+                    const pool = solveQuota.poolSeconds ?? 0;
+                    const kullanilan = Math.max(0, solveQuota.poolUsedSeconds ?? 0);
+                    const yuzde = Math.min(100, Math.round((kullanilan / pool) * 100));
+                    return (
+                        <div
+                            className="no-print text-xs"
+                            title="Sunucu masrafını geliştirici kendi cebinden ödüyor. Bu çubuk, bu ay bütün okulların sunucuda harcadığı toplam arama süresini gösterir; dolduğunda programlar cihazınızdaki yedek çözücüyle oluşturulur. Her ayın 1'inde sıfırlanır."
+                        >
+                            <p className={yuzde >= 90 ? 'text-red-700' : yuzde >= 70 ? 'text-amber-700' : 'text-slate-500'}>
+                                Ortak sunucu süresi: bu ay %{yuzde} kullanıldı
+                            </p>
+                            <div className="mt-1 h-1.5 w-full max-w-[16rem] overflow-hidden rounded bg-slate-200">
+                                <div
+                                    className={`h-full ${yuzde >= 90 ? 'bg-red-500' : yuzde >= 70 ? 'bg-amber-500' : 'bg-sky-500'}`}
+                                    style={{ width: `${yuzde}%` }}
+                                />
+                            </div>
+                        </div>
+                    );
+                })()}
                 {solveQuota && !solveQuota.exempt && (() => {
                     const left = Math.max(0, solveQuota.secondsLeft) + Math.max(0, solveQuota.bonusSeconds);
                     const spent = left <= 0;
@@ -3530,7 +3558,12 @@ case 'duties':
                             {spent && (
                                 <p className="mt-1 text-slate-600">
                                     {quotaRequestState === 'sent'
-                                        ? 'İsteğiniz iletildi. Ek süre istekleri ay sonunda, sunucu bütçesinden artan paya göre değerlendirilir; kesin değildir. O zamana kadar programlarınız cihazınızdaki yedek çözücüyle oluşturulur.'
+                                        ? (
+                                            <>
+                                                İsteğiniz iletildi. Ek süre istekleri ay sonunda, sunucu bütçesinden artan paya göre değerlendirilir; kesin değildir. Daha hızlı dönüş için{' '}
+                                                <a className="font-medium text-sky-700 underline" href={quotaMailHref}>e-posta da gönderin</a>. O zamana kadar programlarınız cihazınızdaki yedek çözücüyle oluşturulur.
+                                            </>
+                                        )
                                         : quotaRequestState === 'failed'
                                             ? 'İstek iletilemedi. kaanozarik@gmail.com adresine yazabilirsiniz.'
                                             : (
@@ -3543,6 +3576,8 @@ case 'duties':
                                                     >
                                                         Ek süre iste
                                                     </button>
+                                                    {' '}ya da{' '}
+                                                    <a className="font-medium text-sky-700 underline" href={quotaMailHref}>e-posta gönderin</a>.
                                                 </>
                                             )}
                                 </p>

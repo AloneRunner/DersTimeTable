@@ -84,6 +84,10 @@ export type SolveQuota = {
   monthlySeconds: number;
   /** Bütçeden muaf hesap (uygulama sahibi, mağaza inceleme hesabı). */
   exempt?: boolean;
+  /** Bu ay bütün kullanıcıların harcadığı ortak çözücü süresi (saniye). */
+  poolUsedSeconds?: number;
+  /** Ortak havuzun aylık üst sınırı (saniye). */
+  poolSeconds?: number;
 };
 
 /** Limit artışı isteğini yöneticiye iletir. Hesapsız/kimliksiz istekte false döner. */

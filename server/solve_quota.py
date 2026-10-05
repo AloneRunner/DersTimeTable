@@ -44,7 +44,7 @@ import math
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -234,6 +234,67 @@ def school_key(data: Dict[str, Any]) -> Optional[str]:
 
 # ── Butce hesabi ─────────────────────────────────────────────────────────────
 
+# Butun kullanicilarin bir ayda harcayabilecegi ORTAK cozucu suresi. Kisi basi
+# butceden farklidir: bu, gelistiricinin Railway faturasinin karsiligi. Varsayilan
+# 15 saat; Eylul 2026'da fatura 2760 vCPU-dakikaya cikip Hobby payini asmisti ve
+# ayni anda en fazla 2 cozum kostugu icin 15 saatlik arama suresi o sinirin
+# guvenli tarafinda kaliyor. SOLVER_POOL_MONTHLY_SECONDS ile degistirilir.
+POOL_MONTHLY_SECONDS = int(os.environ.get('SOLVER_POOL_MONTHLY_SECONDS', str(15 * 3600)))
+# Havuzun sifirlandigi gun: Railway fatura donemi ayin 15'inde donuyor
+# (olculdu 5 Ekim 2026: "Sep 15 - Oct 15"), sayac da ayni gun sifirlanmali ki
+# gosterilen oran gercek faturayla ayni donemi anlatsin.
+POOL_CYCLE_DAY = max(1, min(28, int(os.environ.get('SOLVER_POOL_CYCLE_DAY', '15'))))
+
+
+def _pool_period(now: Optional[datetime] = None) -> date:
+    """Icinde bulundugumuz fatura doneminin baslangic gunu."""
+    now = now or datetime.now(timezone.utc)
+    if now.day >= POOL_CYCLE_DAY:
+        return date(now.year, now.month, POOL_CYCLE_DAY)
+    onceki = date(now.year, now.month, 1) - timedelta(days=1)
+    return date(onceki.year, onceki.month, POOL_CYCLE_DAY)
+
+
+def _pool_add(elapsed: float) -> None:
+    """Harcanan sureyi icinde bulundugumuz ayin ortak sayacina ekler.
+
+    Muaf hesaplar da buraya yazilir: onlarin kisisel butcesi yok ama sunucuda
+    gecirdikleri sure de ayni faturaya giriyor.
+    """
+    if elapsed <= 0 or not DATABASE_URL:
+        return
+    try:
+        import psycopg
+
+        with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
+            conn.execute(
+                """INSERT INTO solver_pool (month, seconds)
+                   VALUES (%s, %s)
+                   ON CONFLICT (month) DO UPDATE
+                   SET seconds = solver_pool.seconds + EXCLUDED.seconds""",
+                (_pool_period(), float(elapsed)),
+            )
+    except Exception:  # pylint: disable=broad-except
+        logger.exception('solver-pool-charge-failed')
+
+
+def pool_status() -> Dict[str, Any]:
+    """Bu ayki ortak havuz. Okunamazsa sifir doner; gosterim istege baglidir."""
+    used = 0.0
+    if DATABASE_URL:
+        try:
+            import psycopg
+
+            with psycopg.connect(DATABASE_URL) as conn:
+                row = conn.execute(
+                    'SELECT seconds FROM solver_pool WHERE month = %s', (_pool_period(),)
+                ).fetchone()
+                used = float(row[0]) if row else 0.0
+        except Exception:  # pylint: disable=broad-except
+            logger.exception('solver-pool-read-failed')
+    return {'poolUsedSeconds': int(round(used)), 'poolSeconds': POOL_MONTHLY_SECONDS}
+
+
 def base_left(seconds_used: float, created_at: Optional[datetime]) -> float:
     """Temel butceden kalan saniye: baslangic + aylik pay - harcanan; baslangici asamaz."""
     months = 0
@@ -322,8 +383,12 @@ def charge(keys: List[str], elapsed: float, count_attempt: bool) -> None:
     (21 Eylul 2026): butcesi bitmis ama ek suresi olan bir hesabin cihaz ve parmak
     izi satirlari 0 sn'de kaldi, ayni cihazda yeni hesap acan sifirdan 25 dk aldi.
     """
+    if elapsed <= 0:
+        return
+    # Once ortak havuz: muaf hesaplarin suresi de ayni faturaya giriyor.
+    _pool_add(elapsed)
     kalici = _persistent(keys)
-    if not kalici or elapsed <= 0 or is_exempt(keys):
+    if not kalici or is_exempt(keys):
         return
     primary = _primary(keys)
     # Oturum acikken cihaz ve parmak izi satirlarina da hesap yazilir; yonetici
@@ -371,7 +436,7 @@ def remaining(keys: List[str]) -> Dict[str, Any]:
     """Istemcinin gosterdigi kalan sure. Saymaz."""
     if is_exempt(keys):
         return {'secondsLeft': STARTER_SECONDS, 'bonusSeconds': 0, 'starterSeconds': STARTER_SECONDS,
-                'monthlySeconds': MONTHLY_SECONDS, 'exempt': True}
+                'monthlySeconds': MONTHLY_SECONDS, 'exempt': True, **pool_status()}
     try:
         st = _status(keys)
     except Exception:  # pylint: disable=broad-except
@@ -385,6 +450,7 @@ def remaining(keys: List[str]) -> Dict[str, Any]:
         'starterSeconds': STARTER_SECONDS,
         'monthlySeconds': MONTHLY_SECONDS,
         'exempt': False,
+        **pool_status(),
     }
 
 
