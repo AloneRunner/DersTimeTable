@@ -3533,6 +3533,9 @@ Ek süre istememin sebebi:
                     // 5 Ekim 2026: bellek %64, CPU %35), yani sunucu bosta dururken de
                     // para isliyor. Anahtar yoksa eski gosterim surer.
                     const paraVar = (solveQuota.billBudgetUsd ?? 0) > 0;
+                    // Kullaniciya dakikayi da yaziyoruz: yuzde tek basina "benim kotam"
+                    // gibi okunuyordu, somut sure ortak oldugunu anlatmaya yardim ediyor.
+                    const havuzDakika = Math.round(Math.max(0, solveQuota.poolUsedSeconds ?? 0) / 60);
                     const yuzde = paraVar
                         ? Math.min(100, Math.round(((solveQuota.billUsedUsd ?? 0) / (solveQuota.billBudgetUsd ?? 1)) * 100))
                         : Math.min(100, Math.round((Math.max(0, solveQuota.poolUsedSeconds ?? 0) / (solveQuota.poolSeconds ?? 1)) * 100));
@@ -3543,8 +3546,8 @@ Ek süre istememin sebebi:
                                 ? 'Sunucu masrafını geliştirici kendi cebinden ödüyor. Bu çubuk, bu fatura döneminde sunucuya giden masrafın ne kadarının harcandığını gösterir; bütçe dolduğunda programlar cihazınızdaki yedek çözücüyle oluşturulur. Her ayın 15. günü yenilenir.'
                                 : 'Sunucu masrafını geliştirici kendi cebinden ödüyor. Bu çubuk, bu dönem bütün okulların sunucuda harcadığı toplam arama süresini gösterir; dolduğunda programlar cihazınızdaki yedek çözücüyle oluşturulur. Her ayın 15. günü yenilenir.'}
                         >
-                            <p className={yuzde >= 90 ? 'text-red-700' : yuzde >= 70 ? 'text-amber-700' : 'text-slate-500'}>
-                                {paraVar ? 'Sunucu bütçesi' : 'Ortak sunucu süresi'}: bu dönem %{yuzde} kullanıldı
+                            <p className={`font-medium ${yuzde >= 90 ? 'text-red-700' : yuzde >= 70 ? 'text-amber-700' : 'text-slate-600'}`}>
+                                Bütün okulların ortak sunucu havuzu: bu dönem %{yuzde} kullanıldı
                             </p>
                             <div className="mt-1 h-1.5 w-full max-w-[16rem] overflow-hidden rounded bg-slate-200">
                                 <div
@@ -3552,6 +3555,14 @@ Ek süre istememin sebebi:
                                     style={{ width: `${yuzde}%` }}
                                 />
                             </div>
+                            <p className="mt-1 max-w-[34rem] text-[11px] leading-relaxed text-slate-500">
+                                Bu havuz <strong>size ait değildir</strong>, bütün okullar için tek bir ortak sayaçtır; kendi
+                                süreniz yukarıda ayrıca yazar.
+                                {havuzDakika > 0 && <> Okullar bu dönem toplam <strong>{havuzDakika} dakika</strong> sunucu çözücü süresi harcadı.</>}
+                                {' '}Sunucu masrafını geliştirici kendi cebinden ödüyor: uygulamanın ücretsiz kalabilmesi için
+                                ek süreler bu havuzdan artan paya göre, ücretsiz veriliyor. Havuz dolduğunda programlar
+                                cihazınızdaki yedek çözücüyle oluşturulmaya devam eder. Her ayın 15. günü yenilenir.
+                            </p>
                         </div>
                     );
                 })()}
