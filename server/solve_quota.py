@@ -64,8 +64,14 @@ def _env_int(name: str, default: int, low: int, high: int) -> int:
 
 
 # Ortam degiskeniyle ayarlanabilir; Railway'de degistirip yeniden dagitmak yeter.
-STARTER_SECONDS = _env_int('SOLVER_BUDGET_STARTER_SECONDS', 1500, 0, 1_000_000)
-MONTHLY_SECONDS = _env_int('SOLVER_BUDGET_MONTHLY_SECONDS', 300, 0, 1_000_000)
+# Kisi basi baslangic butcesi. Once 25 dk'ydi; 5 Ekim 2026'da 10 dk'ya indirildi.
+# Gerekce panelden okundu: programi OLUSAN okullarin en agiri (51 ogretmen, 25
+# sinif) 16 denemede toplam 2 dk 31 sn harcadi, cogu birkac saniyede bitiyor.
+# 25 dakikayi yalnizca cozume ulasamayan iki kullanici tuketti, yani fazla butce
+# basariya degil tekrar denemeye gidiyordu. Ek sureyi gelistirici e-posta
+# uzerine elle veriyor.
+STARTER_SECONDS = _env_int('SOLVER_BUDGET_STARTER_SECONDS', 600, 0, 1_000_000)
+MONTHLY_SECONDS = _env_int('SOLVER_BUDGET_MONTHLY_SECONDS', 180, 0, 1_000_000)
 # Butcesi bitmek uzere olana bile anlamli bir arama yapilabilsin.
 MIN_RUN_SECONDS = 10
 # IP freni: ayni IP'nin arkasinda butun bir okul olabilir, o yuzden genis.
