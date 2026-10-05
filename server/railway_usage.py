@@ -93,11 +93,24 @@ def _workspace_id() -> Optional[str]:
     data = _post("query Me { me { id email workspaces { id name } } }")
     son_hata["yanit"] = data
     alanlar = ((data or {}).get("me") or {}).get("workspaces") or []
-    if not alanlar:
-        return None
-    # Birden fazlaysa ilki; tek calisma alani olan hesapta zaten tek secenek var.
-    _workspace["id"] = alanlar[0].get("id")
-    return _workspace["id"]
+    if alanlar:
+        # Birden fazlaysa ilki; tek calisma alani olan hesapta zaten tek secenek var.
+        _workspace["id"] = alanlar[0].get("id")
+        return _workspace["id"]
+
+    # Yedek yol: bazi anahtarlar calisma alanini listelemiyor ama projeleri
+    # gorebiliyor; Project.workspaceId ayni bilgiyi veriyor.
+    data = _post(
+        "query MyProjects { me { projects { edges { node { id name workspaceId } } } } }"
+    )
+    son_hata["yanit"] = son_hata["yanit"] or data
+    kenarlar = (((data or {}).get("me") or {}).get("projects") or {}).get("edges") or []
+    for kenar in kenarlar:
+        wid = ((kenar or {}).get("node") or {}).get("workspaceId")
+        if wid:
+            _workspace["id"] = wid
+            return wid
+    return None
 
 
 def status() -> Optional[Dict[str, Any]]:
