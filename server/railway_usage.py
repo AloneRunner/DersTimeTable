@@ -28,10 +28,11 @@ logger = logging.getLogger("railway-usage")
 
 ENDPOINT = "https://backboard.railway.com/graphql/v2"
 
-# Calisma alanina bagli anahtarlar 'me' sorgusuna yetkili degil ("Not Authorized",
-# olculdu 5 Ekim 2026), ama Railway semasinda workspace(workspaceId:) argumani
-# ZORUNLU degil: boyle bir anahtar argumansiz cagirinca kendi alanini doner.
-# Once onu deneriz, olmazsa hesap anahtari yolundan (me -> workspaces) gideriz.
+# Olculdu (5 Ekim 2026): workspace(workspaceId:) argumani ZORUNLU (String!), yani
+# anahtarin kendi alanini argumansiz sormak mumkun degil. Calisma alanina bagli
+# anahtarlarin 'me' sorgusuna da yetkisi yok ("Not Authorized"), dolayisiyla
+# kimligi kendiliginden bulmanin tek yolu HESAP anahtari (me -> workspaces).
+# Calisma alani anahtari kullanilacaksa RAILWAY_WORKSPACE_ID elle verilmeli.
 FATURA_GOVDESI = "{ id name customer { currentUsage billingPeriod { start end } } }"
 TOKEN = (os.environ.get("RAILWAY_API_TOKEN") or "").strip()
 WORKSPACE_ID = (os.environ.get("RAILWAY_WORKSPACE_ID") or "").strip()
@@ -130,15 +131,6 @@ def _workspace_id() -> Optional[str]:
 
 def _customer() -> Optional[Dict[str, Any]]:
     """Fatura bilgisini tasiyan 'customer' nesnesi; bulunamazsa None."""
-    # 1) Calisma alani anahtari: arguman vermeden kendi alanini dondurur.
-    data = _post("query WorkspaceBilling { workspace " + FATURA_GOVDESI + " }")
-    alan_nesnesi = (data or {}).get("workspace")
-    if alan_nesnesi:
-        if alan_nesnesi.get("id"):
-            _workspace["id"] = alan_nesnesi["id"]
-        return alan_nesnesi.get("customer") or {}
-
-    # 2) Hesap anahtari: once calisma alanini bul, sonra kimlikle sor.
     alan = _workspace_id()
     if not alan:
         return None
