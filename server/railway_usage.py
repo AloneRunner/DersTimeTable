@@ -27,6 +27,12 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger("railway-usage")
 
 ENDPOINT = "https://backboard.railway.com/graphql/v2"
+
+# Calisma alanina bagli anahtarlar 'me' sorgusuna yetkili degil ("Not Authorized",
+# olculdu 5 Ekim 2026), ama Railway semasinda workspace(workspaceId:) argumani
+# ZORUNLU degil: boyle bir anahtar argumansiz cagirinca kendi alanini doner.
+# Once onu deneriz, olmazsa hesap anahtari yolundan (me -> workspaces) gideriz.
+FATURA_GOVDESI = "{ id name customer { currentUsage billingPeriod { start end } } }"
 TOKEN = (os.environ.get("RAILWAY_API_TOKEN") or "").strip()
 WORKSPACE_ID = (os.environ.get("RAILWAY_WORKSPACE_ID") or "").strip()
 
@@ -122,6 +128,30 @@ def _workspace_id() -> Optional[str]:
     return None
 
 
+def _customer() -> Optional[Dict[str, Any]]:
+    """Fatura bilgisini tasiyan 'customer' nesnesi; bulunamazsa None."""
+    # 1) Calisma alani anahtari: arguman vermeden kendi alanini dondurur.
+    data = _post("query WorkspaceBilling { workspace " + FATURA_GOVDESI + " }")
+    alan_nesnesi = (data or {}).get("workspace")
+    if alan_nesnesi:
+        if alan_nesnesi.get("id"):
+            _workspace["id"] = alan_nesnesi["id"]
+        return alan_nesnesi.get("customer") or {}
+
+    # 2) Hesap anahtari: once calisma alanini bul, sonra kimlikle sor.
+    alan = _workspace_id()
+    if not alan:
+        return None
+    data = _post(
+        "query WorkspaceBillingById($workspaceId: String!) { workspace(workspaceId: $workspaceId) "
+        + FATURA_GOVDESI
+        + " }",
+        {"workspaceId": alan},
+    )
+    nesne = (data or {}).get("workspace") or {}
+    return nesne.get("customer") or {}
+
+
 def status() -> Optional[Dict[str, Any]]:
     """{'billUsedUsd', 'billBudgetUsd', 'billPeriodEnd'} ya da None.
 
@@ -133,18 +163,9 @@ def status() -> Optional[Dict[str, Any]]:
     with _lock:
         if _cache["value"] is not None and (time.time() - _cache["at"]) < CACHE_SECONDS:
             return _cache["value"]
-    alan = _workspace_id()
-    if not alan:
+    musteri = _customer()
+    if musteri is None:
         return None
-    data = _post(
-        """query WorkspaceBilling($workspaceId: String!) {
-             workspace(workspaceId: $workspaceId) {
-               customer { currentUsage billingPeriod { start end } }
-             }
-           }""",
-        {"workspaceId": alan},
-    )
-    musteri = ((data or {}).get("workspace") or {}).get("customer") or {}
     ham = musteri.get("currentUsage")
     if ham is None:
         return None
@@ -167,15 +188,4 @@ def raw_usage() -> Optional[Any]:
     """Yonetici panelinde birimi dogrulamak icin ham deger (sent mi dolar mi)."""
     if not TOKEN:
         return None
-    alan = _workspace_id()
-    if not alan:
-        return None
-    data = _post(
-        """query WorkspaceBilling($workspaceId: String!) {
-             workspace(workspaceId: $workspaceId) {
-               customer { currentUsage billingPeriod { start end } }
-             }
-           }""",
-        {"workspaceId": alan},
-    )
-    return ((data or {}).get("workspace") or {}).get("customer")
+    return _customer()
