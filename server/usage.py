@@ -378,6 +378,8 @@ def admin_solve_quota(x_admin_key: Optional[str] = Header(default=None)) -> Dict
             'durum': railway_usage.status(),
             'ham': railway_usage.raw_usage() if railway_usage.enabled() else None,
             'butceUsd': railway_usage.BUDGET_USD,
+            'sonHata': railway_usage.son_hata.get('mesaj'),
+            'sonYanit': railway_usage.son_hata.get('yanit'),
         }
     except Exception as err:  # pylint: disable=broad-except
         rw = {'tokenTanimli': railway_usage.enabled(), 'hata': str(err)[:300]}

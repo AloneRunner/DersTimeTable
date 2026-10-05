@@ -467,6 +467,8 @@ type RailwayInfo = {
   ham?: unknown;
   butceUsd?: number;
   hata?: string;
+  sonHata?: string | null;
+  sonYanit?: unknown;
 };
 type QuotaInfo = { starterSeconds: number; monthlySeconds: number; rows: QuotaRow[]; railway?: RailwayInfo };
 
@@ -622,11 +624,12 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
               anahtar var ama Railway'den rakam alınamadı
               {info.railway.calismaAlani ? ` (çalışma alanı bulundu: ${info.railway.calismaAlani})` : ' (çalışma alanı da bulunamadı — anahtar yetkisi ya da sorgu adları)'}
               {info.railway.hata ? ` · ${info.railway.hata}` : ''}
+              {info.railway.sonHata ? <span className="block mt-1">Railway cevabı: {info.railway.sonHata}</span> : null}
             </span>
           )}
-          {info.railway.tokenTanimli && !info.railway.durum && info.railway.ham != null && (
+          {info.railway.tokenTanimli && !info.railway.durum && (info.railway.ham ?? info.railway.sonYanit) != null && (
             <pre className="mt-1 overflow-auto rounded bg-slate-100 p-1 text-[10px]" style={{ maxHeight: 120 }}>
-              {JSON.stringify(info.railway.ham, null, 1)}
+              {JSON.stringify(info.railway.ham ?? info.railway.sonYanit, null, 1)}
             </pre>
           )}
         </div>

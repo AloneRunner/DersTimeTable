@@ -41,6 +41,9 @@ DIVISOR = float(os.environ.get("RAILWAY_USAGE_DIVISOR", "1") or 1)
 # Railway Hobby'de saatte 1000 istek siniri var; 15 dakikada bir yeter.
 CACHE_SECONDS = int(os.environ.get("RAILWAY_USAGE_CACHE_SECONDS", "900"))
 
+# Teshis: panelde "neden baglanmadi" diye bakabilmek icin son hata ve son yanit.
+son_hata: Dict[str, Any] = {"mesaj": None, "yanit": None}
+
 _lock = threading.Lock()
 _cache: Dict[str, Any] = {"at": 0.0, "value": None}
 _workspace: Dict[str, Any] = {"id": WORKSPACE_ID or None}
@@ -61,13 +64,25 @@ def _post(query: str, variables: Optional[Dict[str, Any]] = None) -> Optional[Di
     try:
         with urllib.request.urlopen(istek, timeout=10) as cevap:
             yanit = json.loads(cevap.read().decode("utf-8"))
+    except urllib.error.HTTPError as err:
+        govde_metni = ""
+        try:
+            govde_metni = err.read().decode("utf-8")[:300]
+        except Exception:  # pylint: disable=broad-except
+            pass
+        son_hata["mesaj"] = f"HTTP {err.code}: {govde_metni}"
+        logger.warning("railway-usage-http-error: %s", son_hata["mesaj"])
+        return None
     except (urllib.error.URLError, TimeoutError, ValueError) as err:
+        son_hata["mesaj"] = f"{type(err).__name__}: {err}"
         logger.warning("railway-usage-request-failed: %s", err)
         return None
     if yanit.get("errors"):
         # Yanlis anahtar ya da degismis sema: sessizce eski davranisa dus.
-        logger.warning("railway-usage-graphql-error: %s", yanit["errors"][:1])
+        son_hata["mesaj"] = json.dumps(yanit["errors"][:2])[:400]
+        logger.warning("railway-usage-graphql-error: %s", son_hata["mesaj"])
         return None
+    son_hata["mesaj"] = None
     return yanit.get("data")
 
 
@@ -75,7 +90,8 @@ def _workspace_id() -> Optional[str]:
     """Anahtar verildiyse calisma alani kimligini kendi bulur."""
     if _workspace["id"]:
         return _workspace["id"]
-    data = _post("query Me { me { workspaces { id name } } }")
+    data = _post("query Me { me { id email workspaces { id name } } }")
+    son_hata["yanit"] = data
     alanlar = ((data or {}).get("me") or {}).get("workspaces") or []
     if not alanlar:
         return None
