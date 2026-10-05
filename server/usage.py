@@ -318,6 +318,26 @@ class QuotaGrantPayload(BaseModel):
     bonus: int = Field(ge=0, le=86400)  # saniye
 
 
+@router.get('/admin/railway-usage')
+def admin_railway_usage(x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Railway fatura baglantisinin teshisi.
+
+    Cubuk gercek masrafi gostermiyorsa sebebini tahmin etmek yerine buraya bakilir:
+    anahtar tanimli mi, calisma alani bulunabildi mi, Railway ne dondurdu, birim
+    dolar mi sent mi.
+    """
+    _require_admin(x_admin_key)
+    import railway_usage  # yerel ice aktarma: dongusel bagimliligi onler
+
+    return {
+        'tokenTanimli': railway_usage.enabled(),
+        'calismaAlani': railway_usage._workspace_id() if railway_usage.enabled() else None,
+        'hamYanit': railway_usage.raw_usage(),
+        'yorumlanan': railway_usage.status(),
+        'butceUsd': railway_usage.BUDGET_USD,
+    }
+
+
 @router.get('/admin/solve-quota')
 def admin_solve_quota(x_admin_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
     """Kisi basi cozucu sure butcesinin durumu: harcanan, kalan, ek sure, bekleyen istekler."""
