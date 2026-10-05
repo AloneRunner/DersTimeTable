@@ -1740,7 +1740,7 @@ const App: React.FC = () => {
               // Sunucuya ulaşılamadı / meşgul: tarayıcı içi yedek çözücüye düş.
               const detail = cpErr instanceof Error ? cpErr.message : String(cpErr ?? '');
               const busy = /solver-busy/i.test(detail);
-              const quota = /solver-quota-(hourly|daily|budget|short)/i.exec(detail);
+              const quota = /solver-quota-(hourly|daily|budget|short|pool)/i.exec(detail);
               if (quota && quota[1].toLowerCase() === 'budget') quotaAfter = 'spent';
               quotaHit = Boolean(quota);
               // Ham hata metni İngilizce geliyordu ("Failed to fetch" gibi) ve
@@ -1756,7 +1756,9 @@ const App: React.FC = () => {
               localFallbackNote = quota
                 ? (quota[1].toLowerCase() === 'budget'
                     ? 'Sunucu çözücü süreniz doldu; program tarayıcıdaki yedek çözücüyle oluşturuldu. Sunucu masrafını geliştirici karşıladığı için kişi başına süre sınırı var; en çok süreyi oluşmayan denemeler harcar. Aynı veriyle tekrar denemek yerine ekranda gösterilen engeli düzeltin.'
-                    : quota[1].toLowerCase() === 'short'
+                    : quota[1].toLowerCase() === 'pool'
+                      ? 'Bu dönemin ortak sunucu süresi doldu; program tarayıcıdaki yedek çözücüyle oluşturuldu. Sunucu masrafını geliştirici kendi cebinden karşıladığı için dönemlik ortak bir sınır var; her ayın 15. günü yenilenir.'
+                      : quota[1].toLowerCase() === 'short'
                       // Kalan sure kirpilmis bir arama demek; ayni veri daha UZUN bir
                       // aramada da oluşmamişti, kisasi da olusmaz. Kalan dakikalari
                       // bos yere yakmamak icin sunucuda hic calistirmiyoruz.
@@ -3532,7 +3534,7 @@ Ek süre istememin sebebi:
                     return (
                         <div
                             className="no-print text-xs"
-                            title="Sunucu masrafını geliştirici kendi cebinden ödüyor. Bu çubuk, bu ay bütün okulların sunucuda harcadığı toplam arama süresini gösterir; dolduğunda programlar cihazınızdaki yedek çözücüyle oluşturulur. Her ayın 1'inde sıfırlanır."
+                            title="Sunucu masrafını geliştirici kendi cebinden ödüyor. Bu çubuk, bu ay bütün okulların sunucuda harcadığı toplam arama süresini gösterir; dolduğunda programlar cihazınızdaki yedek çözücüyle oluşturulur. Ayın 15'inde yenilenir."
                         >
                             <p className={yuzde >= 90 ? 'text-red-700' : yuzde >= 70 ? 'text-amber-700' : 'text-slate-500'}>
                                 Ortak sunucu süresi: bu ay %{yuzde} kullanıldı

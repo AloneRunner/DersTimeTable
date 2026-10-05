@@ -245,7 +245,12 @@ def school_key(data: Dict[str, Any]) -> Optional[str]:
 # 15 saat; Eylul 2026'da fatura 2760 vCPU-dakikaya cikip Hobby payini asmisti ve
 # ayni anda en fazla 2 cozum kostugu icin 15 saatlik arama suresi o sinirin
 # guvenli tarafinda kaliyor. SOLVER_POOL_MONTHLY_SECONDS ile degistirilir.
-POOL_MONTHLY_SECONDS = int(os.environ.get('SOLVER_POOL_MONTHLY_SECONDS', str(15 * 3600)))
+# Olculdu (5 Ekim 2026, admin paneli): butun kullanicilarin o ana kadarki toplam
+# cozucu suresi ~54 dakikaydi ve bu 20 Eylul'den beri birikmisti, yani donem
+# basina kabaca 2 saat. 5 saatlik tavan hem gercek kullanimin iki katindan fazla
+# hem de cubugun anlamli bir oran gostermesini sagliyor; 15 saatte cubuk hep %10
+# civarinda kalip hicbir sey anlatmiyordu.
+POOL_MONTHLY_SECONDS = int(os.environ.get('SOLVER_POOL_MONTHLY_SECONDS', str(5 * 3600)))
 # Havuzun sifirlandigi gun: Railway fatura donemi ayin 15'inde donuyor
 # (olculdu 5 Ekim 2026: "Sep 15 - Oct 15"), sayac da ayni gun sifirlanmali ki
 # gosterilen oran gercek faturayla ayni donemi anlatsin.
@@ -284,8 +289,17 @@ def _pool_add(elapsed: float) -> None:
         logger.exception('solver-pool-charge-failed')
 
 
-def pool_status() -> Dict[str, Any]:
-    """Bu ayki ortak havuz. Okunamazsa sifir doner; gosterim istege baglidir."""
+_pool_cache: Dict[str, Any] = {'at': 0.0, 'used': 0.0}
+
+
+def pool_status(max_age: float = 0.0) -> Dict[str, Any]:
+    """Bu ayki ortak havuz. Okunamazsa sifir doner; gosterim istege baglidir.
+
+    max_age > 0 verilirse o kadar saniyelik onbellek kullanilir: izin kontrolu her
+    cozum isteginde cagriliyor, her seferinde veritabanina gitmesin.
+    """
+    if max_age > 0 and (time.time() - _pool_cache['at']) < max_age:
+        return {'poolUsedSeconds': int(round(_pool_cache['used'])), 'poolSeconds': POOL_MONTHLY_SECONDS}
     used = 0.0
     if DATABASE_URL:
         try:
@@ -298,6 +312,8 @@ def pool_status() -> Dict[str, Any]:
                 used = float(row[0]) if row else 0.0
         except Exception:  # pylint: disable=broad-except
             logger.exception('solver-pool-read-failed')
+    _pool_cache['at'] = time.time()
+    _pool_cache['used'] = used
     return {'poolUsedSeconds': int(round(used)), 'poolSeconds': POOL_MONTHLY_SECONDS}
 
 
@@ -399,6 +415,13 @@ def authorize(keys: List[str], requested_seconds: int, count_ip: bool = True) ->
     blocked = _ip_block(keys, count_ip)
     if blocked:
         return blocked, 0
+    # Ortak havuz tavani. Uygulamadaki cubuk "dolunca yedek cozucuye gecilir"
+    # diyor; burasi o sozu tutuyor. Muaf hesaplar (gelistirici, magaza inceleme
+    # hesabi) yukarida donduğu icin bu tavandan etkilenmez — inceleyen birinin
+    # kapali sunucuyla karsilasmamasi gerekiyor.
+    havuz = pool_status(max_age=60.0)
+    if havuz['poolSeconds'] > 0 and havuz['poolUsedSeconds'] >= havuz['poolSeconds']:
+        return {'scope': 'pool', 'retryAfter': int(_DAY)}, 0
     try:
         st = _status(keys)
     except Exception:  # pylint: disable=broad-except
