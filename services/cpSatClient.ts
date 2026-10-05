@@ -88,6 +88,12 @@ export type SolveQuota = {
   poolUsedSeconds?: number;
   /** Ortak havuzun aylık üst sınırı (saniye). */
   poolSeconds?: number;
+  /** Bu fatura döneminde sunucuya giden gerçek masraf (USD). Yalnız Railway anahtarı tanımlıysa gelir. */
+  billUsedUsd?: number;
+  /** Dönem için gözden çıkarılan tutar (USD). */
+  billBudgetUsd?: number;
+  /** Fatura döneminin bitiş tarihi (ISO). */
+  billPeriodEnd?: string | null;
 };
 
 /** Limit artışı isteğini yöneticiye iletir. Hesapsız/kimliksiz istekte false döner. */

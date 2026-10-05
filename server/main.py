@@ -15,6 +15,8 @@ from auth import router as auth_router, get_session_context, get_teacher_links_f
 from catalog_router import catalog_router
 from usage import router as usage_router
 from published_schedule_repository import get_published_schedule, upsert_published_schedule
+import logging
+import railway_usage
 import solve_quota
 
 
@@ -263,7 +265,18 @@ def _record_attempt(quota_keys, req: SolveRequest, time_limit: int, started_at: 
 @app.get("/solve/quota")
 def solve_quota_status(request: Request) -> Any:
     """Kalan sunucu cozucu suresi; istemci "Program Olustur" dugmesinin yaninda gosterir."""
-    return solve_quota.remaining(solve_quota.identity_keys(request))
+    sonuc = solve_quota.remaining(solve_quota.identity_keys(request))
+    # Varsa GERCEK fatura durumu. Cozucu suresi havuzu masrafin ancak ucte birini
+    # anlatiyor (fatura dokumu 5 Ekim 2026: bellek %64, CPU %35), bu yuzden
+    # anahtar tanimliysa kullaniciya paranin kendisini gosteriyoruz.
+    try:
+        fatura = railway_usage.status()
+    except Exception:  # pylint: disable=broad-except
+        logging.getLogger("main").exception("railway-usage-failed")
+        fatura = None
+    if fatura:
+        sonuc = {**sonuc, **fatura}
+    return sonuc
 
 
 @app.post("/solve/quota/request")

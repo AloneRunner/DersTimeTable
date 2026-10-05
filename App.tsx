@@ -3527,17 +3527,24 @@ Ek süre istememin sebebi:
                         {isLoading ? 'Oluşturuluyor...' : 'Program Oluştur'}
                     </button>
                 </div>
-                {solveQuota && (solveQuota.poolSeconds ?? 0) > 0 && (() => {
-                    const pool = solveQuota.poolSeconds ?? 0;
-                    const kullanilan = Math.max(0, solveQuota.poolUsedSeconds ?? 0);
-                    const yuzde = Math.min(100, Math.round((kullanilan / pool) * 100));
+                {solveQuota && ((solveQuota.billBudgetUsd ?? 0) > 0 || (solveQuota.poolSeconds ?? 0) > 0) && (() => {
+                    // Railway anahtari tanimliysa cubuk GERCEK masrafi gosterir. Cozucu
+                    // suresi havuzu masrafin ancak ucte birini anlatiyor (fatura dokumu
+                    // 5 Ekim 2026: bellek %64, CPU %35), yani sunucu bosta dururken de
+                    // para isliyor. Anahtar yoksa eski gosterim surer.
+                    const paraVar = (solveQuota.billBudgetUsd ?? 0) > 0;
+                    const yuzde = paraVar
+                        ? Math.min(100, Math.round(((solveQuota.billUsedUsd ?? 0) / (solveQuota.billBudgetUsd ?? 1)) * 100))
+                        : Math.min(100, Math.round((Math.max(0, solveQuota.poolUsedSeconds ?? 0) / (solveQuota.poolSeconds ?? 1)) * 100));
                     return (
                         <div
                             className="no-print text-xs"
-                            title="Sunucu masrafını geliştirici kendi cebinden ödüyor. Bu çubuk, bu ay bütün okulların sunucuda harcadığı toplam arama süresini gösterir; dolduğunda programlar cihazınızdaki yedek çözücüyle oluşturulur. Ayın 15'inde yenilenir."
+                            title={paraVar
+                                ? 'Sunucu masrafını geliştirici kendi cebinden ödüyor. Bu çubuk, bu fatura döneminde sunucuya giden masrafın ne kadarının harcandığını gösterir; bütçe dolduğunda programlar cihazınızdaki yedek çözücüyle oluşturulur. Her ayın 15. günü yenilenir.'
+                                : 'Sunucu masrafını geliştirici kendi cebinden ödüyor. Bu çubuk, bu dönem bütün okulların sunucuda harcadığı toplam arama süresini gösterir; dolduğunda programlar cihazınızdaki yedek çözücüyle oluşturulur. Her ayın 15. günü yenilenir.'}
                         >
                             <p className={yuzde >= 90 ? 'text-red-700' : yuzde >= 70 ? 'text-amber-700' : 'text-slate-500'}>
-                                Ortak sunucu süresi: bu ay %{yuzde} kullanıldı
+                                {paraVar ? 'Sunucu bütçesi' : 'Ortak sunucu süresi'}: bu dönem %{yuzde} kullanıldı
                             </p>
                             <div className="mt-1 h-1.5 w-full max-w-[16rem] overflow-hidden rounded bg-slate-200">
                                 <div
