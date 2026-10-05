@@ -564,7 +564,12 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
                   <td className="py-1.5 pr-4 text-right tabular-nums whitespace-nowrap">{r.base_left > 0 ? fmtDuration(r.base_left) : 'bitti'}</td>
                   <td className="py-1.5 pr-4 text-right tabular-nums whitespace-nowrap">{r.bonus > 0 ? fmtDuration(r.bonus) : '—'}</td>
                   <td className="py-1.5 whitespace-nowrap">
-                    {!r.key.startsWith('school:') && [10, 30].map((n) => (
+                    {r.key.startsWith('device:') && r.email && (
+                      <span className="text-xs" style={{ color: C.muted }} title="Sunucu ek süreyi kişinin hesabından okur; cihaz satırına yazılan kullanılmaz.">
+                        hesap satırından ver
+                      </span>
+                    )}
+                    {!r.key.startsWith('school:') && !(r.key.startsWith('device:') && r.email) && [10, 30].map((n) => (
                       <button
                         key={n}
                         type="button"
@@ -594,7 +599,7 @@ const QuotaCard: React.FC<{ adminKey: string }> = ({ adminKey }) => {
         </div>
       )}
       <p className="mt-3 text-xs" style={{ color: C.muted }}>
-        Her kişi üç satırda birden sayılır: hesap, cihaz ve verinin parmak izi. En az kalanı geçerlidir; böylece yeni e-posta açmak ya da veriyi başka bilgisayara taşımak bütçeyi sıfırlamaz. "Veri parmak izi" satırlarında öğretmen adı saklanmaz. Ek süre yalnız hesap satırına verilir ve temel bütçe bittiğinde harcanır.
+        <strong>Aynı kişi üç satırda görünür:</strong> hesabı, cihazı ve verisinin parmak izi. Üç ayrı kullanıcı değildir; en az kalanı geçerlidir, böylece yeni e-posta açmak ya da veriyi başka bilgisayara taşımak bütçeyi sıfırlamaz. "Veri parmak izi" satırlarında öğretmen adı saklanmaz. <strong>Ek süreyi koyu yazılan hesap satırından ver</strong> — sunucu yalnız orayı okur. Hesabı olmayan bir cihaza ise kendi satırından verilir. Ek süre, temel bütçe bittiğinde harcanır.
       </p>
     </Card>
   );
