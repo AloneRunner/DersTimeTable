@@ -1740,7 +1740,7 @@ const App: React.FC = () => {
               // Sunucuya ulaşılamadı / meşgul: tarayıcı içi yedek çözücüye düş.
               const detail = cpErr instanceof Error ? cpErr.message : String(cpErr ?? '');
               const busy = /solver-busy/i.test(detail);
-              const quota = /solver-quota-(hourly|daily|budget)/i.exec(detail);
+              const quota = /solver-quota-(hourly|daily|budget|short)/i.exec(detail);
               if (quota && quota[1].toLowerCase() === 'budget') quotaAfter = 'spent';
               quotaHit = Boolean(quota);
               // Ham hata metni İngilizce geliyordu ("Failed to fetch" gibi) ve
@@ -1756,7 +1756,12 @@ const App: React.FC = () => {
               localFallbackNote = quota
                 ? (quota[1].toLowerCase() === 'budget'
                     ? 'Sunucu çözücü süreniz doldu; program tarayıcıdaki yedek çözücüyle oluşturuldu. Sunucu masrafını geliştirici karşıladığı için kişi başına süre sınırı var; en çok süreyi oluşmayan denemeler harcar. Aynı veriyle tekrar denemek yerine ekranda gösterilen engeli düzeltin.'
-                    : 'Bu ağdan kısa sürede çok fazla deneme yapıldı; program tarayıcıdaki yedek çözücüyle oluşturuldu. Biraz sonra tekrar deneyebilirsiniz.')
+                    : quota[1].toLowerCase() === 'short'
+                      // Kalan sure kirpilmis bir arama demek; ayni veri daha UZUN bir
+                      // aramada da oluşmamişti, kisasi da olusmaz. Kalan dakikalari
+                      // bos yere yakmamak icin sunucuda hic calistirmiyoruz.
+                      ? 'Kalan sunucu süreniz bu program için yetersiz: aynı veri daha uzun bir aramada da oluşmamıştı, bu yüzden süreniz boşa gitmesin diye sunucuda çalıştırmadık. Program tarayıcıdaki yedek çözücüyle oluşturuldu. Ekranda gösterilen engeli düzeltip tekrar deneyin ya da ek süre isteyin.'
+                      : 'Bu ağdan kısa sürede çok fazla deneme yapıldı; program tarayıcıdaki yedek çözücüyle oluşturuldu. Biraz sonra tekrar deneyebilirsiniz.')
                 : busy
                 ? 'Sunucu çözücüsü şu an meşgul; program tarayıcıdaki yedek çözücüyle oluşturuldu. Daha iyi sonuç için biraz sonra tekrar deneyin.'
                 : `Sunucu çözücüsüne ulaşılamadı (${sebep}); program tarayıcıdaki yedek çözücüyle oluşturuldu.`;

@@ -316,17 +316,21 @@ def _rows(keys: List[str]) -> Dict[str, Dict[str, Any]]:
     """Kalici anahtarlarin satirlari. Okunamazsa BOS doner (cagiran 'butce var' saymaz)."""
     if not keys:
         return {}
+    bos = {'seconds_used': 0.0, 'bonus': 0, 'created_at': None, 'user_id': None, 'last_attempt': None}
     if not DATABASE_URL:
-        return {k: dict(_mem_rows.get(k) or {'seconds_used': 0.0, 'bonus': 0, 'created_at': None}) for k in keys}
+        return {k: {**bos, **(_mem_rows.get(k) or {})} for k in keys}
     import psycopg
 
     with psycopg.connect(DATABASE_URL) as conn:
         found = conn.execute(
-            'SELECT key, seconds_used, bonus, created_at FROM solver_quota WHERE key = ANY(%s)', (keys,)
+            'SELECT key, seconds_used, bonus, created_at, user_id, last_attempt'
+            ' FROM solver_quota WHERE key = ANY(%s)',
+            (keys,),
         ).fetchall()
-    rows = {k: {'seconds_used': 0.0, 'bonus': 0, 'created_at': None} for k in keys}
-    for key, used, bonus, created in found:
-        rows[key] = {'seconds_used': float(used or 0), 'bonus': int(bonus or 0), 'created_at': created}
+    rows = {k: dict(bos) for k in keys}
+    for key, used, bonus, created, user_id, last_attempt in found:
+        rows[key] = {'seconds_used': float(used or 0), 'bonus': int(bonus or 0), 'created_at': created,
+                     'user_id': user_id, 'last_attempt': last_attempt}
     return rows
 
 
@@ -334,10 +338,37 @@ def _status(keys: List[str]) -> Dict[str, Any]:
     kalici = _persistent(keys)
     primary = _primary(keys)
     rows = _rows(kalici)
+    # Oturum kapaliyken istekte 'user:' kimligi olmaz, geriye cihaz ve parmak izi
+    # kalir. Bu satirlara hesap yazili oldugu halde hesabin butcesini saymazsak
+    # cikis yapmak butceyi sifirlar. Olculdu (5 Ekim 2026): hesabi 25 dk'da
+    # tukenmis bir kullanicinin cihaz ve parmak izi satirlarinda 24 dk 31 sn
+    # duruyordu, cunku o satirlar goc sonrasi sifirdan basladi.
+    if not any(k.startswith('user:') for k in kalici):
+        bagli = sorted({f"user:{r['user_id']}" for r in rows.values() if r.get('user_id')})
+        if bagli:
+            rows = {**rows, **_rows(bagli)}
     lefts = [base_left(r['seconds_used'], r['created_at']) for r in rows.values()]
     left = max(0.0, min(lefts)) if lefts else 0.0
     bonus = int(rows.get(primary, {}).get('bonus', 0)) if primary else 0
     return {'baseLeft': left, 'bonus': bonus, 'hasIdentity': bool(kalici)}
+
+
+def _daha_uzunu_basarisiz(keys: List[str], izin: int) -> bool:
+    """Son deneme, en az bu kadar sureyle calisip program uretememis mi?"""
+    primary = _primary(keys)
+    if not primary:
+        return False
+    try:
+        son = (_rows([primary]).get(primary) or {}).get('last_attempt')
+    except Exception:  # pylint: disable=broad-except
+        logger.exception('solver-quota-last-attempt-read-failed')
+        return False
+    if not isinstance(son, dict) or son.get('solved'):
+        return False
+    try:
+        return int(son.get('timeLimit') or 0) >= izin
+    except (TypeError, ValueError):
+        return False
 
 
 def _ip_block(keys: List[str], count: bool) -> Optional[Dict[str, Any]]:
@@ -378,7 +409,14 @@ def authorize(keys: List[str], requested_seconds: int, count_ip: bool = True) ->
     available = st['baseLeft'] + st['bonus']
     if available <= 0:
         return {'scope': 'budget', 'retryAfter': int(_DAY)}, 0
-    return None, int(max(MIN_RUN_SECONDS, min(requested_seconds, math.ceil(available))))
+    izin = int(max(MIN_RUN_SECONDS, min(requested_seconds, math.ceil(available))))
+    # Butce istenen sureyi kirptiysa ve kisi DAHA UZUN bir aramayla zaten
+    # basarisiz olduysa, daha kisasi da basarisiz olur; calistirmak yalniz kalan
+    # dakikalari bitirir. Olculdu (5 Ekim 2026): 31 ogretmen 18 sinifli bir okul
+    # "arama siniri 21 sn" ile imkansiz dondu ve butcenin sonunu goturdu.
+    if izin < requested_seconds and _daha_uzunu_basarisiz(keys, izin):
+        return {'scope': 'short', 'retryAfter': int(_DAY)}, 0
+    return None, izin
 
 
 def charge(keys: List[str], elapsed: float, count_attempt: bool) -> None:
