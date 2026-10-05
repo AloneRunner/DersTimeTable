@@ -58,7 +58,16 @@ def _post(query: str, variables: Optional[Dict[str, Any]] = None) -> Optional[Di
     istek = urllib.request.Request(
         ENDPOINT,
         data=govde,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {TOKEN}",
+            # Railway'in onundeki Cloudflare, urllib'in varsayilan
+            # "Python-urllib/3.x" kimligini bot sayip HTTP 403 / error code 1010
+            # donuyordu (olculdu 5 Ekim 2026). Kendimizi tanitan duzgun bir
+            # User-Agent sorunu cozuyor; anahtarla ilgisi yoktu.
+            "User-Agent": "DersTimeTable/1.0 (+https://idare.ozarik.org)",
+            "Accept": "application/json",
+        },
         method="POST",
     )
     try:
