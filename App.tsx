@@ -1163,6 +1163,27 @@ const App: React.FC = () => {
         }
     };
 
+    // "Program Oluştur" ekrandaki kaydedilmemiş programı silmeden önce otomatik
+    // kopya alır. En fazla 3 otomatik kopya tutulur; eskileri budanır ki ayar
+    // denerken art arda oluşturan kullanıcının listesi çöplüğe dönmesin.
+    // Fonksiyonel güncelleme: handleGenerate'in kapanışındaki bayat liste yüzünden
+    // elle kaydedilmiş sürümler kaybolmasın.
+    const AUTO_COPY_LIMIT = 3;
+    const appendAutoCopy = (copy: SavedSchedule) => {
+        setSavedSchedules(prev => {
+            const autos = prev.filter(v => v.id.startsWith('auto_'));
+            const dropIds = new Set(
+                autos
+                    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                    .slice(0, Math.max(0, autos.length + 1 - AUTO_COPY_LIMIT))
+                    .map(v => v.id),
+            );
+            const next = [...prev.filter(v => !dropIds.has(v.id)), copy];
+            try { localStorage.setItem('timetable_versions', JSON.stringify(next)); } catch (e) { console.error('Failed to save schedules to localStorage', e); }
+            return next;
+        });
+    };
+
     const handleScheduleImportClick = () => {
         scheduleFileInputRef.current?.click();
     };
@@ -1664,6 +1685,31 @@ const App: React.FC = () => {
         const relaxBlocks = forceRelax === true || relaxBlocksIfNeeded;
         // Hata kutusundaki "sınırı artırıp dene" düğmesi state güncellenmeden çağırır.
         const maxConsecNow = typeof maxConsecOverride === 'number' ? maxConsecOverride : defaultMaxConsec;
+        // Ekranda kaydedilmemiş (ya da son kayıttan sonra değiştirilmiş) bir program
+        // varsa sormadan silme. Bir kullanıcı "oluştura basınca komple program
+        // değişiyor" diye yazdı (12 Kasım 2026); kaydetme düğmesi var ama fark
+        // edilmiyor. Kayıtlı ve değişmemiş programda sorulmaz, kaybolacak şey yok.
+        if (schedule) {
+            const kaydedilmemis = !activeScheduleName || activeScheduleName.endsWith('(değiştirildi)');
+            if (kaydedilmemis) {
+                const devam = window.confirm([
+                    'Ekrandaki program kaydedilmemiş. Yeni program oluşturulunca bu program silinecek.',
+                    '',
+                    'Tamam: önce otomatik bir kopyası "Kayıtlı Program Versiyonları" listesine alınır, sonra yenisi oluşturulur.',
+                    'İptal: hiçbir şey yapılmaz, mevcut program ekranda kalır.',
+                ].join(String.fromCharCode(10)));
+                if (!devam) return;
+                const when = new Date();
+                const base = activeScheduleName ? activeScheduleName.replace(' (değiştirildi)', '') : 'Program';
+                appendAutoCopy({
+                    id: `auto_${Date.now()}`,
+                    name: `Otomatik kopya · ${base} · ${when.toLocaleDateString('tr-TR')} ${when.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`,
+                    createdAt: when.toISOString(),
+                    schedule: JSON.parse(JSON.stringify(schedule)),
+                    data: JSON.parse(JSON.stringify(data)),
+                });
+            }
+        }
         setIsLoading(true);
         setError(null);
         setSchedule(null);
@@ -1856,7 +1902,7 @@ const App: React.FC = () => {
                 refreshSolveQuota();
             }
         }
-    }, [refreshSolveQuota, data, schoolHours, optTime, optSeedRatio, optTabuTenure, optTabuIter, optStopFirst, classicMode, solverStrategy, useDeterministic, optRngSeed, optDisableLNS, optDisableEdge, cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit, cpDailyMaxOn, cpDailyMaxVal, defaultMaxConsec, relaxBlocksIfNeeded]);
+    }, [refreshSolveQuota, data, schoolHours, optTime, optSeedRatio, optTabuTenure, optTabuIter, optStopFirst, classicMode, solverStrategy, useDeterministic, optRngSeed, optDisableLNS, optDisableEdge, cpUseCustom, cpAllowSplit, cpEdgeReduce, cpGapReduce, cpGapLimit, cpDailyMaxOn, cpDailyMaxVal, defaultMaxConsec, relaxBlocksIfNeeded, schedule, activeScheduleName]);
     
     const handleExportData = async () => {
         try {
@@ -3973,7 +4019,7 @@ Ek süre istememin sebebi:
                                         PDF indir
                                     </button>
                                 </div>
-                                <button onClick={handleSaveSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı Kaydet"><SaveIcon className="w-5 h-5" /></button>
+                                <button onClick={handleSaveSchedule} className="flex items-center gap-1 px-2 py-1.5 text-sm font-medium text-sky-700 hover:text-sky-800 hover:bg-sky-50 rounded-md border border-sky-200" title="Bu programı Kayıtlı Program Versiyonları listesine kaydet"><SaveIcon className="w-5 h-5" /><span>Kaydet</span></button>
                                 <button onClick={handleExportSchedule} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Programı ve Verileri İndir"><DownloadIcon className="w-5 h-5" /></button>
                                 <button onClick={handlePrint} className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-full" title="Yazdır"><PrintIcon className="w-5 h-5" /></button>
                             </div>
