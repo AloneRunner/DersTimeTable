@@ -5,6 +5,10 @@ import { ViewType } from '../../types';
 const DAY_LABELS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
 
 interface LessonInfo {
+  /** Öğretmen değiştirme penceresi için hücre adresi. */
+  classroomId: string;
+  dayIndex: number;
+  hourIndex: number;
   hourLabel: string;
   subjectName: string;
   teacherNames?: string;
@@ -25,6 +29,8 @@ interface MobileScheduleViewProps {
   viewType: ViewType;
   selectedHeaderId: string;
   maxDailyHours: number;
+  /** Derse dokununca (öğretmen değiştirme penceresi). Verilmezse dokunma yok. */
+  onLessonClick?: (info: { classroomId: string; dayIndex: number; hourIndex: number }) => void;
 }
 
 const MobileScheduleView: React.FC<MobileScheduleViewProps> = ({
@@ -33,6 +39,7 @@ const MobileScheduleView: React.FC<MobileScheduleViewProps> = ({
   viewType,
   selectedHeaderId,
   maxDailyHours,
+  onLessonClick,
 }) => {
   const processed = useMemo<ProcessedSchedule | null>(() => {
     if (!selectedHeaderId || !schedule) {
@@ -76,6 +83,9 @@ const MobileScheduleView: React.FC<MobileScheduleViewProps> = ({
             .join(', ');
 
           lessons.push({
+            classroomId: selectedHeaderId,
+            dayIndex,
+            hourIndex,
             hourLabel,
             subjectName: subjectMap.get(assignment.subjectId) || 'Ders',
             teacherNames,
@@ -131,6 +141,9 @@ const MobileScheduleView: React.FC<MobileScheduleViewProps> = ({
             .join(', ');
 
           lessonsByDay[dayIndex].lessons.push({
+            classroomId,
+            dayIndex,
+            hourIndex,
             hourLabel,
             subjectName: subjectMap.get(assignment.subjectId) || 'Ders',
             classroomName,
@@ -167,7 +180,7 @@ const MobileScheduleView: React.FC<MobileScheduleViewProps> = ({
         {processed.subtitle && <p className="text-sm text-slate-500">{processed.subtitle}</p>}
         <p className="mt-1 text-xs text-slate-500">
           {totalLessons > 0
-            ? `${totalLessons} ders listelendi. Günlere dokunarak detayları görebilirsiniz.`
+            ? `${totalLessons} ders listelendi.${onLessonClick ? ' Öğretmeni değiştirmek için derse dokunun; program yerleşimi değişmez.' : ''}`
             : 'Henüz bu seçim için tanımlı ders bulunmuyor.'}
         </p>
       </div>
@@ -179,7 +192,14 @@ const MobileScheduleView: React.FC<MobileScheduleViewProps> = ({
           <div className="divide-y divide-slate-200">
             {lessons.length > 0 ? (
               lessons.map((lesson, index) => (
-                <div key={`${dayName}-${index}`} className="flex flex-col gap-1 px-4 py-3 text-sm">
+                <div
+                  key={`${dayName}-${index}`}
+                  role={onLessonClick ? 'button' : undefined}
+                  tabIndex={onLessonClick ? 0 : undefined}
+                  onClick={onLessonClick ? () => onLessonClick({ classroomId: lesson.classroomId, dayIndex: lesson.dayIndex, hourIndex: lesson.hourIndex }) : undefined}
+                  onKeyDown={onLessonClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onLessonClick({ classroomId: lesson.classroomId, dayIndex: lesson.dayIndex, hourIndex: lesson.hourIndex }); } } : undefined}
+                  className={`flex flex-col gap-1 px-4 py-3 text-sm ${onLessonClick ? 'cursor-pointer active:bg-sky-50' : ''}`}
+                >
                   <span className="text-xs font-semibold uppercase tracking-wide text-sky-600">
                     {lesson.hourLabel}
                   </span>

@@ -4016,6 +4016,7 @@ Ek süre istememin sebebi:
                               viewType={viewType}
                               selectedHeaderId={selectedHeaderId}
                               maxDailyHours={maxDailyHours}
+                              onLessonClick={setTeacherChangeTarget}
                             />
                         )}
                         {isSmallScreen && viewMode !== 'single' && (
