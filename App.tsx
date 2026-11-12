@@ -34,6 +34,8 @@ import { fetchCatalog as fetchCatalogApi, replaceCatalog as replaceCatalogApi, u
 import { PreflightOverview } from './components/PreflightOverview';
 import { isEmptyOrStarterData, loadLocalWorkspace, saveLocalWorkspace } from './utils/localWorkspace';
 import { planMove } from './utils/moveValidation';
+import { TeacherChangeModal, type TeacherChangePayload } from './components/TeacherChangeModal';
+import type { TeacherChangeTarget } from './utils/teacherChange';
 import { recordAppOpen, recordSignIn, recordSolve } from './services/usageClient';
 import GoogleSignInButton from './components/GoogleSignInButton';
 import { disableGoogleAutoSelect } from './services/googleAuth';
@@ -1966,6 +1968,8 @@ const App: React.FC = () => {
     };
 
     const [moveFeedback, setMoveFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+    // Programda tıklanan ders: öğretmen değiştirme penceresinin hedefi.
+    const [teacherChangeTarget, setTeacherChangeTarget] = useState<TeacherChangeTarget | null>(null);
     useEffect(() => {
         if (!moveFeedback) return;
         const timeout = setTimeout(() => setMoveFeedback(null), moveFeedback.kind === 'ok' ? 3000 : 6000);
@@ -1990,6 +1994,35 @@ const App: React.FC = () => {
         setSolverStats(null); // Manual change invalidates the report
         setActiveScheduleName(prev => prev ? `${prev.replace(' (değiştirildi)','')} (değiştirildi)` : 'Yeni Program (değiştirildi)');
         setMoveFeedback({ kind: 'ok', text: plan.swapped ? 'İki ders yer değiştirdi.' : 'Ders taşındı.' });
+    };
+
+    // Dönem ortasında bir dersin öğretmeni değişince programı yeniden oluşturmadan
+    // yalnız öğretmeni değiştirir; yerleşim aynen kalır. Bir kullanıcı tam bunu
+    // istedi (12 Kasım 2026): "Programı değiştirmek istemiyorum, sadece öğretmenin
+    // programında o ders gözükse yeterli."
+    const handleTeacherChangeApply = (p: TeacherChangePayload) => {
+        const subject = data.subjects.find(s => s.id === p.subjectId);
+        const oldName = data.teachers.find(t => t.id === p.replacedTeacherId)?.name ?? '?';
+        const newName = data.teachers.find(t => t.id === p.newTeacherId)?.name ?? '?';
+        setSchedule(p.schedule);
+        setSolverStats(null); // Elle değişiklik raporu geçersiz kılar
+        setActiveScheduleName(prev => prev ? `${prev.replace(' (değiştirildi)','')} (değiştirildi)` : 'Yeni Program (değiştirildi)');
+        if (p.pinInData && subject) {
+            // Veriye de yaz: bir sonraki "Program Oluştur" aynı öğretmeni kullansın.
+            const pinned = subject.pinnedTeacherByClassroom?.[p.classroomId] ?? [];
+            const next = pinned.includes(p.replacedTeacherId)
+                ? pinned.map(id => (id === p.replacedTeacherId ? p.newTeacherId : id))
+                : [...pinned.filter(id => id !== p.newTeacherId), p.newTeacherId];
+            updateSubject({
+                ...subject,
+                pinnedTeacherByClassroom: { ...(subject.pinnedTeacherByClassroom ?? {}), [p.classroomId]: next },
+            });
+        }
+        setTeacherChangeTarget(null);
+        setMoveFeedback({
+            kind: 'ok',
+            text: `${subject?.name ?? 'Ders'}: ${oldName} → ${newName} (${p.slots.length} saat${p.pinInData ? ', veriye de sabitlendi' : ''}).`,
+        });
     };
     
     const handleSaveSchedule = () => {
@@ -3964,8 +3997,18 @@ Ek süre istememin sebebi:
                               selectedHeaderId={selectedHeaderId}
                               onCellDrop={handleManualDrop}
                               onIsMoveValid={handleIsMoveValid}
+                              onLessonClick={setTeacherChangeTarget}
                             />
                         )}
+                        <TeacherChangeModal
+                            isOpen={teacherChangeTarget !== null}
+                            onClose={() => setTeacherChangeTarget(null)}
+                            schedule={schedule}
+                            data={data}
+                            schoolHours={schoolHours}
+                            target={teacherChangeTarget}
+                            onApply={handleTeacherChangeApply}
+                        />
                         {isSmallScreen && viewMode === 'single' && (
                             <MobileScheduleView
                               schedule={schedule}

@@ -16,6 +16,8 @@ interface TimetableViewProps {
   viewMode: 'single' | 'master';
   onCellDrop: (sourceInfo: any, targetInfo: any) => void;
   onIsMoveValid: (sourceInfo: any, targetInfo: any) => boolean;
+  /** Derse tıklanınca (öğretmen değiştirme penceresi için). Verilmezse tıklama yok. */
+  onLessonClick?: (info: { classroomId: string; dayIndex: number; hourIndex: number }) => void;
 }
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"];
@@ -46,7 +48,8 @@ const ScheduleCell: React.FC<{
     isDisabled: boolean;
     onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
     onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
-}> = ({ assignment, duty, data, viewType, viewMode, isDisabled, onDragStart, onDragEnd }) => {
+    onClick?: () => void;
+}> = ({ assignment, duty, data, viewType, viewMode, isDisabled, onDragStart, onDragEnd, onClick }) => {
   const isDraggable = viewType === ViewTypeEnum.Class && !!assignment && !isDisabled;
 
   if(isDisabled) {
@@ -82,7 +85,9 @@ const ScheduleCell: React.FC<{
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       style={colorStyle}
-      className={`h-24 border p-1.5 text-xs flex flex-col justify-between ${isDraggable ? 'cursor-move' : ''}`}>
+      onClick={onClick}
+      title={onClick ? 'Öğretmeni değiştirmek için tıklayın' : undefined}
+      className={`h-24 border p-1.5 text-xs flex flex-col justify-between ${isDraggable ? 'cursor-move' : onClick ? 'cursor-pointer' : ''} ${onClick ? 'hover:ring-2 hover:ring-sky-400 hover:ring-inset' : ''}`}>
       <div>
         <p className="font-bold text-slate-800">{subject.name}</p>
         <p className="text-slate-600">{viewType === ViewTypeEnum.Class ? teachers.map(t => t.name).join(', ') : classroom.name}</p>
@@ -93,7 +98,7 @@ const ScheduleCell: React.FC<{
 };
 
 
-export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, viewType, schoolHours, maxDailyHours, selectedHeaderId, viewMode, onCellDrop, onIsMoveValid }) => {
+export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, viewType, schoolHours, maxDailyHours, selectedHeaderId, viewMode, onCellDrop, onIsMoveValid, onLessonClick }) => {
   const [draggedItemInfo, setDraggedItemInfo] = React.useState<any | null>(null);
   const [draggedOverCell, setDraggedOverCell] = React.useState<{ dayIndex: number; hourIndex: number; headerId: string } | null>(null);
 
@@ -198,7 +203,8 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
 
   return (
       <>
-       {viewType === ViewTypeEnum.Class && <p className="text-xs text-slate-500 mb-2 no-print text-center">İpucu: Bir dersi aynı sınıf içinde başka bir gün/saate sürükleyin. Boş hücreye bırakınca taşınır, dolu hücreye bırakınca iki ders yer değiştirir.</p>}
+       {viewType === ViewTypeEnum.Class && <p className="text-xs text-slate-500 mb-2 no-print text-center">İpucu: Bir dersi aynı sınıf içinde başka bir gün/saate sürükleyin. Boş hücreye bırakınca taşınır, dolu hücreye bırakınca iki ders yer değiştirir.{onLessonClick ? ' Öğretmeni değiştirmek için derse tıklayın.' : ''}</p>}
+       {viewType === ViewTypeEnum.Teacher && onLessonClick && <p className="text-xs text-slate-500 mb-2 no-print text-center">İpucu: Dersin öğretmenini değiştirmek için derse tıklayın; program yerleşimi değişmez.</p>}
         <div id="timetable-view" className="w-full overflow-x-auto bg-white p-4 rounded-lg shadow-lg">
         <div className="grid grid-flow-col auto-cols-fr min-w-[800px]">
             <div className="sticky left-0 bg-white z-10 w-32">
@@ -271,6 +277,9 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ schedule, data, vi
                                             isDisabled={isDisabled}
                                             onDragStart={(e) => assignment && handleDragStart(e, assignment, dayIndex, hourIndex, header.id)}
                                             onDragEnd={handleDragEnd}
+                                            onClick={assignment && onLessonClick
+                                                ? () => onLessonClick({ classroomId: assignment.classroomId, dayIndex, hourIndex })
+                                                : undefined}
                                         />
                                         </div>
                                     )
