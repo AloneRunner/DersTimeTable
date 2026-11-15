@@ -62,7 +62,9 @@ const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.ozarik
 const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
 // true: web ve Windows'ta giris zorunlu, "giris yapmadan devam et" gizlenir.
 // Android'de giris yerel hesap seciciyle (GoogleSignInPlugin) yapilir.
-const REQUIRE_SIGN_IN = true;
+// Tanıtım videosu yerel sunucuda girişsiz çekilir (VITE_TANITIM_MISAFIR=1);
+// canlı derlemelerde bu değişken hiç verilmez, giriş zorunlu kalır.
+const REQUIRE_SIGN_IN = import.meta.env.VITE_TANITIM_MISAFIR !== '1';
 
 /** Katalogda hic anlamli kayit var mi? (bos bulut katalogunu tespit etmek icin) */
 const isCatalogEmpty = (d: TimetableData | null | undefined): boolean => {
