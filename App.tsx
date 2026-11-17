@@ -64,7 +64,7 @@ const GUEST_WEB_MODE_KEY = 'ozarik.web.guest-mode';
 // Android'de giris yerel hesap seciciyle (GoogleSignInPlugin) yapilir.
 // Tanıtım videosu yerel sunucuda girişsiz çekilir (VITE_TANITIM_MISAFIR=1);
 // canlı derlemelerde bu değişken hiç verilmez, giriş zorunlu kalır.
-const REQUIRE_SIGN_IN = import.meta.env.VITE_TANITIM_MISAFIR !== '1';
+const REQUIRE_SIGN_IN = (import.meta as any).env?.VITE_TANITIM_MISAFIR !== '1';
 
 /** Katalogda hic anlamli kayit var mi? (bos bulut katalogunu tespit etmek icin) */
 const isCatalogEmpty = (d: TimetableData | null | undefined): boolean => {
@@ -3678,7 +3678,12 @@ Ek süre istememin sebebi:
                                                     <button
                                                         type="button"
                                                         className="font-medium text-sky-700 underline"
-                                                        onClick={() => { void requestQuotaIncrease().then((ok) => setQuotaRequestState(ok ? 'sent' : 'failed')); }}
+                                                        onClick={() => {
+                                                            // İstek panele düşer; ayrıca e-posta penceresi açılır, çünkü
+                                                            // geliştirici paneli her gün açmıyor, e-postayı görüyor.
+                                                            void requestQuotaIncrease().then((ok) => setQuotaRequestState(ok ? 'sent' : 'failed'));
+                                                            window.location.href = quotaMailHref;
+                                                        }}
                                                     >
                                                         Ek süre iste
                                                     </button>

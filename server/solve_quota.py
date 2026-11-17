@@ -537,10 +537,41 @@ def request_increase(keys: List[str]) -> bool:
                    ON CONFLICT (key) DO UPDATE SET requested_at = now()""",
                 (primary, _user_id_of(primary)),
             )
+        _notify_request(primary)
         return True
     except Exception:  # pylint: disable=broad-except
         logger.exception('solver-quota-request-failed')
         return False
+
+
+# Ek sure istegi gelince gelistiricinin telefonuna bildirim (ntfy.sh). Panele dusen
+# istekler gunlerce fark edilmiyordu. Konu adi NTFY_TOPIC ile verilir ve gizlidir
+# (bilen herkes abone olabilir); tanimli degilse hicbir sey gonderilmez. Bildirimde
+# kisisel veri yok: kimin istedigi admin panelinde gorulur.
+NTFY_TOPIC = (os.environ.get('NTFY_TOPIC') or '').strip()
+_notified_at: Dict[str, float] = {}
+
+
+def _notify_request(primary: str) -> None:
+    if not NTFY_TOPIC:
+        return
+    now = time.time()
+    if now - _notified_at.get(primary, 0.0) < 3600:  # ayni kisi dugmeye art arda basarsa tek bildirim
+        return
+    _notified_at[primary] = now
+    try:
+        import urllib.request
+
+        istek = urllib.request.Request(
+            f'https://ntfy.sh/{NTFY_TOPIC}',
+            data='Yeni ek sure istegi var. Admin panelinden bakin.'.encode('utf-8'),
+            headers={'Title': 'Ders Dagitim: ek sure istegi', 'Click': 'https://idare.ozarik.org/admin',
+                     'Tags': 'hourglass', 'User-Agent': 'DersTimeTable/1.0'},
+            method='POST',
+        )
+        urllib.request.urlopen(istek, timeout=5).close()
+    except Exception:  # pylint: disable=broad-except
+        logger.exception('ntfy-notify-failed')
 
 
 def record_attempt(keys: List[str], info: Dict[str, object]) -> None:
